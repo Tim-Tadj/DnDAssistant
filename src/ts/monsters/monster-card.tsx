@@ -8,7 +8,7 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import { Monster } from '../types/Monster';
+import { Monster, resolveImgUrl } from '../types/Monster';
 
 const MonsterCard: FC<{ monster: Monster }> = ({ monster }) => {
   const statsA = [
@@ -36,6 +36,11 @@ const MonsterCard: FC<{ monster: Monster }> = ({ monster }) => {
             orientation="horizontal"
             sx={{ marginTop: 1, marginBottom: 2 }}
           />
+          {monster.description && (
+            <Container sx={{ marginBottom: 2 }}>
+              <td dangerouslySetInnerHTML={{ __html: monster.description }} />
+            </Container>
+          )}
           <Container sx={{ marginBottom: 2 }}>
             <Stack
               direction="row"
@@ -44,7 +49,7 @@ const MonsterCard: FC<{ monster: Monster }> = ({ monster }) => {
             >
               <CardMedia
                 component="img"
-                src={monster.img_url}
+                src={resolveImgUrl(monster.img_url)}
                 sx={{
                   width: '50%',
                   aspectRatio: '1/1',
@@ -105,6 +110,24 @@ const MonsterCard: FC<{ monster: Monster }> = ({ monster }) => {
               <td
                 dangerouslySetInnerHTML={{
                   __html: monster.Legendary_Actions,
+                }}
+              />
+            </Container>
+          )}
+          {monster.Lair_Actions && (
+            <Container>
+              <Divider orientation="horizontal" sx={{ margin: 1 }} />
+              <Typography variant="h5">Lair Actions</Typography>
+              <td dangerouslySetInnerHTML={{ __html: monster.Lair_Actions }} />
+            </Container>
+          )}
+          {monster.Regional_Effects && (
+            <Container>
+              <Divider orientation="horizontal" sx={{ margin: 1 }} />
+              <Typography variant="h5">Regional Effects</Typography>
+              <td
+                dangerouslySetInnerHTML={{
+                  __html: monster.Regional_Effects,
                 }}
               />
             </Container>

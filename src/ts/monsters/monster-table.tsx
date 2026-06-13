@@ -11,7 +11,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import monsters from '../../res/resources/srd_5e_monsters.json';
+import monsters from '../../res/resources/monster_manual_monsters.json';
 import { DataGrid, GridRowParams } from '@mui/x-data-grid';
 import { Monster } from '../types/Monster';
 import PageIterator from '../shared/page-iterator';

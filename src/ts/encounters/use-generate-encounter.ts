@@ -1,5 +1,5 @@
 import React from 'react';
-import monsters from '../../res/resources/srd_5e_monsters.json';
+import monsters from '../../res/resources/monster_manual_monsters.json';
 import {
   DIFFICULTIES,
   ENCOUNTER_MULTIPLIERS,

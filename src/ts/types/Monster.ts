@@ -1,4 +1,4 @@
-import monsters from '../../res/resources/srd_5e_monsters.json';
+import monsters from '../../res/resources/monster_manual_monsters.json';
 
 export const PLACEHOLDER_IMAGES = {
   humanoid: "https://media-waterdeep.cursecdn.com/attachments/2/656/humanoid.jpg",
@@ -6,6 +6,12 @@ export const PLACEHOLDER_IMAGES = {
   beast: "https://media-waterdeep.cursecdn.com/attachments/2/648/beast.jpg",
   plant: "https://media-waterdeep.cursecdn.com/attachments/2/659/plant.jpg",
   ooze: "https://media-waterdeep.cursecdn.com/attachments/2/658/ooze.jpg"
+};
+
+export const resolveImgUrl = (imgUrl: string): string => {
+  if (!imgUrl) return PLACEHOLDER_IMAGES.humanoid;
+  if (/^https?:\/\//i.test(imgUrl)) return imgUrl;
+  return `${process.env.PUBLIC_URL || ''}/${imgUrl}`;
 };
 
 export type Monster = {
@@ -39,7 +45,11 @@ export type Monster = {
   Actions: string,
   Reactions: string | undefined,
   Legendary_Actions: string | undefined,
+  description?: string,
+  Lair_Actions?: string,
+  Regional_Effects?: string,
   img_url: string,
+  provenance: string,
 };
 export const defaultMonster = {
   name: "",
@@ -64,6 +74,7 @@ export const defaultMonster = {
   Challenge: "1/4 (50 XP)",
   Actions: "",
   img_url: PLACEHOLDER_IMAGES.humanoid,
+  provenance: "homebrew",
 }
 
 export type baseMonster = typeof monsters[0];

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Monster } from '../types/Monster';
-import monsters from '../../res/resources/srd_5e_monsters.json';
+import monsters from '../../res/resources/monster_manual_monsters.json';
 import { v4 as uuidv4 } from 'uuid';
 
 type RemainingMonster = {
