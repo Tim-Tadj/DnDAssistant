@@ -47,7 +47,7 @@ if [ -z "$JAR" ]; then
 fi
 
 step "Launching backend ($(basename "$JAR")) in the background"
-java -cp "$JAR" main.java.com.pigishentertainment.dndassistant.Main &
+java -jar "$JAR" &
 BACKEND_PID=$!
 # Stop the backend when this script is interrupted.
 trap 'kill "$BACKEND_PID" 2>/dev/null || true' EXIT

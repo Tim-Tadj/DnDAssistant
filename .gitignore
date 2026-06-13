@@ -1,6 +1,7 @@
-node_modules
-build
-target
+node_modules/
+build/
+target/
 
 Monster Manual/
 public/monster-manual/
+postgres/.env

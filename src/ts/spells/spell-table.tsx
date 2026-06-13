@@ -1,5 +1,8 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
+  Alert,
+  Box,
+  CircularProgress,
   Container,
   Dialog,
   DialogContent,
@@ -11,35 +14,51 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import spells from '../../res/resources/srd_5e_spells.json';
 import { DataGrid, GridRowParams } from '@mui/x-data-grid';
 import { Spell } from '../types/Spell';
-import { useState } from 'react';
 import PageIterator from '../shared/page-iterator';
 import SpellCard from '../spells/spell-card';
 import { Close } from '@mui/icons-material';
 import { spellColumnDescriptor } from './spell-column-descriptor';
 import CreateSpell from './create-spell';
+import { spellsApi } from '../api/spells';
 
 export default function SpellTable() {
+  const [spells, setSpells] = useState<Spell[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedSpell, setSelectedSpell] = useState<Spell | null>(null);
   const [spellIndex, setSpellIndex] = useState<number>(0);
 
-  const filteredSpells = spells.filter((spell) =>
+  const reload = useCallback(async () => {
+    setLoadError(null);
+    try {
+      const data = await spellsApi.list();
+      setSpells(data);
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : String(e));
+      setSpells([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  const filteredSpells = (spells ?? []).filter((spell) =>
     searchQuery
       .split('+')
       .some((query) => spell.name.toLowerCase().includes(query.toLowerCase()))
-  ).map((spell) => spell as Spell);
+  );
 
   const onViewSpell = useCallback(
     (params: GridRowParams) => {
-      setSelectedSpell(params.row);
+      setSelectedSpell(params.row as Spell);
       setSpellIndex(
         filteredSpells.findIndex((spell) => spell.name === params.row.name)
       );
     },
-    [selectedSpell, filteredSpells, setSelectedSpell, setSpellIndex]
+    [filteredSpells, setSelectedSpell, setSpellIndex]
   );
 
   const onViewNextSpell = useCallback(
@@ -54,7 +73,7 @@ export default function SpellTable() {
     <Container maxWidth="xl">
       <Stack direction="row" justifyContent="space-between">
         <Typography variant="h4">Spells</Typography>
-        <CreateSpell />
+        <CreateSpell onCreated={reload} />
       </Stack>
       <Divider orientation="horizontal" sx={{ mb: '1%', mt: '0.5%' }} />
       <TextField
@@ -65,20 +84,32 @@ export default function SpellTable() {
         label="Search Spells"
         size="small"
       />
-      <Paper sx={{ margin: 1 }}>
-        <DataGrid
-          rows={filteredSpells}
-          columns={spellColumnDescriptor}
-          onRowClick={onViewSpell}
-          initialState={{
-            pagination: {
-              paginationModel: { pageSize: 25 },
-            },
-          }}
-          pageSizeOptions={[10, 25, 50]}
-          getRowId={(row) => row.name}
-        />
-      </Paper>
+      {loadError && (
+        <Alert severity="error" sx={{ mt: 2 }}>
+          Failed to load spells: {loadError}
+        </Alert>
+      )}
+      {spells === null && !loadError && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+          <CircularProgress />
+        </Box>
+      )}
+      {spells !== null && (
+        <Paper sx={{ margin: 1 }}>
+          <DataGrid
+            rows={filteredSpells}
+            columns={spellColumnDescriptor}
+            onRowClick={onViewSpell}
+            initialState={{
+              pagination: {
+                paginationModel: { pageSize: 25 },
+              },
+            }}
+            pageSizeOptions={[10, 25, 50]}
+            getRowId={(row) => (row as Spell).name}
+          />
+        </Paper>
+      )}
       <Dialog
         open={selectedSpell !== null}
         onClose={() => setSelectedSpell(null)}

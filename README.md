@@ -58,15 +58,11 @@ A static deployment is published at <https://charteris.github.io/DnDAssistant/>.
    ```
 4. **Run it:**
    ```bash
-   java -cp target/dnd-assistant-1.0-SNAPSHOT.jar \
-     main.java.com.pigishentertainment.dndassistant.Main
+   java -jar target/dnd-assistant-1.0-SNAPSHOT.jar
    ```
-
-> **Known issue:** the backend currently connects to `localhost:8080`, which is
-> Adminer — PostgreSQL is not published to the host by `postgres/docker-compose.yml`,
-> and the table-creation SQL has dialect bugs. Database connectivity is therefore
-> not functional yet. This is tracked in [PROJECT_STATUS.md](PROJECT_STATUS.md)
-> and addressed in Phase 1 of the [roadmap](ROADMAP.md).
+   The backend listens on `http://localhost:8081` by default. Override with
+   `SERVER_PORT=9000 java -jar ...` or `POSTGRES_*` env vars for the database
+   (see [`application.properties`](src/main/resources/application.properties)).
 
 ## Resources
 

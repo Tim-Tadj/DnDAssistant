@@ -76,3 +76,21 @@ Done when a spell created in the UI survives a page refresh via the API.
 
 Record here as they're made: HTTP framework, serialization library, pagination
 style (offset vs. cursor), token format (JWT vs. session).
+
+## Decisions
+
+- **HTTP framework:** **Spring Boot** (chosen for Phase 1 vertical slice).
+  Easiest to wire a small REST surface for Spells: auto-configures Jackson for
+  JSON, Tomcat for HTTP, and `spring-boot-starter-jdbc` for `JdbcTemplate`.
+  Lets us defer hand-rolled servlet plumbing while keeping the door open for
+  Spring's auth, validation, and migration support later.
+- **Serialization:** Jackson (Spring Boot default).
+- **Schema migrations:** none yet — Phase 1 uses `CREATE TABLE IF NOT EXISTS`
+  on startup, with the explicit DDL kept in one place
+  (`db/schema.sql`). A real migration tool (Flyway/Liquibase) is a Phase 6
+  polish item.
+- **Auth:** **deferred to Phase 5** as planned. Endpoints stay open in Phase 1;
+  the `spells` table carries a nullable `owner_user_id` column from the start
+  so Phase 5 doesn't need a schema change. Tokens (JWT) are still undecided.
+- **Pagination:** `?page=&pageSize=` (offset-based) for Phase 1; cursor
+  pagination can come later if/when we need it.

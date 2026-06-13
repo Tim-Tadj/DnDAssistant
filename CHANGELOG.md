@@ -18,6 +18,30 @@ start a fresh `[Unreleased]` section.
 - Project documentation: `ROADMAP.md`, `PROJECT_STATUS.md`, `AGENTS.md`,
   `CHANGELOG.md`, and a `docs/spec/` specification directory.
 - Cross-platform run scripts: `scripts/run-all.ps1` and `scripts/run-all.sh`.
+- **Phase 1 — Spells vertical slice.** The frontend now talks to the
+  backend:
+  - **Backend** is a Spring Boot 3.2.5 service (`com.pigishentertainment.dndassistant.Application`).
+    New `src/main/resources/application.properties` is fully env-driven
+    (`SERVER_PORT`, `POSTGRES_URL`, `POSTGRES_USER`, `POSTGRES_PASSWORD`,
+    `FRONTEND_CORS_ORIGINS`). Schema lives in `src/main/resources/schema.sql`
+    and runs on startup (`IF NOT EXISTS`). Endpoints:
+    - `GET /api/v1/spells` — list (seeded from bundled SRD on first boot)
+    - `GET /api/v1/spells/{id}` — fetch one
+    - `POST /api/v1/spells` — create (provenance=homebrew, owner_user_id null
+      for now; auth lands in Phase 5)
+    - `GET /api/v1/health` — liveness check
+  - **PostgreSQL** now actually publishes to the host on `:55432`
+    (`:5432` is occupied by VS Code's local Postgres on this dev box).
+    `POSTGRES_HOST_AUTH_METHOD=trust` for the dev story; externalize via
+    env (`POSTGRES_USER`, `POSTGRES_PASSWORD`) before any real deployment.
+  - **Frontend** has a small API client at `src/ts/api/api-client.ts` and a
+    spells helper at `src/ts/api/spells.ts`. `spell-table.tsx` fetches from
+    the API (with loading + error states), and `create-spell.tsx` POSTs
+    new spells to the API on Save. The bundle reads
+    `REACT_APP_API_BASE` (defaults to `http://localhost:8081/api/v1`).
+  - **Seed:** 396 SRD spells load into Postgres on first boot from
+    `src/res/resources/srd_5e_spells.json`; the frontend reads them via
+    the API instead of importing the JSON.
 - **Monster Manual ingestion** (Phase 3, monsters portion):
   - `src/res/resources/monster_manual_monsters.json` — 409 stat blocks
     parsed from the Monster Manual, replacing `srd_5e_monsters.json` as
@@ -53,10 +77,17 @@ start a fresh `[Unreleased]` section.
   **`src/ts/encounters/use-generate-encounter.ts`**, and
   **`src/ts/encounters/use-track-encounter.ts`** all now import from
   `monster_manual_monsters.json` instead of the SRD file.
+- **`src/ts/types/Spell.ts`** no longer imports the bundled SRD JSON
+  directly; the frontend reads spells from the backend API instead.
 - `src/ts/app-router.tsx` — fixed pre-existing case-sensitivity issue
   (`./header` → `./Header`) that was breaking the build.
 - `docs/spec/data-model.md` — Monster section updated to document the
   new fields and the provenance convention.
+- `docs/spec/api.md` — recorded the Spring Boot 3.2.5 decision.
+- `postgres/docker-compose.yml` — publishes Postgres on the host, accepts
+  env-driven credentials, and uses `POSTGRES_HOST_AUTH_METHOD=trust` for
+  the dev story. Default port is `55432` to avoid clashing with VS Code's
+  local Postgres.
 
 ## [1.0.0] — baseline
 

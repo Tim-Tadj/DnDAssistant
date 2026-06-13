@@ -1,4 +1,7 @@
-import spells from '../../res/resources/srd_5e_spells.json';
+// Spells are loaded from the backend API (see src/ts/api/spells.ts). The
+// bundled SRD file is still used as a seed by the backend at startup, but
+// the frontend reads from `/api/v1/spells` so any user-created (homebrew)
+// spells show up too.
 
 export type SpellComponent = {
   material: boolean,

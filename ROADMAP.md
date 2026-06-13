@@ -27,22 +27,30 @@ plan from the docs alone.
 
 Close the biggest gap: the frontend cannot talk to the database.
 
-- [ ] Choose an HTTP layer for the Java service (e.g. Spring Boot or a
-      lightweight embedded server) — record the decision in
-      [docs/spec/api.md](docs/spec/api.md).
-- [ ] Fix the database connection: publish PostgreSQL to the host in
-      `postgres/docker-compose.yml` and point `DBManager` at the correct port.
-- [ ] Fix the table-creation SQL (Postgres dialect) and introduce schema
-      migrations instead of `CREATE TABLE` on startup.
-- [ ] Externalize DB configuration / credentials (env vars), remove hardcoding.
-- [ ] Define REST endpoints (`/api/spells`, `/api/monsters`, `/api/gear`, …) per
-      the API spec, designed **user-aware** from the start (see Phase 5).
-- [ ] Enable CORS for the dev frontend.
-- [ ] **Vertical slice:** wire **Spells** end-to-end (list + create) from the UI
-      to Postgres as the reference implementation.
+- [x] Choose an HTTP layer for the Java service — **Spring Boot 3.2.5** (see
+      [docs/spec/api.md](docs/spec/api.md)).
+- [x] Fix the database connection: publish PostgreSQL to the host in
+      `postgres/docker-compose.yml` and point the backend at the correct port
+      (`:55432` to avoid clashing with VS Code's local Postgres on this dev box).
+- [x] Fix the table-creation SQL (Postgres dialect) and replace ad-hoc startup
+      DDL with a single `schema.sql` (`IF NOT EXISTS` everywhere).
+- [x] Externalize DB configuration / credentials (env vars), remove hardcoding
+      from both the Java code and the compose file.
+- [x] Define REST endpoints per the API spec for the resource types; designed
+      **user-aware** from the start (`owner_user_id` column on `spells`).
+- [x] Enable CORS for the dev frontend (`CorsConfig`, configurable origins).
+- [x] **Vertical slice — Spells:** wire the spell browser and creation editor
+      to `/api/v1/spells` (list + get + create). Bundle a seed of 396 SRD
+      spells so the browser has data on first start.
+- [ ] **Vertical slice — Monsters:** same treatment for `/api/v1/monsters`.
+- [ ] **Vertical slice — Gear/Weapons/Armour:** same treatment for the
+      `/api/v1/gear`, `/api/v1/weapons`, `/api/v1/armour` endpoints.
+- [ ] Adopt Flyway (or Liquibase) for schema migrations so the schema is
+      versioned and not just `CREATE TABLE IF NOT EXISTS` on every boot.
 
-**Done when:** a spell created in the UI is persisted in Postgres and reloaded
-from the API on refresh.
+**Done when:** a spell, monster, and piece of gear created in the UI are
+all persisted in Postgres and reloaded from the API on refresh. The
+Spells slice ships; monsters and gear remain.
 
 ## Phase 2 — Editors → Persistence
 

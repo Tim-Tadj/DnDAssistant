@@ -44,8 +44,7 @@ if (-not $jar) { throw 'No backend jar found in target/ after build' }
 
 Write-Step "Launching backend ($($jar.Name)) in a new window"
 Start-Process -FilePath 'java' -ArgumentList @(
-    '-cp', $jar.FullName,
-    'main.java.com.pigishentertainment.dndassistant.Main'
+    '-jar', $jar.FullName
 )
 
 # 4. Install frontend deps (first run) and start the dev server.

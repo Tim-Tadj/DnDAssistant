@@ -62,7 +62,7 @@ docs/spec/             Design specifications
 | Deploy frontend | `npm run deploy` (GitHub Pages) |
 | Start database | `docker compose up --build` (in `postgres/`) |
 | Build backend | `mvn clean install` (or `./mvnw` / `mvnw.cmd`) |
-| Run backend | `java -cp target/dnd-assistant-1.0-SNAPSHOT.jar main.java.com.pigishentertainment.dndassistant.Main` |
+| Run backend | `java -jar target/dnd-assistant-1.0-SNAPSHOT.jar` |
 | Boot everything | `scripts/run-all.ps1` (Windows) / `scripts/run-all.sh` (Linux/macOS) |
 
 ## Conventions
