@@ -11,9 +11,9 @@ Legend: ✅ done · 🚧 in progress · ⛔ not started
 
 Phase 0 (Foundation & Docs) is complete. The Monster Manual ingestion
 (Phase 3, partial — the monsters portion) is complete on the
-`feature/monster-manual-ingestion` branch. The next milestone is
-**Phase 1 — Backend API & Persistence**: making the frontend able to read
-and write the PostgreSQL database through a REST API.
+`DnDAssistant-MVP-Run` branch. The next milestone is **Phase 1 —
+Backend API & Persistence**: making the frontend able to read and write
+the PostgreSQL database through a REST API.
 
 ## Feature status
 

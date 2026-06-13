@@ -1,9 +1,16 @@
 # Monster Manual Ingestion — Working Notes
 
 This is a **working scratchpad** for the monster-manual ingestion work on
-branch `feature/monster-manual-ingestion`. It complements (does not replace)
+branch `DnDAssistant-MVP-Run`. It complements (does not replace)
 `docs/spec/monster-manual-ingestion.md`, `AGENTS.md`, `PROJECT_STATUS.md`, and
 `CHANGELOG.md`. Update it freely as work progresses.
+
+**Status: feature complete (commit `669a568`).** Future work on the MVP
+should focus on the next phase (Phase 1 — backend API), not on improving
+this dataset, except for cleanup of the 7 OCR-corrupted records
+(Cyclops, Half-Ogre, Specter, Stirge, Treant, Water Weird, Intellect
+Devourer — all with empty `AC`/`HP`/`Speed`; the book itself is missing
+those lines for them).
 
 ---
 

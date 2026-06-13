@@ -12,7 +12,7 @@ detail see [docs/spec/](docs/spec/).
 
 ---
 
-## Phase 0 — Foundation & Docs ← we are here
+## Phase 0 — Foundation & Docs
 
 Establish the scaffolding to drive the project to completion.
 
@@ -23,7 +23,7 @@ Establish the scaffolding to drive the project to completion.
 **Done when:** a new contributor can understand the project, run it, and see the
 plan from the docs alone.
 
-## Phase 1 — Backend API & Persistence *(core epic)*
+## Phase 1 — Backend API & Persistence *(core epic)* ← we are here
 
 Close the biggest gap: the frontend cannot talk to the database.
 

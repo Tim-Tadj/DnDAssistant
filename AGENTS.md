@@ -5,6 +5,16 @@ For *what we're building and why*, see [docs/spec/](docs/spec/); for *where it's
 going*, see [ROADMAP.md](ROADMAP.md); for *current state*, see
 [PROJECT_STATUS.md](PROJECT_STATUS.md).
 
+## Branches
+
+- `main` — the published mirror. Don't push work-in-progress here.
+- `DnDAssistant-MVP-Run` — the **live work branch** the app is being built
+  up to MVP quality on. Day-to-day commits and feature work land here until
+  the app reaches a state ready for use, at which point this branch is
+  promoted to `main` (or merged into a release branch). Pushing a
+  half-baked feature straight to `main` defeats the purpose — keep the MVP
+  run branch's history linear and reviewable.
+
 ## What this is
 
 DnDAssistant is a full-stack D&D 5e Dungeon Master tool: a React/TypeScript SPA
