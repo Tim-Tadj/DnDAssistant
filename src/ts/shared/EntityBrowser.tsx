@@ -19,11 +19,10 @@
  * Phase 7: UI/UX redesign.
  */
 
-import React, { FC, ReactNode, useCallback, useEffect, useState } from 'react';
+import React, { FC, ReactNode, useState } from 'react';
 import {
   Box,
   Button,
-  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -40,9 +39,7 @@ import {
   useTheme,
   Chip,
   Drawer,
-  Divider,
   alpha,
-  Grid,
 } from '@mui/material';
 import {
   Add,
@@ -69,11 +66,9 @@ export type EntityId = string | number;
 
 export type EntityBrowserProps<T> = {
   title: string;
-  useList: () => {
-    items: T[] | null;
-    loadError: string | null;
-    reload: () => Promise<void> | void;
-  };
+  items: T[] | null;
+  loadError: string | null;
+  reload: () => Promise<void> | void;
   mutations: EntityMutations<T>;
   columns: GridColDef[];
   DetailCard: FC<{ item: T }>;
@@ -103,7 +98,9 @@ export type EntityBrowserProps<T> = {
 
 export function EntityBrowser<T extends { id?: string | number; provenance?: string }>({
   title,
-  useList,
+  items,
+  loadError,
+  reload,
   mutations,
   columns,
   DetailCard,
@@ -125,8 +122,6 @@ export function EntityBrowser<T extends { id?: string | number; provenance?: str
   const theme = useTheme();
   const isCompact = useMediaQuery(theme.breakpoints.down('md'));
   const { toast } = useToast();
-
-  const { items, loadError, reload } = useList();
   const [search, setSearch] = useState('');
   const [drawerItem, setDrawerItem] = useState<T | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -139,12 +134,13 @@ export function EntityBrowser<T extends { id?: string | number; provenance?: str
 
   // Filter + search
   const filtered = (items ?? []).filter((row) => {
+    if (!row) return false;
     if (activeFilter) {
       const k = (row as unknown as Record<string, unknown>)['kind'];
       if (k !== activeFilter) return false;
     }
     if (!search.trim()) return true;
-    const name = getRowName(row).toLowerCase();
+    const name = (getRowName(row) || '').toLowerCase();
     return search
       .toLowerCase()
       .split(/\s+/)
@@ -153,6 +149,7 @@ export function EntityBrowser<T extends { id?: string | number; provenance?: str
   });
 
   const onRowClick = (params: GridRowParams) => {
+    if (!params.row) return;
     setDrawerItem(params.row as T);
     setEditMode('view');
   };

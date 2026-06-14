@@ -174,10 +174,13 @@ const columns: GridColDef<Monster>[] = [
 ];
 
 const MonsterTable: FC = () => {
+  const { items, loadError, reload } = useList<Monster>(monstersApi.list);
   return (
     <EntityBrowser<Monster>
       title="Monsters"
-      useList={() => useList(monstersApi.list)}
+      items={items}
+      loadError={loadError}
+      reload={reload}
       mutations={{
         create: monstersApi.create,
         update: (id, m) => monstersApi.update(id as number, m),

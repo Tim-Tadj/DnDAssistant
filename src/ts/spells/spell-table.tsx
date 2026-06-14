@@ -122,10 +122,13 @@ const columns: GridColDef<Spell>[] = [
 ];
 
 const SpellTable: FC = () => {
+  const { items, loadError, reload } = useList<Spell>(spellsApi.list);
   return (
     <EntityBrowser<Spell>
       title="Spells"
-      useList={() => useList(spellsApi.list)}
+      items={items}
+      loadError={loadError}
+      reload={reload}
       mutations={{
         create: spellsApi.create,
         update: (id, s) => spellsApi.update(id as number, s),

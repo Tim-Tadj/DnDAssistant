@@ -239,12 +239,15 @@ import { TextField } from '@mui/material';
 
 const CampaignManager: FC = () => {
   const { user } = useAuth();
+  const { items, loadError, reload } = useList<Campaign>(campaignsApi.list);
   return (
     <Stack spacing={3}>
       {user ? (
         <EntityBrowser<Campaign>
           title="My Campaigns"
-          useList={() => useList(campaignsApi.list)}
+          items={items}
+          loadError={loadError}
+          reload={reload}
           mutations={{
             create: campaignsApi.create,
             update: campaignsApi.update,

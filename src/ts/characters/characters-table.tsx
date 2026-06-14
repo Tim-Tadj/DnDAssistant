@@ -264,6 +264,7 @@ const columns: GridColDef<Character>[] = [
 
 const CharactersTable: FC = () => {
   const { user } = useAuth();
+  const { items, loadError, reload } = useList<Character>(charactersApi.list);
   if (!user) {
     return (
       <Box>
@@ -279,7 +280,9 @@ const CharactersTable: FC = () => {
   return (
     <EntityBrowser<Character>
       title="My Characters"
-      useList={() => useList(charactersApi.list)}
+      items={items}
+      loadError={loadError}
+      reload={reload}
       mutations={{
         create: charactersApi.create,
         update: charactersApi.update,

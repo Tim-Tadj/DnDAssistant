@@ -231,10 +231,13 @@ const columns: GridColDef<GearItem>[] = [
 
 const GearTable: FC = () => {
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
+  const { items, loadError, reload } = useList<GearItem>(() => gearApi.list());
   return (
     <EntityBrowser<GearItem>
       title="Gear"
-      useList={() => useList(() => gearApi.list())}
+      items={items}
+      loadError={loadError}
+      reload={reload}
       mutations={{
         create: gearApi.create,
         update: (id, g) => gearApi.update(id as number, g),
