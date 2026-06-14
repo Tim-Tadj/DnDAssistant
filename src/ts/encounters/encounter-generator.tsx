@@ -11,6 +11,10 @@ import {
   Box,
   Button,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   IconButton,
   Paper,
@@ -28,6 +32,7 @@ import {
   Close,
   Group,
   People,
+  Save,
 } from '@mui/icons-material';
 import {
   ALIGNMENTS,
@@ -44,9 +49,13 @@ import useGenerateEncounter from './use-generate-encounter';
 import EncounterTracker from './encounter-tracker';
 import { charactersApi } from '../api/characters';
 import { partiesApi } from '../api/parties';
+import { encounterSavesApi } from '../api/encounter-saves';
+import { campaignsApi } from '../api/campaigns';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../shared/ToastProvider';
 import { Party } from '../types/Party';
+import { Campaign } from '../types/Campaign';
+import { EncounterSave, MonsterRef } from '../types/EncounterSave';
 
 const PARTY_LEVELS = Array.from({ length: 20 }, (_, i) => i + 1);
 const PARTY_SIZES = Array.from({ length: 10 }, (_, i) => i + 1);
@@ -78,12 +87,22 @@ const EncounterGenerator: FC = () => {
   const [partyHintError, setPartyHintError] = useState<string | null>(null);
   const [parties, setParties] = useState<Party[]>([]);
   const [activePartyId, setActivePartyId] = useState<string | null>(null);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [saveTargetCampaignId, setSaveTargetCampaignId] = useState<string | null>(null);
+  const [saveName, setSaveName] = useState('');
+  const [saveNotes, setSaveNotes] = useState('');
+  const [savingEncounter, setSavingEncounter] = useState(false);
 
   useEffect(() => {
     if (!user) return;
     partiesApi
       .list()
       .then((p) => setParties(p))
+      .catch(() => undefined);
+    campaignsApi
+      .list()
+      .then((c) => setCampaigns(c))
       .catch(() => undefined);
   }, [user]);
 
@@ -130,6 +149,52 @@ const EncounterGenerator: FC = () => {
       setPartyHintError(null);
     } catch (e) {
       setPartyHintError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const onSaveEncounter = async () => {
+    if (!saveTargetCampaignId) return;
+    if (monstersInCombat.length === 0) return;
+    setSavingEncounter(true);
+    try {
+      // Collapse monstersInCombat (Monster[]) into MonsterRef[]
+      const byName = new Map<string, MonsterRef>();
+      for (const m of monstersInCombat) {
+        const xp = Number(m.Challenge?.split('(')[1]?.replace(/[^0-9.]/g, '') ?? 0);
+        const ref: MonsterRef = {
+          id: m.id ?? 0,
+          name: m.name,
+          count: (byName.get(m.name)?.count ?? 0) + 1,
+          xp_each: xp,
+        };
+        byName.set(m.name, ref);
+      }
+      const totalXp = monstersInCombat.reduce(
+        (acc, m) =>
+          acc +
+          Number(m.Challenge?.split('(')[1]?.replace(/[^0-9.]/g, '') ?? 0),
+        0
+      );
+      const save: EncounterSave = {
+        campaign_id: saveTargetCampaignId,
+        name: saveName || `Encounter ${new Date().toLocaleDateString()}`,
+        monsters: Array.from(byName.values()),
+        party_snapshot_ids: [],
+        difficulty,
+        total_xp: totalXp,
+        played_on: new Date().toISOString().slice(0, 10),
+        notes: saveNotes,
+      };
+      await encounterSavesApi.create(save);
+      toast('Encounter saved to campaign', 'success');
+      setSaveDialogOpen(false);
+      setSaveName('');
+      setSaveNotes('');
+      setSaveTargetCampaignId(null);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : String(e), 'error');
+    } finally {
+      setSavingEncounter(false);
     }
   };
 
@@ -343,6 +408,16 @@ const EncounterGenerator: FC = () => {
                 Clear
               </Button>
             )}
+            {user && monstersInCombat.length > 0 && (
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<Save />}
+                onClick={() => setSaveDialogOpen(true)}
+              >
+                Save to campaign
+              </Button>
+            )}
           </Stack>
 
           {monstersInCombat.length === 0 ? (
@@ -410,6 +485,61 @@ const EncounterGenerator: FC = () => {
       </Stack>
 
       <EncounterTracker monstersInCombat={monstersInCombat} />
+
+      <Dialog
+        open={saveDialogOpen}
+        onClose={() => !savingEncounter && setSaveDialogOpen(false)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>Save encounter to a campaign</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Autocomplete
+              options={campaigns}
+              getOptionLabel={(o) => o.name}
+              value={campaigns.find((c) => c.id === saveTargetCampaignId) ?? null}
+              onChange={(_e, v) => setSaveTargetCampaignId(v?.id ?? null)}
+              renderInput={(p) => (
+                <TextField
+                  {...p}
+                  label="Campaign"
+                  helperText="Where to save this encounter"
+                />
+              )}
+            />
+            <TextField
+              label="Encounter name"
+              value={saveName}
+              onChange={(e) => setSaveName(e.target.value)}
+              fullWidth
+              placeholder="e.g. Ambush at Iron Keep"
+            />
+            <TextField
+              label="Notes"
+              value={saveNotes}
+              onChange={(e) => setSaveNotes(e.target.value)}
+              fullWidth
+              multiline
+              rows={3}
+              placeholder="What happened, who's TPK'd, etc."
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSaveDialogOpen(false)} disabled={savingEncounter}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={onSaveEncounter}
+            disabled={savingEncounter || !saveTargetCampaignId}
+            startIcon={<Save />}
+          >
+            {savingEncounter ? 'Saving…' : 'Save'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 };
