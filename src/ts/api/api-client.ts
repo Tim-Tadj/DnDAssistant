@@ -17,15 +17,28 @@ export class ApiError extends Error {
   }
 }
 
+function authToken(): string | null {
+  try {
+    return localStorage.getItem('dndassistant.jwt');
+  } catch {
+    return null;
+  }
+}
+
 async function request<T>(
   path: string,
   init: RequestInit = {},
 ): Promise<T> {
   const url = `${API_BASE}${path}`;
-  const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...(init.headers ?? {}) },
-    ...init,
-  });
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(init.headers as Record<string, string> | undefined),
+  };
+  const token = authToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  const res = await fetch(url, { ...init, headers });
   if (!res.ok) {
     let code = 'HTTP_' + res.status;
     let message = res.statusText;

@@ -20,6 +20,7 @@ const pages: Page[] = [
       { label: 'shop', name: 'Gear', path: '/gear' },
     ],
   },
+  { label: 'characters', name: 'Characters', path: '/characters' },
   { label: 'encounter', name: 'Encounters', path: '/encounter' },
   { label: 'campaign', name: 'Campaign', path: '/campaign' },
 ];

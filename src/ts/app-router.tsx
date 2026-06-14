@@ -6,6 +6,7 @@ import Mechanics from './mechanics/mechanics';
 import SpellTable from './spells/spell-table';
 import Shop from './gear/gear';
 import CampaignManager from './campaigns/campaign-manager';
+import CharactersTable from './characters/characters-table';
 import Header from './Header';
 
 const AppRouter = () => {
@@ -33,6 +34,10 @@ const AppRouter = () => {
         {
           path: 'encounter',
           element: <EncounterGenerate />,
+        },
+        {
+          path: 'characters',
+          element: <CharactersTable />,
         },
         {
           path: 'campaign',

@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
+  Alert,
   Autocomplete,
   Button,
   Container,
@@ -20,9 +21,12 @@ import {
 } from '../constants';
 import useGenerateEncounter from './use-generate-encounter';
 import EncounterTracker from './encounter-tracker';
+import { charactersApi } from '../api/characters';
+import { useAuth } from '../auth/AuthContext';
 
 // TODO: Provide support for loading and saving encounters for quick-retrieval
 export default function EncounterGenerator() {
+  const { user } = useAuth();
   const {
     searchQuery,
     setSearchQuery,
@@ -40,6 +44,35 @@ export default function EncounterGenerator() {
     determineMonstersInEncounter,
     monstersInCombat,
   } = useGenerateEncounter();
+  const [partyHint, setPartyHint] = useState<string | null>(null);
+  const [partyHintError, setPartyHintError] = useState<string | null>(null);
+
+  const onUseMyParty = async () => {
+    if (!user) return;
+    try {
+      const chars = await charactersApi.list();
+      if (chars.length === 0) {
+        setPartyHintError(
+          'You have no characters yet. Create one on the Characters page first.'
+        );
+        setPartyHint(null);
+        return;
+      }
+      setPartySize(chars.length);
+      const avgLevel = Math.round(
+        chars.reduce((acc, c) => acc + (c.level ?? 1), 0) / chars.length
+      );
+      setPlayerLevel(avgLevel);
+      setPartyHint(
+        `Party of ${chars.length} character${
+          chars.length === 1 ? '' : 's'
+        }, average level ${avgLevel}.`
+      );
+      setPartyHintError(null);
+    } catch (e) {
+      setPartyHintError(e instanceof Error ? e.message : String(e));
+    }
+  };
 
   return (
     <Container maxWidth="xl">
@@ -170,6 +203,21 @@ export default function EncounterGenerator() {
           <Button variant="outlined" onClick={determineMonstersInEncounter}>
             Generate Encounter
           </Button>
+          {user && (
+            <Button size="small" variant="text" onClick={onUseMyParty}>
+              Use my party
+            </Button>
+          )}
+          {partyHint && (
+            <Alert severity="success" sx={{ width: '100%' }}>
+              {partyHint}
+            </Alert>
+          )}
+          {partyHintError && (
+            <Alert severity="warning" sx={{ width: '100%' }}>
+              {partyHintError}
+            </Alert>
+          )}
         </Stack>
       </Paper>
       <EncounterTracker monstersInCombat={monstersInCombat} />
