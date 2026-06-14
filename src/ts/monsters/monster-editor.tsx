@@ -82,10 +82,10 @@ const MonsterEditor: FC<{
   useEffect(() => onChange?.(m), [m, onChange]);
 
   return (
-    <Stack spacing={2} direction="column" sx={{ width: '100%', pt: 4 }}>
+    <Stack spacing={2} direction="column" sx={{ width: '100%', pt: 0 }}>
       <Box>
         <Typography variant="subtitle1">Basic</Typography>
-        <Stack spacing={1} direction="column">
+        <Stack spacing={1} direction="column" sx={{ pt: 1 }}>
           <Field label="Name" value={m.name} onChange={(v) => set('name', v)} onBlur={onUpdateGearFormatted} fullWidth />
           <Field label="Meta (size, type, alignment)" value={m.meta} onChange={(v) => set('meta', v)} onBlur={onUpdateGearFormatted} fullWidth />
           <Stack direction="row" spacing={1}>
@@ -99,7 +99,7 @@ const MonsterEditor: FC<{
       <Divider />
       <Box>
         <Typography variant="subtitle1">Ability scores</Typography>
-        <Stack spacing={1}>
+        <Stack spacing={1} sx={{ pt: 1 }}>
           {ABILITIES.map(({ key, label, modKey }) => (
             <Stack direction="row" spacing={1} key={key}>
               <Field label={label} value={m[key] as string} onChange={(v) => set(key, v)} onBlur={onUpdateGearFormatted} fullWidth />
@@ -111,7 +111,7 @@ const MonsterEditor: FC<{
       <Divider />
       <Box>
         <Typography variant="subtitle1">Defenses & skills</Typography>
-        <Stack spacing={1}>
+        <Stack spacing={1} sx={{ pt: 1 }}>
           <Field label="Saving Throws" value={m.Saving_Throws} onChange={(v) => set('Saving_Throws', v)} onBlur={onUpdateGearFormatted} fullWidth />
           <Field label="Skills" value={m.Skills} onChange={(v) => set('Skills', v)} onBlur={onUpdateGearFormatted} fullWidth />
           <Field label="Damage Vulnerabilities" value={m.Damage_Vulnerabilities} onChange={(v) => set('Damage_Vulnerabilities', v)} onBlur={onUpdateGearFormatted} fullWidth />
@@ -123,7 +123,7 @@ const MonsterEditor: FC<{
       <Divider />
       <Box>
         <Typography variant="subtitle1">Senses, languages, art</Typography>
-        <Stack spacing={1}>
+        <Stack spacing={1} sx={{ pt: 1 }}>
           <Field label="Senses" value={m.Senses} onChange={(v) => set('Senses', v)} onBlur={onUpdateGearFormatted} fullWidth />
           <Field label="Languages" value={m.Languages} onChange={(v) => set('Languages', v)} onBlur={onUpdateGearFormatted} fullWidth />
           <Field label="img_url" value={m.img_url} onChange={(v) => set('img_url', v)} onBlur={onUpdateGearFormatted} fullWidth />
@@ -132,7 +132,7 @@ const MonsterEditor: FC<{
       <Divider />
       <Box>
         <Typography variant="subtitle1">Traits & actions (HTML allowed)</Typography>
-        <Stack spacing={1}>
+        <Stack spacing={1} sx={{ pt: 1 }}>
           <Field label="Traits" value={m.Traits} onChange={(v) => set('Traits', v)} onBlur={onUpdateGearFormatted} fullWidth multiline rows={4} />
           <Field label="Actions" value={m.Actions} onChange={(v) => set('Actions', v)} onBlur={onUpdateGearFormatted} fullWidth multiline rows={4} />
           <Field label="Reactions" value={m.Reactions} onChange={(v) => set('Reactions', v)} onBlur={onUpdateGearFormatted} fullWidth multiline rows={3} />
@@ -142,7 +142,7 @@ const MonsterEditor: FC<{
       <Divider />
       <Box>
         <Typography variant="subtitle1">Lore</Typography>
-        <Stack spacing={1}>
+        <Stack spacing={1} sx={{ pt: 1 }}>
           <Field label="Description" value={m.description} onChange={(v) => set('description', v)} onBlur={onUpdateGearFormatted} fullWidth multiline rows={4} />
           <Field label="Lair Actions" value={m.Lair_Actions} onChange={(v) => set('Lair_Actions', v)} onBlur={onUpdateGearFormatted} fullWidth multiline rows={3} />
           <Field label="Regional Effects" value={m.Regional_Effects} onChange={(v) => set('Regional_Effects', v)} onBlur={onUpdateGearFormatted} fullWidth multiline rows={3} />
@@ -153,3 +153,4 @@ const MonsterEditor: FC<{
 };
 
 export default MonsterEditor;
+

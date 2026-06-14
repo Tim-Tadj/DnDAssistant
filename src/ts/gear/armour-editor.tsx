@@ -39,7 +39,7 @@ const ArmourEditor: FC<{
   };
 
   return (
-    <Stack spacing={2} direction="column" justifyContent="space-between" alignItems="center" sx={{ pt: 4 }}>
+    <Stack spacing={2} direction="column" justifyContent="space-between" alignItems="center" sx={{ pt: 0 }}>
       <TextField
         fullWidth
         value={newArmour.name}

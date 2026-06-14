@@ -181,7 +181,7 @@ const CampaignCreate: FC<{ onCreated?: () => void }> = ({ onCreated }) => {
             </Typography>
           )}
           {draft && (
-              <Stack spacing={2} sx={{ pt: 4 }}>
+              <Stack spacing={2} sx={{ pt: 0 }}>
               <TextField
                 label="Name"
                 value={draft.name}
@@ -266,7 +266,7 @@ const CampaignManager: FC = () => {
             columns={columns as GridColDef[]}
             DetailCard={({ item }) => <CampaignDetailCard item={item} />}
             Editor={({ initial, onChange }) => (
-            <Stack spacing={2} sx={{ pt: 4 }}>
+            <Stack spacing={2} sx={{ pt: 0 }}>
                 <TextField
                   label="Name"
                   value={initial.name}
