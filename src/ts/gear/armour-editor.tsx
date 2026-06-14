@@ -9,7 +9,10 @@ enum ARMOUR_TYPE {
   SHIELD = 'Shield'
 }
 
-const ArmourEditor: FC<{ onUpdateGear: (jsonInput: string) => void }> = ({ onUpdateGear }) => {
+const ArmourEditor: FC<{
+  onUpdateGear: (jsonInput: string) => void;
+  onChange?: (armour: typeof defaultArmour) => void;
+}> = ({ onUpdateGear, onChange }) => {
   const [newArmour, setNewArmour] = useState(defaultArmour);
 
   const onUpdateGearFormatted = useCallback(() => {
@@ -20,6 +23,7 @@ const ArmourEditor: FC<{ onUpdateGear: (jsonInput: string) => void }> = ({ onUpd
   }, [newArmour]);
 
   useEffect(onUpdateGearFormatted, [onUpdateGearFormatted]);
+  useEffect(() => onChange?.(newArmour), [newArmour, onChange]);
 
   const computeAC = (ac: string, type: string): string => {
     switch (type) {

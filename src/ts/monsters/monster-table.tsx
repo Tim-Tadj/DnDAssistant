@@ -78,7 +78,7 @@ const MonsterTable: FC<{
     <Container maxWidth="xl">
       <Stack direction="row" justifyContent="space-between">
         <Typography variant="h4">Monsters</Typography>
-        <CreateMonster />
+        <CreateMonster onCreated={reload} />
       </Stack>
       <Divider orientation="horizontal" sx={{ mb: '1%', mt: '0.5%' }} />
       <TextField

@@ -1,5 +1,4 @@
 import React from 'react';
-import monsters from '../../res/resources/monster_manual_monsters.json';
 import {
   DIFFICULTIES,
   ENCOUNTER_MULTIPLIERS,
@@ -8,12 +7,14 @@ import {
   MIN_EXPERIENCE,
 } from '../constants';
 import { Monster } from '../types/Monster';
+import useMonsters from './use-monsters';
 
 const getMonsterXP = (monster: Monster) => {
   return Number(monster.Challenge.split('(')[1].replace(/[^0-9.]/g, ''));
 };
 
 export default function useGenerateEncounter() {
+  const { monsters } = useMonsters();
   const [searchQuery, setSearchQuery] = React.useState<string>('');
   const [monsterTypes, setMonsterTypes] = React.useState<string[]>([]);
   const [alignments, setAlignments] = React.useState<string[]>([]);
@@ -61,50 +62,49 @@ export default function useGenerateEncounter() {
   };
 
   const determineMonstersInEncounter = () => {
+    const all = monsters ?? [];
     const maxExperienceThreshold =
       EXPERIENCE_THRESHOLDS[playerLevel][
       DIFFICULTIES.findIndex((diff) => diff === difficulty)
       ] * partySize;
 
-    let potentialMonsters = monsters.filter(
-      (rawMonster) => {
-        const monster = rawMonster as Monster;
-        return filterMonsterByExperience(monster) &&
-          filterMonsterByType(monster) &&
-          filterMonsterByAlignment(monster) &&
-          filterMonsterBySize(monster) &&
-          filterByKeywordSearch(monster) &&
-          getMonsterXP(monster) <= maxExperienceThreshold
-      }
+    let potentialMonsters = all.filter(
+      (monster) =>
+        filterMonsterByExperience(monster) &&
+        filterMonsterByType(monster) &&
+        filterMonsterByAlignment(monster) &&
+        filterMonsterBySize(monster) &&
+        filterByKeywordSearch(monster) &&
+        getMonsterXP(monster) <= maxExperienceThreshold
     );
     let experienceThreshold = maxExperienceThreshold;
     let multiplier = 1;
 
     // Determine potential combatants
-    const monstersInCombat: Monster[] = [];
+    const next: Monster[] = [];
     while (experienceThreshold > 0 && potentialMonsters.length > 0) {
       const monsterIndex = Math.floor(Math.random() * potentialMonsters.length);
-      const monster = potentialMonsters[monsterIndex] as Monster;
-      monstersInCombat.push(monster);
+      const monster = potentialMonsters[monsterIndex];
+      next.push(monster);
 
       // Adjust experience threshold accounting for monster groups
       multiplier =
         ENCOUNTER_MULTIPLIERS.find(
           (encounterMultiplier) =>
-            monstersInCombat.length + 1 <=
+            next.length + 1 <=
             encounterMultiplier.numberOfMonsters ||
             encounterMultiplier.numberOfMonsters === 15
         )?.multiplier ?? 1;
-      const usedXPBudget = monstersInCombat.reduce(
-        (accumulator, monster) => (accumulator += getMonsterXP(monster)),
+      const usedXPBudget = next.reduce(
+        (accumulator, m) => (accumulator += getMonsterXP(m)),
         0
       );
       experienceThreshold = maxExperienceThreshold - usedXPBudget * multiplier;
       potentialMonsters = potentialMonsters.filter(
-        (monster) => getMonsterXP(monster as Monster) <= experienceThreshold / multiplier
+        (m) => getMonsterXP(m) <= experienceThreshold / multiplier
       );
     }
-    setMonstersInCombat(monstersInCombat);
+    setMonstersInCombat(next);
   };
 
   return {

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Monster } from '../types/Monster';
-import monsters from '../../res/resources/monster_manual_monsters.json';
 import { v4 as uuidv4 } from 'uuid';
+import useMonsters from './use-monsters';
 
 type RemainingMonster = {
   uuid: string;
@@ -32,6 +32,7 @@ const getMonstersFromEncounter = (monsters: Monster[]): RemainingMonster[] => {
 };
 
 const useTrackEncounter = (monstersInCombat: Monster[]) => {
+  const { monsters } = useMonsters();
   const [remainingMonsters, setRemainingMonsters] = useState(
     getMonstersFromEncounter(monstersInCombat)
   );
@@ -70,7 +71,6 @@ const useTrackEncounter = (monstersInCombat: Monster[]) => {
     [
       selectedMonster,
       remainingMonsters,
-      setSelectedMonster,
       setRemainingMonsters,
     ]
   );
@@ -87,9 +87,9 @@ const useTrackEncounter = (monstersInCombat: Monster[]) => {
     [remainingMonsters, setRemainingMonsters, setSelectedMonster]
   );
 
-  const identifiedMonster = monsters.find(
+  const identifiedMonster = (monsters ?? []).find(
     (monster) => selectedMonster?.name === monster.name
-  ) as Monster;
+  );
 
   return {
     remainingMonsters,

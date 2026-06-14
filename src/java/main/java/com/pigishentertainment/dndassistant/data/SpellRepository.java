@@ -15,6 +15,7 @@ import java.sql.PreparedStatement;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 @Repository
@@ -134,6 +135,55 @@ public class SpellRepository {
 
   public int deleteAll() {
     return jdbc.update("DELETE FROM spells");
+  }
+
+  public Spell update(long id, Spell body) {
+    if (body == null || body.getName() == null || body.getName().isBlank()) {
+      throw new IllegalArgumentException("Spell 'name' is required");
+    }
+    if (body.getLevel() == null || body.getLevel().isBlank()) {
+      throw new IllegalArgumentException("Spell 'level' is required");
+    }
+    if (body.getSchool() == null || body.getSchool().isBlank()) {
+      throw new IllegalArgumentException("Spell 'school' is required");
+    }
+    String componentsJson = serializeComponents(body.getComponents());
+    String classesCsv = String.join(",", body.getClasses());
+    String tagsCsv = String.join(",", body.getTags());
+    String owner = body.getOwner_user_id();
+    int rows = jdbc.update(con -> {
+      PreparedStatement ps = con.prepareStatement(
+          "UPDATE spells SET name=?, level=?, school=?, type=?, casting_time=?,"
+              + " spell_range=?, duration=?, ritual=?, description=?, higher_levels=?,"
+              + " classes=?, tags=?, components=?::jsonb, updated_at=NOW()"
+              + " WHERE id=?");
+      ps.setString(1, body.getName());
+      ps.setString(2, body.getLevel());
+      ps.setString(3, body.getSchool());
+      ps.setString(4, body.getType());
+      ps.setString(5, body.getCasting_time());
+      ps.setString(6, body.getRange());
+      ps.setString(7, body.getDuration());
+      ps.setBoolean(8, body.isRitual());
+      ps.setString(9, body.getDescription() == null ? "" : body.getDescription());
+      ps.setString(10, body.getHigher_levels() == null ? "" : body.getHigher_levels());
+      ps.setString(11, classesCsv);
+      ps.setString(12, tagsCsv);
+      ps.setString(13, componentsJson);
+      ps.setLong(14, id);
+      return ps;
+    });
+    if (rows == 0) {
+      throw new NoSuchElementException("Spell " + id + " not found");
+    }
+    return findById(id).orElseThrow(() -> new NoSuchElementException("Spell " + id + " not found"));
+  }
+
+  public void deleteById(long id) {
+    int rows = jdbc.update("DELETE FROM spells WHERE id = ?", id);
+    if (rows == 0) {
+      throw new NoSuchElementException("Spell " + id + " not found");
+    }
   }
 
   private SpellComponent parseComponents(String json) {

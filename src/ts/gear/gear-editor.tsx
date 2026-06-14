@@ -2,7 +2,10 @@ import React, { FC, useCallback, useEffect, useState } from 'react';
 import { defaultGear } from '../types/Gear';
 import { Stack, TextField } from '@mui/material';
 
-const GearEditor: FC<{ onUpdateGear: (jsonInput: string) => void }> = ({ onUpdateGear }) => {
+const GearEditor: FC<{
+  onUpdateGear: (jsonInput: string) => void;
+  onChange?: (gear: typeof defaultGear) => void;
+}> = ({ onUpdateGear, onChange }) => {
   const [newGear, setNewGear] = useState(defaultGear);
 
   const onUpdateGearFormatted = useCallback(() => {
@@ -13,6 +16,7 @@ const GearEditor: FC<{ onUpdateGear: (jsonInput: string) => void }> = ({ onUpdat
   }, [newGear]);
 
   useEffect(onUpdateGearFormatted, [onUpdateGearFormatted]);
+  useEffect(() => onChange?.(newGear), [newGear, onChange]);
 
   return (
     <Stack spacing={2} direction="column" justifyContent="space-between" alignItems="center">

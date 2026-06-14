@@ -4,9 +4,11 @@ import com.pigishentertainment.dndassistant.data.SpellRepository;
 import com.pigishentertainment.dndassistant.domain.Spell;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -53,5 +55,21 @@ public class SpellController {
     body.setOwner_user_id(null);
     Spell saved = repo.insert(body);
     return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+  }
+
+  @PutMapping("/{id}")
+  public Spell update(@PathVariable long id, @RequestBody Spell body) {
+    // Phase 1: no auth, so any caller can update any row. Phase 5 will
+    // restrict to owner. The id in the path is authoritative; body's
+    // id (if any) is ignored. provenance/owner are also preserved
+    // (homebrew/null for created-by-UI rows; existing values for SRD
+    // rows are kept).
+    return repo.update(id, body);
+  }
+
+  @DeleteMapping("/{id}")
+  public ResponseEntity<Void> delete(@PathVariable long id) {
+    repo.deleteById(id);
+    return ResponseEntity.noContent().build();
   }
 }

@@ -2,7 +2,10 @@ import React, { FC, useCallback, useEffect, useState } from 'react';
 import { defaultWeapon } from '../types/Gear';
 import { Stack, TextField } from '@mui/material';
 
-const WeaponEditor: FC<{ onUpdateGear: (jsonInput: string) => void }> = ({ onUpdateGear }) => {
+const WeaponEditor: FC<{
+  onUpdateGear: (jsonInput: string) => void;
+  onChange?: (weapon: typeof defaultWeapon) => void;
+}> = ({ onUpdateGear, onChange }) => {
   const [newWeapon, setNewWeapon] = useState(defaultWeapon);
 
   const onUpdateGearFormatted = useCallback(() => {
@@ -13,6 +16,7 @@ const WeaponEditor: FC<{ onUpdateGear: (jsonInput: string) => void }> = ({ onUpd
   }, [newWeapon]);
 
   useEffect(onUpdateGearFormatted, [onUpdateGearFormatted]);
+  useEffect(() => onChange?.(newWeapon), [newWeapon, onChange]);
 
   return (
     <Stack spacing={2} direction="column" justifyContent="space-between" alignItems="center">

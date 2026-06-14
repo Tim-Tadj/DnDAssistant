@@ -23,7 +23,7 @@ Establish the scaffolding to drive the project to completion.
 **Done when:** a new contributor can understand the project, run it, and see the
 plan from the docs alone.
 
-## Phase 1 — Backend API & Persistence *(core epic)* ← we are here
+## Phase 1 — Backend API & Persistence *(core epic)*
 
 Close the biggest gap: the frontend cannot talk to the database.
 
@@ -37,7 +37,8 @@ Close the biggest gap: the frontend cannot talk to the database.
 - [x] Externalize DB configuration / credentials (env vars), remove hardcoding
       from both the Java code and the compose file.
 - [x] Define REST endpoints per the API spec for the resource types; designed
-      **user-aware** from the start (`owner_user_id` column on `spells`).
+      **user-aware** from the start (`owner_user_id` column on `spells` and
+      `monsters`).
 - [x] Enable CORS for the dev frontend (`CorsConfig`, configurable origins).
 - [x] **Vertical slice — Spells:** wire the spell browser and creation editor
       to `/api/v1/spells` (list + get + create). Bundle a seed of 396 SRD
@@ -46,25 +47,53 @@ Close the biggest gap: the frontend cannot talk to the database.
       `/api/v1/monsters` (list + get + create). Seed from
       `monster_manual_monsters.json` (409 stat blocks, `provenance=derived`)
       on first boot. The monster creation editor is still a stub.
-- [ ] **Vertical slice — Gear/Weapons/Armour:** same treatment for the
-      `/api/v1/gear`, `/api/v1/weapons`, `/api/v1/armour` endpoints.
-- [ ] **Vertical slice — Gear/Weapons/Armour:** same treatment for the
-      `/api/v1/gear`, `/api/v1/weapons`, `/api/v1/armour` endpoints.
-- [ ] Adopt Flyway (or Liquibase) for schema migrations so the schema is
-      versioned and not just `CREATE TABLE IF NOT EXISTS` on every boot.
+- [x] **Vertical slice — Gear/Weapons/Armour:** single `gear` table with a
+      `kind` column covering weapons, armour, and gear. 152 rows seeded
+      (37 + 2 + 13 + 0 + 99 + 1 = SRD + custom). Frontend table rewritten
+      to fetch from `/api/v1/gear` (single list, client-side `kind` filter
+      for the existing Weapons / Armour / Gear tabs). Create-gear POSTs
+      via the new editor flow.
+- [x] Adopt Flyway (or Liquibase) for schema migrations. V2__add_gear.sql
+      is the first migration; the dev DB was baselined at V1 to preserve
+      the existing spells/monsters tables, so V2 is the first new version
+      applied. `spring.sql.init` is disabled — Flyway owns the schema.
+- [x] Backend doesn't fail-fast on a slow DB. `DataSourceReadiness`
+      (a `BeanPostProcessor` at `HIGHEST_PRECEDENCE`) blocks startup
+      until `DataSource.getConnection()` succeeds, retrying up to 30
+      times with 1s backoff. Lets the backend start in environments
+      where Postgres is still booting.
 
 **Done when:** a spell, monster, and piece of gear created in the UI are
-all persisted in Postgres and reloaded from the API on refresh. The
-Spells slice ships; monsters and gear remain.
+all persisted in Postgres and reloaded from the API on refresh.
 
-## Phase 2 — Editors → Persistence
+## Phase 2 — Editors → Persistence *(in progress)* ← we are here
 
 Turn the JSON-emitting creation editors into real CRUD.
 
-- [ ] Implement the stubbed **Monster editor** (`src/ts/monsters/monster-editor.tsx`).
-- [ ] Switch all editors from "emit JSON for review" to POST/PUT against the API.
-- [ ] Add read / list / update / delete for monsters, spells, gear.
-- [ ] Replace static-JSON reads with API reads, feature by feature.
+- [x] Implement the stubbed **Monster editor**
+      (`src/ts/monsters/monster-editor.tsx`) — now a full form covering
+      name/meta/AC/HP/Speed/CR, the six ability scores with mods,
+      defenses (saves/skills/damage types/condition immunities),
+      senses/languages/img_url, traits/actions/reactions/legendary
+      actions, and description/lair/regional. POSTs to `/api/v1/monsters`.
+- [x] **CRUD on the API:** `PUT /api/v1/{spells,monsters,gear}/{id}` and
+      `DELETE /api/v1/{spells,monsters,gear}/{id}` are implemented and
+      verified by smoke-test. Frontend API helpers expose `update` and
+      `delete` methods; the table UI does not yet expose edit/delete
+      buttons (the detail dialog reads but does not edit).
+- [x] **All static-JSON reads replaced:** `monster-table.tsx`,
+      `use-generate-encounter.ts`, and `use-track-encounter.ts` now
+      fetch from `/api/v1/monsters` (via a shared `useMonsters` hook in
+      the encounter flow). `monster.ts` no longer imports the bundled
+      JSON. `gear.tsx` reads from `/api/v1/gear`. Static JSON files
+      remain only as seed sources.
+- [ ] Add update / delete buttons to the monster, spell, and gear
+      tables (call the existing API helpers).
+- [ ] Switch the **spells editor** off the legacy "emit JSON" pattern
+      — already POSTs on Save but the editor markup is unchanged.
+      Add PUT/DELETE UI to the spell browser.
+- [ ] Switch the gear editors — already POST on Save; add PUT/DELETE UI
+      to the gear browser.
 
 **Done when:** monsters, spells and gear are fully CRUD-able through the UI and
 backed by the database; static JSON is only a seed source.

@@ -18,27 +18,52 @@ start a fresh `[Unreleased]` section.
 - Project documentation: `ROADMAP.md`, `PROJECT_STATUS.md`, `AGENTS.md`,
   `CHANGELOG.md`, and a `docs/spec/` specification directory.
 - Cross-platform run scripts: `scripts/run-all.ps1` and `scripts/run-all.sh`.
+- **Phase 1 — Gear/Weapons/Armour vertical slice.** A single `gear`
+  table (kind ∈ {weapon, armour, gear}) covers all three; 152 rows
+  seed on first boot (37 + 2 + 13 + 0 + 99 + 1 from SRD + custom JSON).
+  The frontend `gear.tsx` fetches `/api/v1/gear` (single list,
+  client-side `kind` filter) and the `Create Gear` dialog POSTs to the
+  API on Save. New files: `src/java/.../domain/Gear.java`,
+  `data/GearRepository.java`, `data/GearSeed.java`,
+  `web/GearController.java`; `src/ts/api/gear.ts`; updated
+  `src/ts/types/Gear.ts` with a unified `GearItem` shape (legacy
+  `Weapon`/`Armour`/`Gear` types preserved for the column descriptors
+  and editors). Endpoints: `GET /api/v1/gear`,
+  `GET /api/v1/gear?kind={weapon|armour|gear}`, `GET /api/v1/gear/{id}`,
+  `POST /api/v1/gear`.
+- **Flyway 9.22** now owns the schema. The legacy `schema.sql` was
+  removed; `V2__add_gear.sql` is the first real migration. The dev DB
+  was baselined at V1 (Spring Boot `baseline-version=1`,
+  `baseline-on-migrate=true`) so the existing `spells` and `monsters`
+  tables were preserved. `spring.sql.init.mode=never` so SQL init
+  scripts no longer fight Flyway.
+- **DataSourceReadiness** — a `BeanPostProcessor` at
+  `HIGHEST_PRECEDENCE` that blocks the application context from
+  starting until `DataSource.getConnection()` succeeds. 30 attempts ×
+  1s backoff. Replaces the previous behavior of exiting the JVM on
+  first connection failure.
 - **Phase 1 — Monsters vertical slice.** The monster browser now talks to
   the backend:
-  - **Backend** gained the `monsters` table (`schema.sql`, 36 columns
-    mirroring the bundled JSON shape, with `UNIQUE (name, provenance,
-    owner_user_id)`), a JdbcTemplate-backed `MonsterRepository`
-    (using `NamedParameterJdbcTemplate` to eliminate the
-    positional-`?`-bind "No value specified for parameter N" failure
-    mode), a `MonsterSeed` that loads 409 stat blocks from
-    `monster_manual_monsters.json` on first boot (idempotent — skipped
-    when the table already has rows), and a `MonsterController` exposing
-    `GET /api/v1/monsters`, `GET /api/v1/monsters/{id}`, and
-    `POST /api/v1/monsters` (provenance=homebrew, owner_user_id null for
-    now). The Monster domain class maps the PascalCase wire shape (`AC`,
-    `HP`, `Speed`, `INT`, `Saving_Throws`, `Legendary_Actions`, …) via
+  - **Backend** gained the `monsters` table (Flyway-equivalent CREATE
+    TABLE, 36 columns mirroring the bundled JSON shape, with
+    `UNIQUE (name, provenance, owner_user_id)`), a
+    JdbcTemplate-backed `MonsterRepository` (using
+    `NamedParameterJdbcTemplate` to eliminate the positional-`?`-bind
+    "No value specified for parameter N" failure mode), a `MonsterSeed`
+    that loads 409 stat blocks from `monster_manual_monsters.json` on
+    first boot (idempotent — skipped when the table already has rows),
+    and a `MonsterController` exposing `GET /api/v1/monsters`,
+    `GET /api/v1/monsters/{id}`, and `POST /api/v1/monsters`
+    (provenance=homebrew, owner_user_id null for now). The Monster
+    domain class maps the PascalCase wire shape (`AC`, `HP`, `Speed`,
+    `INT`, `Saving_Throws`, `Legendary_Actions`, …) via
     `@JsonProperty`.
   - **Frontend** has a monsters helper at `src/ts/api/monsters.ts`
     (mirroring `api/spells.ts`). `monster-table.tsx` fetches from
     `/api/v1/monsters` with loading + error states, and the bundled
     JSON import is no longer used by the table or by the Monster type
-    (the encounter generator and tracker still read the bundled JSON —
-    they will be switched in a follow-up).
+    (the encounter generator and tracker were switched to the API in
+    Phase 2).
   - `scripts/backend-detached.bat` — convenience launcher for dev.
   - **Seed:** 409 monsters load into Postgres on first boot from
     `src/res/resources/monster_manual_monsters.json` with
@@ -94,16 +119,42 @@ start a fresh `[Unreleased]` section.
     index and resumable progress manifest (both git-ignored).
 
 ### Changed
+- **Phase 2 — Monster editor implemented.** The previously-stub
+  `src/ts/monsters/monster-editor.tsx` is now a full form covering
+  basic stats (name, meta, AC, HP, Speed, Challenge), the six ability
+  scores with mods, defenses (saving throws, skills, damage
+  vulnerabilities/resistances/immunities, condition immunities),
+  senses/languages/img_url, traits/actions/reactions/legendary actions
+  (HTML allowed, matching the rest of the monster data), and
+  description/lair/regional effects. `create-monster.tsx` POSTs to
+  `/api/v1/monsters` on Save (with toast on success, error banner on
+  failure) and refreshes the table via an `onCreated` callback.
+- **Phase 2 — PUT/DELETE on the API.** Spells, Monsters, and Gear
+  controllers all expose `PUT /api/v1/{resource}/{id}` and
+  `DELETE /api/v1/{resource}/{id}`. Frontend API helpers
+  (`spellsApi.update/delete`, `monstersApi.update/delete`,
+  `gearApi.update/delete`) are wired and ready; the table UIs do not
+  yet expose edit/delete buttons.
+- **Phase 2 — Encounter hooks read from the API.**
+  `use-generate-encounter.ts` and `use-track-encounter.ts` no longer
+  import the bundled `monster_manual_monsters.json`; they share a new
+  `src/ts/encounters/use-monsters.ts` hook that calls
+  `monstersApi.list()`. The encounter generator's Challenge-parsing
+  logic continues to work because the API shape matches the bundled
+  JSON.
 - **`src/ts/monsters/monster-table.tsx`** now fetches from the backend
   API instead of importing the bundled JSON, with loading + error
   states. Search (`+`-delimited) and the detail dialog continue to
   work against the API shape.
 - **`src/ts/types/Monster.ts`** no longer imports the bundled JSON; the
   unused `baseMonster` derived type was removed.
-- `docs/spec/api.md` — lists the monsters endpoint as currently
-  implemented.
-- `ROADMAP.md` — Monsters vertical slice ticked off.
-- `PROJECT_STATUS.md` — Monster browser + REST API rows updated.
+- `docs/spec/api.md` — lists the monsters, gear, and CRUD endpoints as
+  currently implemented.
+- `ROADMAP.md` — Phase 1 marked complete; Phase 2 marked in progress
+  with first three deliverables ticked.
+- `PROJECT_STATUS.md` — Backend / frontend / wiring tables all updated
+  to reflect the new state (Gear/Combat/Encounter rows, schema
+  management, REST API row, etc.).
 - Rewrote `README.md` as UTF-8 with prerequisites, corrected run instructions,
   a quick-start, and links to the new docs.
 - **`src/ts/types/Monster.ts`** default import now points at

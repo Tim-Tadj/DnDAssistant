@@ -9,13 +9,14 @@ Legend: ✅ done · 🚧 in progress · ⛔ not started
 
 ## Current focus
 
-Phase 1 — Backend API & Persistence is **partially complete**: both
-**Spells** and **Monsters** vertical slices work end-to-end. A spell or
-monster created in the UI is persisted in Postgres and reloaded from the
-API on refresh. The remaining Phase 1 work is the same vertical slice for
-Gear/Weapons/Armour, plus tightening the database layer (Flyway, etc.).
-Phase 3 (Monster Manual ingestion) is also done — 409 stat blocks shipped
-on this branch.
+**Phase 1 is complete.** Spells, Monsters, and Gear/Weapons/Armour all
+work end-to-end against the API; Flyway owns the schema; the backend
+retries its first DB connection so it can survive a slow Postgres boot.
+
+**Phase 2 is underway.** The Monster editor is no longer a stub and
+POSTs to the API. The encounter generator and tracker read from the
+API. PUT/DELETE are wired on the API and verified by smoke-test; the
+table UIs don't yet expose edit/delete buttons.
 
 ## Feature status
 
@@ -25,14 +26,14 @@ on this branch.
 | --- | --- | --- |
 | Monster browser | ✅ | DataGrid + detail dialog, pagination, **fetches from `/api/v1/monsters`** (Phase 1 vertical slice; 409 stat blocks seeded from the Monster Manual) |
 | Spell browser | ✅ | DataGrid + detail dialog, pagination, **fetches from `/api/v1/spells`** (Phase 1 vertical slice) |
-| Gear / shop | ✅ | Weapons, armour, gear (still reads bundled JSON) |
-| Encounter generator | ✅ | XP-balanced, filters by type/alignment/size; CR/XP parsing verified on the new dataset |
-| Combat tracker | ✅ | Initiative, per-monster HP, multi-select |
+| Gear / shop | ✅ | Weapons, armour, gear; **fetches from `/api/v1/gear`** (Phase 1 vertical slice; 152 rows seeded from SRD + custom). Editor POSTs to the API. |
+| Encounter generator | ✅ | XP-balanced, filters by type/alignment/size; **reads monsters from the API** (via `useMonsters` hook) |
+| Combat tracker | ✅ | Initiative, per-monster HP, multi-select; **reads monsters from the API** |
 | Campaign map + lore | ✅ | Interactive Avandria map, lore viewer |
 | Mechanics / rules pages | ✅ | Renders bundled rules JSON |
 | Spell creation editor | ✅ | **Posts to `/api/v1/spells` (Phase 1)**; still shows JSON preview alongside |
-| Gear/Weapon/Armour editors | 🚧 | Emit JSON for review (still not persisted) |
-| Monster creation editor | ⛔ | Component is a stub (`monster-editor.tsx`) |
+| Gear/Weapon/Armour editors | ✅ | **Post to `/api/v1/gear` (Phase 1)**; JSON preview alongside. Per-kind editor (weapon / armour / gear) chosen via the in-dialog picker. |
+| Monster creation editor | ✅ | **Posts to `/api/v1/monsters` (Phase 2)**; full form (name, meta, AC, HP, Speed, CR, ability scores + mods, defenses, senses/languages/img_url, traits/actions/reactions/legendary, description/lair/regional). |
 
 ### Backend
 
@@ -40,13 +41,13 @@ on this branch.
 | --- | --- | --- |
 | Maven build | ✅ | Java 11, Spring Boot 3.2.5, `mvn clean install` |
 | PostgreSQL via Docker | ✅ | `postgres/docker-compose.yml` (Postgres on `55432`, Adminer on `8080`); credentials via env |
-| JDBC connection | ✅ | Spring Boot `spring.datasource.*` driven by env vars; defaults to `localhost:55432` |
-| Schema management | 🚧 | `schema.sql` runs on startup (`IF NOT EXISTS`); no migration tool yet — Flyway deferred to Phase 6 |
-| REST API | 🚧 | **Spells + Monsters complete (list/get/create)**; gear/weapons/armour still not exposed |
+| JDBC connection | ✅ | Spring Boot `spring.datasource.*` driven by env vars; defaults to `localhost:55432`; `DataSourceReadiness` blocks startup until a connection is available (30 × 1s retries) so a slow Postgres boot doesn't kill the JVM |
+| Schema management | ✅ | **Flyway 9.x** owns the schema. `V2__add_gear.sql` is the first migration; dev DB baselined at V1 to preserve existing `spells` and `monsters`. `spring.sql.init` disabled. |
+| REST API | ✅ | **Spells, Monsters, Gear** all expose `list / get / create / update / delete`. `GET /api/v1/gear?kind=weapon` filters by kind. |
 | CORS | ✅ | `CorsConfig` allows the dev frontend at `http://localhost:3000` (configurable) |
-| Frontend ↔ DB wiring | 🚧 | Spells + Monsters: live. Other features still read bundled JSON. |
-| Auth / multi-user | ⛔ | Planned (Phase 5); `owner_user_id` column already on `spells` so the schema doesn't change later |
-| Content importer | 🚧 | Monster Manual portion done (409 monsters, see `docs/spec/monster-manual-ingestion.md`); spells are seeded from bundled SRD JSON on backend startup; gear/imports for other content still to come |
+| Frontend ↔ DB wiring | ✅ | Spells, Monsters, and Gear all read from the API. Encounter generator and tracker also read from the API. |
+| Auth / multi-user | ⛔ | Planned (Phase 5); `owner_user_id` column already on `spells`, `monsters`, and `gear` so the schema doesn't change later |
+| Content importer | 🚧 | Monster Manual portion done (409 monsters, see `docs/spec/monster-manual-ingestion.md`); spells seed from bundled SRD JSON on backend startup; gear seeds from SRD + custom; gear/imports for other content still to come |
 
 ## Known issues
 

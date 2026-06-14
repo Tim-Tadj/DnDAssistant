@@ -11,6 +11,7 @@ import org.springframework.stereotype.Repository;
 
 import java.sql.Timestamp;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 @Repository
@@ -180,5 +181,77 @@ public class MonsterRepository {
 
   private static String nullToEmpty(String s) {
     return s == null ? "" : s;
+  }
+
+  public Monster update(long id, Monster body) {
+    if (body == null || body.getName() == null || body.getName().isBlank()) {
+      throw new IllegalArgumentException("Monster 'name' is required");
+    }
+    MapSqlParameterSource p = new MapSqlParameterSource();
+    p.addValue("id", id);
+    p.addValue("name", body.getName());
+    p.addValue("meta", nullToEmpty(body.getMeta()));
+    p.addValue("ac", nullToEmpty(body.getAc()));
+    p.addValue("hp", nullToEmpty(body.getHp()));
+    p.addValue("speed", nullToEmpty(body.getSpeed()));
+    p.addValue("str", nullToEmpty(body.getStr()));
+    p.addValue("str_mod", nullToEmpty(body.getStr_mod()));
+    p.addValue("dex", nullToEmpty(body.getDex()));
+    p.addValue("dex_mod", nullToEmpty(body.getDex_mod()));
+    p.addValue("con", nullToEmpty(body.getCon()));
+    p.addValue("con_mod", nullToEmpty(body.getCon_mod()));
+    p.addValue("int", nullToEmpty(body.getInt_()));
+    p.addValue("int_mod", nullToEmpty(body.getInt_mod()));
+    p.addValue("wis", nullToEmpty(body.getWis()));
+    p.addValue("wis_mod", nullToEmpty(body.getWis_mod()));
+    p.addValue("cha", nullToEmpty(body.getCha()));
+    p.addValue("cha_mod", nullToEmpty(body.getCha_mod()));
+    p.addValue("saving_throws", nullToEmpty(body.getSaving_throws()));
+    p.addValue("skills", nullToEmpty(body.getSkills()));
+    p.addValue("damage_vulnerabilities", nullToEmpty(body.getDamage_vulnerabilities()));
+    p.addValue("damage_resistances", nullToEmpty(body.getDamage_resistances()));
+    p.addValue("damage_immunities", nullToEmpty(body.getDamage_immunities()));
+    p.addValue("condition_immunities", nullToEmpty(body.getCondition_immunities()));
+    p.addValue("senses", nullToEmpty(body.getSenses()));
+    p.addValue("languages", nullToEmpty(body.getLanguages()));
+    p.addValue("challenge", nullToEmpty(body.getChallenge()));
+    p.addValue("traits", nullToEmpty(body.getTraits()));
+    p.addValue("actions", nullToEmpty(body.getActions()));
+    p.addValue("reactions", nullToEmpty(body.getReactions()));
+    p.addValue("legendary_actions", nullToEmpty(body.getLegendary_actions()));
+    p.addValue("description", nullToEmpty(body.getDescription()));
+    p.addValue("lair_actions", nullToEmpty(body.getLair_actions()));
+    p.addValue("regional_effects", nullToEmpty(body.getRegional_effects()));
+    p.addValue("img_url", nullToEmpty(body.getImg_url()));
+    int rows = jdbc.update(
+        "UPDATE monsters SET"
+            + " name=:name, meta=:meta, ac=:ac, hp=:hp, speed=:speed,"
+            + " str=:str, str_mod=:str_mod, dex=:dex, dex_mod=:dex_mod,"
+            + " con=:con, con_mod=:con_mod, int=:int, int_mod=:int_mod,"
+            + " wis=:wis, wis_mod=:wis_mod, cha=:cha, cha_mod=:cha_mod,"
+            + " saving_throws=:saving_throws, skills=:skills,"
+            + " damage_vulnerabilities=:damage_vulnerabilities,"
+            + " damage_resistances=:damage_resistances,"
+            + " damage_immunities=:damage_immunities,"
+            + " condition_immunities=:condition_immunities,"
+            + " senses=:senses, languages=:languages, challenge=:challenge,"
+            + " traits=:traits, actions=:actions, reactions=:reactions,"
+            + " legendary_actions=:legendary_actions, description=:description,"
+            + " lair_actions=:lair_actions, regional_effects=:regional_effects,"
+            + " img_url=:img_url, updated_at=NOW()"
+            + " WHERE id=:id",
+        p);
+    if (rows == 0) {
+      throw new NoSuchElementException("Monster " + id + " not found");
+    }
+    return findById(id).orElseThrow(() -> new NoSuchElementException("Monster " + id + " not found"));
+  }
+
+  public void deleteById(long id) {
+    int rows = jdbc.update("DELETE FROM monsters WHERE id = :id",
+        new MapSqlParameterSource("id", id));
+    if (rows == 0) {
+      throw new NoSuchElementException("Monster " + id + " not found");
+    }
   }
 }
