@@ -15,6 +15,133 @@ start a fresh `[Unreleased]` section.
 ## [Unreleased]
 
 ### Added
+- **Phase 9 — Campaign-centric UX. Campaigns are now the
+  centre of the universe.** The app revolves around one
+  active campaign (and optionally one active party) that the
+  user picks from a sticky context bar at the top of every
+  page. Encounters, sessions, NPC tagging, and per-campaign
+  character state all key off the active selection. The
+  whole flow was rebuilt to be context-aware.
+
+  1. **Active campaign + active party context.** A new
+     `CampaignProvider` (in `CampaignContext.tsx`) holds the
+     user's selected campaign and party, persists them to
+     `localStorage`, and re-fetches on sign-in. A new
+     `ContextBar` sits between the AppBar and the page
+     content and exposes the two pickers, with a 'Manage'
+     shortcut to the Campaigns page.
+
+  2. **Per-campaign character state.** New
+     `campaign_characters` table (V12) gives every
+     (campaign, character) pair its own level, hp_max
+     override, AC override, conditions, death saves, and hit
+     dice. A character can be level 3 in one campaign and
+     level 7 in another. Auto-initialized from the canonical
+     character on first add.
+
+  3. **Many-to-many party <-> campaign link.** New
+     `campaign_parties` junction table (V13). A party can
+     be linked to multiple campaigns; a campaign can have
+     multiple parties (players, BBEG, side NPCs).
+
+  4. **Global NPCs.** NPCs are now per-user, not
+     per-campaign (V14 — added `owner_user_id` and
+     `campaign_tags TEXT`). The old per-campaign endpoint
+     stays for back-compat. New flat `/api/v1/npcs` endpoint
+     is the primary one. `?campaign=X` filters by tag.
+
+  5. **Campaign hub.** A new `CampaignHub` replaces the
+     old sessions/npcs side-by-side panel on the Campaigns
+     page. Six tabs: Overview / Parties / Characters /
+     Sessions / NPCs / Encounters. The campaign workflow
+     bar (next-session date, cadence, status, mark-played)
+     sits above the tabs.
+
+  6. **3-tab Encounter page.** The Encounters page is now
+     `EncounterPage` with three tabs: **Live** (the combat
+     tracker, with a new "Add party (N)" button that rolls
+     initiative for each PC and inserts them alongside the
+     monsters — PCs get a secondary-color accent so they're
+     visually distinct), **Builder** (the randomizer, with
+     "Save to library" and "Send to Live" actions), and
+     **Library** (per-campaign saved encounters, with a
+     working Re-run button that hydrates the saved
+     `MonsterRef[]` back into full `Monster` objects via
+     the new `hydrateEncounterSave` helper).
+
+  7. **Monster stat pane (global quick reference).** A
+     global `useMonsterStatPane()` provider exposes a
+     right-side Drawer that any component can pop open via
+     `open(monster)`. Encounter tracker rows open it on
+     name click so the DM can read monster lore to the
+     players without leaving the tracker. Encounter
+     builder preview rows open it on click. NPCs with a
+     linked monster already used it via the NPC detail
+     view.
+
+  8. **Backend migrations + new endpoints:**
+     - V12 `campaign_characters` (per-campaign override)
+     - V13 `campaign_parties` (junction)
+     - V14 `campaign_npcs` globalization (drop NOT NULL on
+       `campaign_id`, add `campaign_tags TEXT`, add
+       `owner_user_id UUID NOT NULL`, backfill from existing
+       rows)
+     - `GET/PUT/DELETE /api/v1/campaigns/{id}/characters[/{characterId}]`
+     - `GET/POST/DELETE /api/v1/campaigns/{id}/parties[/{partyId}]`
+     - `GET/POST/PUT/DELETE /api/v1/npcs`
+       (and `?campaign=X`)
+
+- **20/20 smoke tests pass.** Added three new tests:
+  - `campaignCharacterStatePerCampaign` — per-campaign
+    override CRUD, canonical-row not mutated on update.
+  - `campaignPartyLinkAndUnlink` — link two parties to a
+    campaign, unlink one.
+  - `globalNpcCrudWithCampaignTags` — global NPC CRUD,
+    campaign tag filter, cross-user isolation.
+
+- **CampaignContext / MonsterStatPane / EncounterContext**
+  providers mounted at the app root.
+
+- **LinkedText** chips now resolve NPCs from the global
+  `/api/v1/npcs?campaign=X` endpoint.
+
+### Changed
+- **Campaigns page** is now centred on the active campaign.
+  When there's no active campaign, falls back to a card
+  grid + create-new CTA. Selecting a campaign via the
+  ContextBar (top bar) takes you straight to its hub.
+- **Characters page** no longer hosts the per-campaign
+  state panel — that lives in the campaign hub's
+  Characters tab now. The Characters page is the canonical
+  (per-user) character list with a party dashboard.
+- **NpcsRoster** reads / writes through the global `/npcs`
+  endpoint; creating an NPC from a campaign auto-tags it
+  with the active campaign id.
+- **Encounter tracker** accepts an optional `party: Character[]`
+  prop; an "Add party (N)" button rolls initiative for each
+  character and inserts them into the initiative order.
+  PCs are flagged with `RemainingMonster.isPC` and styled
+  with a secondary-color accent.
+
+### Fixed
+- `CampaignCharacterRepository.upsert` now resolves the
+  existing row by (campaign_id, character_id) when the
+  client PUTs without an id (the common case from a
+  re-edit). Previously the second PUT from the same client
+  tried to insert a duplicate row and tripped the UNIQUE
+  constraint with a 500.
+- `CampaignNpcRepository.findByOwnerAndCampaignTag` now
+  passes the campaign id as a separate parameter rather
+  than wrapping it in `%...%` and `CAST(... AS UUID)`,
+  which failed for any input that wasn't a valid UUID.
+
+### Removed
+- `src/ts/encounters/encounter-generator.tsx` — replaced by
+  the 3-tab `EncounterPage` (Live / Builder / Library).
+
+## [Unreleased]
+
+### Added
 - **Phase 8 — Characters + Campaigns become real DM tools.**
   Eleven new features that turn the two stub pages into the
   working surface a DM needs at the table:
