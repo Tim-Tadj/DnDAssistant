@@ -15,10 +15,13 @@ Postgres. SRD/derived rows are read-only; homebrew rows are editable
 and deletable with a confirmation dialog. Static JSON is now only a
 seed source.
 
-**Phase 3 is the next target.** The Monster Manual is ingested
-(409 stat blocks, `provenance='derived'`). Spells and gear still only
-have the SRD set; the Player's Handbook ingestion is the next big
-content task.
+**Phase 3 is in progress.** The generic content importer infrastructure
+is in place: `POST /api/v1/import` accepts a `{kind, provenance,
+items[]}` payload, upserts each item by natural key, and returns a
+per-item summary. A CLI driver (`scripts/import-content.ps1`) drives
+the endpoint. The Monster Manual is ingested (409 stat blocks,
+`provenance='derived'`). Spells and gear still only have the SRD set
+loaded; the Player's Handbook ingestion awaits a corpus source.
 
 ## Feature status
 
@@ -52,7 +55,7 @@ content task.
 | CORS | ✅ | `CorsConfig` allows the dev frontend at `http://localhost:3000` (configurable) |
 | Frontend ↔ DB wiring | ✅ | Spells, Monsters, and Gear all read from the API. Encounter generator and tracker also read from the API. |
 | Auth / multi-user | ⛔ | Planned (Phase 5); `owner_user_id` column already on `spells`, `monsters`, and `gear` so the schema doesn't change later |
-| Content importer | 🚧 | Monster Manual portion done (409 monsters, see `docs/spec/monster-manual-ingestion.md`); spells seed from bundled SRD JSON on backend startup; gear seeds from SRD + custom; gear/imports for other content still to come |
+| Content importer | 🚧 | **Phase 3 generic pipeline shipped.** `POST /api/v1/import` (open admin endpoint) accepts `{kind, provenance, items[]}` and upserts by natural key with a per-item `{imported, updated, errors[]}` summary. CLI driver at `scripts/import-content.ps1`. The Monster Manual is ingested (409 monsters, `provenance='derived'`, see `docs/spec/monster-manual-ingestion.md`). Spells seed from bundled SRD JSON on backend startup; gear seeds from SRD + custom. PHB ingestions for spells and gear pending corpus + normalizer. |
 
 ## Known issues
 

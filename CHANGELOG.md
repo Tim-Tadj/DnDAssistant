@@ -18,6 +18,29 @@ start a fresh `[Unreleased]` section.
 - Project documentation: `ROADMAP.md`, `PROJECT_STATUS.md`, `AGENTS.md`,
   `CHANGELOG.md`, and a `docs/spec/` specification directory.
 - Cross-platform run scripts: `scripts/run-all.ps1` and `scripts/run-all.sh`.
+- **Phase 3 — Generic content importer.**
+  - `POST /api/v1/import` (open admin endpoint) accepts a
+    `{kind: spell|monster|gear, provenance: srd|derived|homebrew,
+    owner_user_id?, items: [...]}` payload and upserts each item by
+    its natural key (`(name, kind?, provenance, owner_user_id)`). The
+    response carries a per-item summary:
+    `{imported, updated, skipped, errors: [{name, reason}...]}`. Per-item
+    failures are caught and recorded; the batch is never aborted by
+    a single bad row. Phase 5 auth will close this endpoint; the
+    `owner_user_id` column already records the owner.
+  - `SpellRepository`, `MonsterRepository`, and `GearRepository` each
+    gained a `findByNaturalKey(...)` lookup and an `upsert(...)`
+    method that returns `(domain, created)`. `owner_user_id`
+    comparison uses `IS NOT DISTINCT FROM` so a NULL owner matches
+    another NULL (global reference content keyed by `(name,
+    provenance)` is unique).
+  - CLI driver at `scripts/import-content.ps1` (PowerShell). Accepts
+    either a top-level JSON array or `{items: [...]}`; supports
+    `-Dry`, `-OwnerUserId`, and a configurable `-ApiBase`.
+  - Sample payload at `scripts/sample-import-spell.json`.
+  - `docs/spec/content-ingestion.md` rewritten from "design target"
+    to "implemented (generic pipeline) · content corpora pending".
+- **Phase 1 — Gear/Weapons/Armour vertical slice.**
 - **Phase 1 — Gear/Weapons/Armour vertical slice.** A single `gear`
   table (kind ∈ {weapon, armour, gear}) covers all three; 152 rows
   seed on first boot (37 + 2 + 13 + 0 + 99 + 1 from SRD + custom JSON).

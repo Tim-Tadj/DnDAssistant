@@ -254,4 +254,43 @@ public class MonsterRepository {
       throw new NoSuchElementException("Monster " + id + " not found");
     }
   }
+
+  public Optional<Monster> findByNaturalKey(String name, String provenance, String ownerUserId) {
+    String sql = "SELECT " + COLUMNS + " FROM monsters"
+        + " WHERE name = :name AND provenance = :provenance"
+        + " AND owner_user_id IS NOT DISTINCT FROM :owner";
+    MapSqlParameterSource p = new MapSqlParameterSource()
+        .addValue("name", name)
+        .addValue("provenance", provenance)
+        .addValue("owner", ownerUserId);
+    List<Monster> rows = jdbc.query(sql, p, monsterRowMapper);
+    return rows.isEmpty() ? Optional.empty() : Optional.of(rows.get(0));
+  }
+
+  public UpsertResult upsert(Monster m) {
+    if (m.getProvenance() == null || m.getProvenance().isEmpty()) {
+      m.setProvenance("homebrew");
+    }
+    Optional<Monster> existing = findByNaturalKey(
+        m.getName(), m.getProvenance(), m.getOwner_user_id());
+    if (existing.isPresent()) {
+      Monster e = existing.get();
+      m.setId(e.getId());
+      Monster updated = update(e.getId(), m);
+      return new UpsertResult(updated, false);
+    } else {
+      return new UpsertResult(insert(m), true);
+    }
+  }
+
+  public static final class UpsertResult {
+    private final Monster monster;
+    private final boolean created;
+    public UpsertResult(Monster monster, boolean created) {
+      this.monster = monster;
+      this.created = created;
+    }
+    public Monster getMonster() { return monster; }
+    public boolean isCreated() { return created; }
+  }
 }

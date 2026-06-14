@@ -163,4 +163,44 @@ public class GearRepository {
       throw new NoSuchElementException("Gear " + id + " not found");
     }
   }
+
+  public Optional<Gear> findByNaturalKey(String name, String kind, String provenance, String ownerUserId) {
+    String sql = "SELECT " + COLUMNS + " FROM gear"
+        + " WHERE name = :name AND kind = :kind AND provenance = :provenance"
+        + " AND owner_user_id IS NOT DISTINCT FROM :owner";
+    MapSqlParameterSource p = new MapSqlParameterSource()
+        .addValue("name", name)
+        .addValue("kind", kind)
+        .addValue("provenance", provenance)
+        .addValue("owner", ownerUserId);
+    List<Gear> rows = jdbc.query(sql, p, rowMapper);
+    return rows.isEmpty() ? Optional.empty() : Optional.of(rows.get(0));
+  }
+
+  public UpsertResult upsert(Gear g) {
+    if (g.getProvenance() == null || g.getProvenance().isEmpty()) {
+      g.setProvenance("homebrew");
+    }
+    Optional<Gear> existing = findByNaturalKey(
+        g.getName(), g.getKind(), g.getProvenance(), g.getOwner_user_id());
+    if (existing.isPresent()) {
+      Gear e = existing.get();
+      g.setId(e.getId());
+      Gear updated = update(e.getId(), g);
+      return new UpsertResult(updated, false);
+    } else {
+      return new UpsertResult(insert(g), true);
+    }
+  }
+
+  public static final class UpsertResult {
+    private final Gear gear;
+    private final boolean created;
+    public UpsertResult(Gear gear, boolean created) {
+      this.gear = gear;
+      this.created = created;
+    }
+    public Gear getGear() { return gear; }
+    public boolean isCreated() { return created; }
+  }
 }

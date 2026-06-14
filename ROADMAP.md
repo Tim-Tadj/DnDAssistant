@@ -94,7 +94,7 @@ Turn the JSON-emitting creation editors into real CRUD.
 **Done when:** monsters, spells and gear are fully CRUD-able through the UI and
 backed by the database; static JSON is only a seed source.
 
-## Phase 3 — Content Ingestion
+## Phase 3 — Content Ingestion *(in progress)* ← we are here
 
 Get real book content into the system.
 
@@ -106,13 +106,25 @@ Get real book content into the system.
       `provenance: "derived"`). See
       [docs/spec/monster-manual-ingestion.md](docs/spec/monster-manual-ingestion.md).
 - [x] Add a `provenance` field (SRD / derived / homebrew) to ingested content.
+- [x] **Generic importer infrastructure.** `POST /api/v1/import` accepts
+      a `{kind, provenance, items[]}` payload, upserts each item by
+      natural key `(name, kind?, provenance, owner_user_id)`, and
+      returns a per-item `{imported, updated, errors[]}` summary.
+      Per-resource `upsert(...)` and `findByNaturalKey(...)` methods
+      on the three repositories. CLI driver at
+      `scripts/import-content.ps1` (PowerShell). Verified end-to-end
+      with smoke tests: a 1-item payload imports (1) then re-imports
+      as an update (1) — idempotent. Spec updated in
+      [content-ingestion.md](docs/spec/content-ingestion.md).
 - [ ] Spells: ingest the Player's Handbook (or equivalent) into the spell dataset.
 - [ ] Gear: ingest the Player's Handbook equipment into the gear dataset.
-- [ ] Build a generic importer: book/source → normalized JSON → DB.
+- [ ] Build a corpus-specific normalizer for the PHB (the generic importer
+      is in place; the normalizer is the missing piece for any new source).
 - [ ] Establish a seed/backup strategy (JSON snapshots preloaded as defaults).
 
 **Done when:** a curated content set loads into a fresh database via the importer,
-with provenance recorded. (Monsters done; spells and gear still to come.)
+with provenance recorded. (Monsters done; spells and gear pending corpus +
+normalizer.)
 
 Get real book content into the system.
 

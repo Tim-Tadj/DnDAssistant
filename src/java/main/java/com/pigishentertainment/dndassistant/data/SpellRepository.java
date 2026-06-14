@@ -79,6 +79,18 @@ public class SpellRepository {
     return rows.isEmpty() ? Optional.empty() : Optional.of(rows.get(0));
   }
 
+  /**
+   * Lookup by the natural key (name, provenance, owner_user_id). The
+   * owner_user_id is nullable; the SQL uses IS NOT DISTINCT FROM so
+   * NULLs compare equal (per the spec's idempotency rule).
+   */
+  public Optional<Spell> findByNaturalKey(String name, String provenance, String ownerUserId) {
+    String sql = "SELECT * FROM spells WHERE name = ? AND provenance = ?"
+        + " AND owner_user_id IS NOT DISTINCT FROM ?";
+    List<Spell> rows = jdbc.query(sql, spellRowMapper, name, provenance, ownerUserId);
+    return rows.isEmpty() ? Optional.empty() : Optional.of(rows.get(0));
+  }
+
   public int count() {
     Integer n = jdbc.queryForObject("SELECT COUNT(*) FROM spells", Integer.class);
     return n == null ? 0 : n;
@@ -184,6 +196,38 @@ public class SpellRepository {
     if (rows == 0) {
       throw new NoSuchElementException("Spell " + id + " not found");
     }
+  }
+
+  /**
+   * Insert-or-update by natural key (name, provenance, owner_user_id).
+   * Used by the content importer; returns the resulting row plus a flag
+   * indicating whether it was newly inserted or replaced an existing row.
+   */
+  public UpsertResult upsert(Spell s) {
+    if (s.getProvenance() == null || s.getProvenance().isEmpty()) {
+      s.setProvenance("homebrew");
+    }
+    Optional<Spell> existing = findByNaturalKey(
+        s.getName(), s.getProvenance(), s.getOwner_user_id());
+    if (existing.isPresent()) {
+      Spell e = existing.get();
+      s.setId(e.getId());
+      Spell updated = update(e.getId(), s);
+      return new UpsertResult(updated, false);
+    } else {
+      return new UpsertResult(insert(s), true);
+    }
+  }
+
+  public static final class UpsertResult {
+    private final Spell spell;
+    private final boolean created;
+    public UpsertResult(Spell spell, boolean created) {
+      this.spell = spell;
+      this.created = created;
+    }
+    public Spell getSpell() { return spell; }
+    public boolean isCreated() { return created; }
   }
 
   private SpellComponent parseComponents(String json) {
