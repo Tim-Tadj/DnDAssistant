@@ -32,6 +32,7 @@ import CharacterDetailPanel from '../shared/CharacterDetailPanel';
 import { useToast } from '../shared/ToastProvider';
 import { useAuth } from '../auth/AuthContext';
 import PartiesPanel from '../shared/PartiesPanel';
+import PartyComposition from '../shared/PartyComposition';
 
 const ABILITIES: Array<{ key: keyof Character; label: string }> = [
   { key: 'str', label: 'STR' },
@@ -268,6 +269,20 @@ const CharactersTable: FC = () => {
   const { items, loadError, reload } = useList<Character>(charactersApi.list);
   const [mineFilter, setMineFilter] = useState(false);
   const [activePartyId, setActivePartyId] = useState<string | null>(null);
+  const [races, setRaces] = useState<Race[]>([]);
+  const [classes, setClasses] = useState<DndClass[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    if (races.length > 0 && classes.length > 0) return;
+    Promise.all([referenceApi.listRaces(), referenceApi.listClasses()])
+      .then(([r, c]) => {
+        setRaces(r);
+        setClasses(c);
+      })
+      .catch(() => undefined);
+  }, [user, races.length, classes.length]);
+
   if (!user) {
     return (
       <Box>
@@ -282,6 +297,11 @@ const CharactersTable: FC = () => {
   }
   return (
     <Box>
+      <PartyComposition
+        characters={items ?? []}
+        classes={classes}
+        races={races}
+      />
       <PartiesPanel
         characters={items ?? []}
         activePartyId={activePartyId}
