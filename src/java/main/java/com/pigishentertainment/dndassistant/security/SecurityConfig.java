@@ -55,6 +55,11 @@ public class SecurityConfig {
                 "/api/v1/races/**",
                 "/api/v1/import/snapshot"
             ).permitAll()
+            // POST /import is the admin content-ingestion endpoint.
+            // Phase 5 keeps it open (auth on import comes with the
+            // broader admin role in a future phase).
+            .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/import")
+                .permitAll()
             .requestMatchers(
                 "/api/v1/auth/**",
                 "/api/v1/health"
