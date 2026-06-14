@@ -72,6 +72,12 @@ Implement **Spells** first — the editor is already complete:
 
 Done when a spell created in the UI survives a page refresh via the API.
 
+**Resources currently implemented** (mirrors the section above):
+
+- `GET /api/v1/spells`, `GET /api/v1/spells/{id}`, `POST /api/v1/spells`
+- `GET /api/v1/monsters`, `GET /api/v1/monsters/{id}`, `POST /api/v1/monsters`
+- `GET /api/v1/health`
+
 ## Open decisions
 
 Record here as they're made: HTTP framework, serialization library, pagination

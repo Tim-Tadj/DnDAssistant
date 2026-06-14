@@ -1,5 +1,8 @@
-import React, { FC, useState, useCallback } from 'react';
+import React, { FC, useCallback, useEffect, useState } from 'react';
 import {
+  Alert,
+  Box,
+  CircularProgress,
   Container,
   Dialog,
   DialogContent,
@@ -11,7 +14,6 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import monsters from '../../res/resources/monster_manual_monsters.json';
 import { DataGrid, GridRowParams } from '@mui/x-data-grid';
 import { Monster } from '../types/Monster';
 import PageIterator from '../shared/page-iterator';
@@ -19,36 +21,53 @@ import MonsterCard from './monster-card';
 import { Close } from '@mui/icons-material';
 import { monsterColumnDescriptor } from './monster-column-descriptor';
 import CreateMonster from './create-monster';
+import { monstersApi } from '../api/monsters';
 
 const MonsterTable: FC<{
   onRowClick?: (params: GridRowParams) => void;
   props?: object;
 }> = ({ onRowClick, props = {} }) => {
+  const [monsters, setMonsters] = useState<Monster[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedMonster, setSelectedMonster] = useState<Monster | null>(null);
   const [monsterIndex, setMonsterIndex] = useState<number>(0);
 
-  const filteredMonsters = monsters.filter((monster) =>
+  const reload = useCallback(async () => {
+    setLoadError(null);
+    try {
+      const data = await monstersApi.list();
+      setMonsters(data);
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : String(e));
+      setMonsters([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  const filteredMonsters = (monsters ?? []).filter((monster) =>
     searchQuery
       .split('+')
       .some((query) => monster.name.toLowerCase().includes(query.toLowerCase()))
-  ).map((monster) => monster as Monster);
+  );
 
   const onViewMonster = useCallback(
     (params: GridRowParams) => {
-      setSelectedMonster(params.row);
+      setSelectedMonster(params.row as Monster);
       setMonsterIndex(
         filteredMonsters.findIndex(
           (monster) => monster.name === params.row.name
         )
       );
     },
-    [filteredMonsters, selectedMonster, setSelectedMonster, setMonsterIndex]
+    [filteredMonsters, setSelectedMonster, setMonsterIndex]
   );
 
   const onViewNextMonster = useCallback(
     (newPage: number) => {
-      console.log(newPage, filteredMonsters[newPage]);
       setMonsterIndex(newPage);
       setSelectedMonster(filteredMonsters[newPage]);
     },
@@ -70,21 +89,33 @@ const MonsterTable: FC<{
         label="Search Monsters"
         size="small"
       />
-      <Paper sx={{ margin: 1 }}>
-        <DataGrid
-          rows={filteredMonsters}
-          columns={monsterColumnDescriptor}
-          onRowClick={onRowClick ?? onViewMonster}
-          initialState={{
-            pagination: {
-              paginationModel: { pageSize: 25 },
-            },
-          }}
-          pageSizeOptions={[10, 25, 50]}
-          getRowId={(row) => row.name}
-          {...props}
-        />
-      </Paper>
+      {loadError && (
+        <Alert severity="error" sx={{ mt: 2 }}>
+          Failed to load monsters: {loadError}
+        </Alert>
+      )}
+      {monsters === null && !loadError && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+          <CircularProgress />
+        </Box>
+      )}
+      {monsters !== null && (
+        <Paper sx={{ margin: 1 }}>
+          <DataGrid
+            rows={filteredMonsters}
+            columns={monsterColumnDescriptor}
+            onRowClick={onRowClick ?? onViewMonster}
+            initialState={{
+              pagination: {
+                paginationModel: { pageSize: 25 },
+              },
+            }}
+            pageSizeOptions={[10, 25, 50]}
+            getRowId={(row) => (row as Monster).name}
+            {...props}
+          />
+        </Paper>
+      )}
       <Dialog
         open={selectedMonster !== null}
         onClose={() => setSelectedMonster(null)}

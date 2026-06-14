@@ -42,7 +42,12 @@ Close the biggest gap: the frontend cannot talk to the database.
 - [x] **Vertical slice — Spells:** wire the spell browser and creation editor
       to `/api/v1/spells` (list + get + create). Bundle a seed of 396 SRD
       spells so the browser has data on first start.
-- [ ] **Vertical slice — Monsters:** same treatment for `/api/v1/monsters`.
+- [x] **Vertical slice — Monsters:** wire the monster browser to
+      `/api/v1/monsters` (list + get + create). Seed from
+      `monster_manual_monsters.json` (409 stat blocks, `provenance=derived`)
+      on first boot. The monster creation editor is still a stub.
+- [ ] **Vertical slice — Gear/Weapons/Armour:** same treatment for the
+      `/api/v1/gear`, `/api/v1/weapons`, `/api/v1/armour` endpoints.
 - [ ] **Vertical slice — Gear/Weapons/Armour:** same treatment for the
       `/api/v1/gear`, `/api/v1/weapons`, `/api/v1/armour` endpoints.
 - [ ] Adopt Flyway (or Liquibase) for schema migrations so the schema is

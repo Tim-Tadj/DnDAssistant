@@ -1,5 +1,3 @@
-import monsters from '../../res/resources/monster_manual_monsters.json';
-
 export const PLACEHOLDER_IMAGES = {
   humanoid: "https://media-waterdeep.cursecdn.com/attachments/2/656/humanoid.jpg",
   undead: "https://media-waterdeep.cursecdn.com/attachments/2/660/undead.jpg",
@@ -76,5 +74,3 @@ export const defaultMonster = {
   img_url: PLACEHOLDER_IMAGES.humanoid,
   provenance: "homebrew",
 }
-
-export type baseMonster = typeof monsters[0];

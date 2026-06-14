@@ -18,6 +18,31 @@ start a fresh `[Unreleased]` section.
 - Project documentation: `ROADMAP.md`, `PROJECT_STATUS.md`, `AGENTS.md`,
   `CHANGELOG.md`, and a `docs/spec/` specification directory.
 - Cross-platform run scripts: `scripts/run-all.ps1` and `scripts/run-all.sh`.
+- **Phase 1 — Monsters vertical slice.** The monster browser now talks to
+  the backend:
+  - **Backend** gained the `monsters` table (`schema.sql`, 36 columns
+    mirroring the bundled JSON shape, with `UNIQUE (name, provenance,
+    owner_user_id)`), a JdbcTemplate-backed `MonsterRepository`
+    (using `NamedParameterJdbcTemplate` to eliminate the
+    positional-`?`-bind "No value specified for parameter N" failure
+    mode), a `MonsterSeed` that loads 409 stat blocks from
+    `monster_manual_monsters.json` on first boot (idempotent — skipped
+    when the table already has rows), and a `MonsterController` exposing
+    `GET /api/v1/monsters`, `GET /api/v1/monsters/{id}`, and
+    `POST /api/v1/monsters` (provenance=homebrew, owner_user_id null for
+    now). The Monster domain class maps the PascalCase wire shape (`AC`,
+    `HP`, `Speed`, `INT`, `Saving_Throws`, `Legendary_Actions`, …) via
+    `@JsonProperty`.
+  - **Frontend** has a monsters helper at `src/ts/api/monsters.ts`
+    (mirroring `api/spells.ts`). `monster-table.tsx` fetches from
+    `/api/v1/monsters` with loading + error states, and the bundled
+    JSON import is no longer used by the table or by the Monster type
+    (the encounter generator and tracker still read the bundled JSON —
+    they will be switched in a follow-up).
+  - `scripts/backend-detached.bat` — convenience launcher for dev.
+  - **Seed:** 409 monsters load into Postgres on first boot from
+    `src/res/resources/monster_manual_monsters.json` with
+    `provenance='derived'`.
 - **Phase 1 — Spells vertical slice.** The frontend now talks to the
   backend:
   - **Backend** is a Spring Boot 3.2.5 service (`com.pigishentertainment.dndassistant.Application`).
@@ -69,6 +94,16 @@ start a fresh `[Unreleased]` section.
     index and resumable progress manifest (both git-ignored).
 
 ### Changed
+- **`src/ts/monsters/monster-table.tsx`** now fetches from the backend
+  API instead of importing the bundled JSON, with loading + error
+  states. Search (`+`-delimited) and the detail dialog continue to
+  work against the API shape.
+- **`src/ts/types/Monster.ts`** no longer imports the bundled JSON; the
+  unused `baseMonster` derived type was removed.
+- `docs/spec/api.md` — lists the monsters endpoint as currently
+  implemented.
+- `ROADMAP.md` — Monsters vertical slice ticked off.
+- `PROJECT_STATUS.md` — Monster browser + REST API rows updated.
 - Rewrote `README.md` as UTF-8 with prerequisites, corrected run instructions,
   a quick-start, and links to the new docs.
 - **`src/ts/types/Monster.ts`** default import now points at
