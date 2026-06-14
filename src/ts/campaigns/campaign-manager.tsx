@@ -237,6 +237,7 @@ const columns: GridColDef<Campaign>[] = [
 
 import { TextField } from '@mui/material';
 import SessionsLog from '../shared/SessionsLog';
+import NpcsRoster from '../shared/NpcsRoster';
 
 const CampaignManager: FC = () => {
   const { user } = useAuth();
@@ -326,7 +327,18 @@ const CampaignManager: FC = () => {
             }
           />
           {focusedId && (
-            <SessionsLog campaignId={focusedId} canEdit={true} />
+            <Stack
+              direction={{ xs: 'column', md: 'row' }}
+              spacing={2}
+              alignItems="flex-start"
+            >
+              <Box sx={{ flex: 1, minWidth: 0, width: '100%' }}>
+                <SessionsLog campaignId={focusedId} canEdit={true} />
+              </Box>
+              <Box sx={{ flex: 1, minWidth: 0, width: '100%' }}>
+                <NpcsRoster campaignId={focusedId} canEdit={true} />
+              </Box>
+            </Stack>
           )}
         </>
       ) : (
