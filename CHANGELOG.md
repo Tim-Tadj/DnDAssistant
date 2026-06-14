@@ -15,6 +15,93 @@ start a fresh `[Unreleased]` section.
 ## [Unreleased]
 
 ### Added
+- **Phase 8 — Characters + Campaigns become real DM tools.**
+  Eleven new features that turn the two stub pages into the
+  working surface a DM needs at the table:
+
+  1. **Ownership-First UX (foundation).** The `EntityBrowser`
+     shell now shows a 'My homebrew' filter chip, a green
+     'You created this' banner inside the detail drawer of
+     homebrew rows, and hover-revealed Edit / Delete
+     icon-buttons on the right of each owned row. SRD/derived
+     rows are visibly not yours.
+
+  2. **Parties.** A party is a named, ordered list of a
+     user's characters. New `parties` + `party_members` tables
+     (V6). `PartyController` CRUD with strict ownership.
+     `PartiesPanel` on the Characters page: card grid with
+     'Active' chip and member chips. Encounter Generator's
+     'Use my party' now picks from a list of saved parties.
+
+  3. **Session Log.** New `campaign_sessions` table (V7).
+     `SessionsLog` component on the Campaign page: chronological
+     list of session cards with session #, title, date,
+     attendees, summary preview; full summary + prep notes
+     shown in the detail dialog.
+
+  4. **NPC Roster.** New `campaign_npcs` table (V8) with
+     optional FK to monsters. `NpcsRoster` component: card
+     grid with role/race/status/location chips. Detail view
+     shows the linked monster's stat block when `monster_id`
+     is set.
+
+  5. **Character State.** New `character_state` table (V9)
+     split from the immutable characters stat block. In-session
+     runtime: current_hp, temp_hp, conditions JSON, hit dice
+     used, last rest timestamps, death-save counters. UI:
+     HP bar + slider, +/- buttons, temp HP input, conditions
+     multi-select, short/long rest, and death-save pips that
+     only appear at 0 HP. Auto-init on first read.
+
+  6. **Encounter History.** New `encounter_saves` table (V10)
+     with FK to campaigns. 'Save to campaign' button on the
+     Encounter Generator collapses monstersInCombat into
+     MonsterRef[] (id, name, count, xp_each). Campaign page
+     shows the encounter history with date, total XP,
+     difficulty, and a 'Re-run' button.
+
+  7. **Linked entities in notes.** A `[[kind:term]]` parser
+     in `LinkedText` renders `[[monster:Goblin]]`,
+     `[[spell:Fireball]]`, `[[npc:Captain Yara]]`,
+     `[[location:Iron Keep]]` etc. as clickable colored chips
+     that navigate to the relevant detail view. Applied to
+     campaign notes, session summary, and session prep notes.
+
+  8. **Campaign Status Workflow.** `campaigns` gains
+     `next_session_on` (date), `cadence` (weekly/biweekly/
+     monthly/ad-hoc), `started_on`, `archived` (V11).
+     `CampaignWorkflowBar` shows next-session countdown
+     (e.g. 'in 3 days'), cadence chip, status chip
+     (active/paused/completed/archived), and quick actions:
+     'Mark played' (bumps next-session by cadence), Pause,
+     Mark completed, Archive.
+
+  9. **Party Composition Dashboard.** A summary card on
+     the Characters page aggregates the user's roster:
+     character count, average level, average HP, average AC,
+     class breakdown, and a role heuristic (Healer/Support,
+     Tank, Striker, Caster).
+
+  10. **Death Saves UI.** Pip toggles for the 3-success /
+      3-failure death-save roll state, only shown when HP
+      is 0. Three successes = stabilized to 1 HP. Three
+      failures = dead.
+
+  11. **Floating quick-reference panel.** A small floating
+      pin fixed to the bottom-right of the encounter page
+      shows the current turn's name, AC, HP, round, and a
+      Next-turn button. Stays in view while the DM works
+      the initiative list and the stat block.
+
+  **Backend:** Six new tables (V6–V11), six new REST
+  surfaces (parties, sessions, npcs, character-state,
+  encounter-saves, plus the campaign-workflow fields).
+  **Frontend:** Eleven new shared components and four
+  new API client modules. All five entity pages wired
+  through the new features. **Tests:** 4 new smoke
+  tests; 17/17 pass on a fresh `dnd_assistant_test`
+  database.
+
 - **UI/UX redesign: dark-fantasy theme, persistent left-rail navigation,
   shared entity browser, global command-K search.**
   - Theme: Cinzel (display), Inter (body), JetBrains Mono (stat-block
