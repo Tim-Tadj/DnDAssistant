@@ -2,26 +2,33 @@ import React, { FC, useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   Box,
+  Button,
   CircularProgress,
   Container,
   Dialog,
+  DialogActions,
   DialogContent,
+  DialogContentText,
   DialogTitle,
   Divider,
   IconButton,
   Paper,
+  Snackbar,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
+import { Close, Delete, Edit, Save } from '@mui/icons-material';
 import { DataGrid, GridRowParams } from '@mui/x-data-grid';
 import { Monster } from '../types/Monster';
 import PageIterator from '../shared/page-iterator';
 import MonsterCard from './monster-card';
-import { Close } from '@mui/icons-material';
+import MonsterEditor from './monster-editor';
 import { monsterColumnDescriptor } from './monster-column-descriptor';
 import CreateMonster from './create-monster';
 import { monstersApi } from '../api/monsters';
+
+type Mode = 'view' | 'edit';
 
 const MonsterTable: FC<{
   onRowClick?: (params: GridRowParams) => void;
@@ -32,6 +39,14 @@ const MonsterTable: FC<{
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedMonster, setSelectedMonster] = useState<Monster | null>(null);
   const [monsterIndex, setMonsterIndex] = useState<number>(0);
+  const [mode, setMode] = useState<Mode>('view');
+  const [editedMonster, setEditedMonster] = useState<Monster | null>(null);
+  const [editedJson, setEditedJson] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [toastOpen, setToastOpen] = useState(false);
 
   const reload = useCallback(async () => {
     setLoadError(null);
@@ -62,6 +77,7 @@ const MonsterTable: FC<{
           (monster) => monster.name === params.row.name
         )
       );
+      setMode('view');
     },
     [filteredMonsters, setSelectedMonster, setMonsterIndex]
   );
@@ -70,9 +86,77 @@ const MonsterTable: FC<{
     (newPage: number) => {
       setMonsterIndex(newPage);
       setSelectedMonster(filteredMonsters[newPage]);
+      setMode('view');
     },
     [filteredMonsters, setSelectedMonster]
   );
+
+  const closeDialog = () => {
+    setSelectedMonster(null);
+    setMode('view');
+    setEditedMonster(null);
+    setEditedJson('');
+    setSaveError(null);
+  };
+
+  const onStartEdit = () => {
+    if (selectedMonster) {
+      setEditedMonster({ ...selectedMonster });
+      setMode('edit');
+      setSaveError(null);
+    }
+  };
+
+  const onCancelEdit = () => {
+    setMode('view');
+    setEditedMonster(null);
+    setEditedJson('');
+    setSaveError(null);
+  };
+
+  const onSaveEdit = async () => {
+    if (!editedMonster || editedMonster.id === undefined) {
+      setSaveError('Cannot save: missing id');
+      return;
+    }
+    if (!editedMonster.name.trim()) {
+      setSaveError('Name is required');
+      return;
+    }
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const updated = await monstersApi.update(editedMonster.id, editedMonster);
+      setSelectedMonster(updated);
+      setMode('view');
+      setEditedMonster(null);
+      setToastOpen(true);
+      void reload();
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onConfirmDelete = async () => {
+    if (!selectedMonster || selectedMonster.id === undefined) {
+      setConfirmDelete(false);
+      return;
+    }
+    setDeleting(true);
+    try {
+      await monstersApi.delete(selectedMonster.id);
+      setToastOpen(true);
+      setConfirmDelete(false);
+      closeDialog();
+      void reload();
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <Container maxWidth="xl">
@@ -118,8 +202,9 @@ const MonsterTable: FC<{
       )}
       <Dialog
         open={selectedMonster !== null}
-        onClose={() => setSelectedMonster(null)}
+        onClose={closeDialog}
         maxWidth="xl"
+        fullWidth
       >
         <DialogTitle>
           <Stack
@@ -127,25 +212,134 @@ const MonsterTable: FC<{
             justifyContent="space-between"
             alignItems="center"
           >
-            <Typography variant="h5">Monster View</Typography>
+            <Typography variant="h5">
+              {mode === 'edit' ? 'Edit Monster' : 'Monster View'}
+            </Typography>
             <PageIterator
               page={monsterIndex}
               maxLength={filteredMonsters.length}
               pageSetter={onViewNextMonster}
             />
-            <IconButton onClick={() => setSelectedMonster(null)}>
-              <Close />
-            </IconButton>
+            <Stack direction="row" spacing={1}>
+              {mode === 'view' && selectedMonster?.id !== undefined && (
+                <>
+                  <Button
+                    startIcon={<Edit />}
+                    onClick={onStartEdit}
+                    disabled={selectedMonster.provenance === 'srd'}
+                    title={
+                      selectedMonster.provenance === 'srd'
+                        ? 'SRD content is read-only'
+                        : 'Edit'
+                    }
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    startIcon={<Delete />}
+                    color="error"
+                    onClick={() => setConfirmDelete(true)}
+                    disabled={selectedMonster.provenance === 'srd'}
+                    title={
+                      selectedMonster.provenance === 'srd'
+                        ? 'SRD content is read-only'
+                        : 'Delete'
+                    }
+                  >
+                    Delete
+                  </Button>
+                </>
+              )}
+              {mode === 'edit' && (
+                <>
+                  <Button
+                    startIcon={<Save />}
+                    variant="contained"
+                    onClick={onSaveEdit}
+                    disabled={saving}
+                  >
+                    {saving ? 'Saving…' : 'Save'}
+                  </Button>
+                  <Button onClick={onCancelEdit} disabled={saving}>
+                    Cancel
+                  </Button>
+                </>
+              )}
+              <IconButton onClick={closeDialog}>
+                <Close />
+              </IconButton>
+            </Stack>
           </Stack>
         </DialogTitle>
         <DialogContent>
-          <Container sx={{ justifyContent: 'center', alignContent: 'center' }}>
-            {selectedMonster !== null && (
+          {saveError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {saveError}
+            </Alert>
+          )}
+          {mode === 'view' && selectedMonster && (
+            <Container sx={{ justifyContent: 'center', alignContent: 'center' }}>
               <MonsterCard monster={selectedMonster} />
-            )}
-          </Container>
+            </Container>
+          )}
+          {mode === 'edit' && editedMonster && (
+            <Stack direction="row" spacing={2} useFlexGap>
+              <Box flexGrow={1}>
+                <MonsterEditor
+                  initial={editedMonster}
+                  onUpdateGear={setEditedJson}
+                  onChange={setEditedMonster}
+                />
+              </Box>
+              <Stack spacing={1} flexGrow={1}>
+                <Alert severity="info">JSON preview (also sent to the API on Save)</Alert>
+                <TextField
+                  fullWidth
+                  value={editedJson}
+                  disabled
+                  inputProps={{ readOnly: true }}
+                  multiline
+                  sx={{ flex: 1, flexDirection: 'row' }}
+                />
+              </Stack>
+            </Stack>
+          )}
         </DialogContent>
       </Dialog>
+      <Dialog
+        open={confirmDelete}
+        onClose={() => !deleting && setConfirmDelete(false)}
+      >
+        <DialogTitle>Delete monster?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            This will permanently delete &quot;{selectedMonster?.name}&quot; from the
+            database. This cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDelete(false)} disabled={deleting}>
+            Cancel
+          </Button>
+          <Button
+            color="error"
+            onClick={onConfirmDelete}
+            disabled={deleting}
+          >
+            {deleting ? 'Deleting…' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Snackbar
+        open={toastOpen}
+        autoHideDuration={3000}
+        onClose={() => setToastOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert severity="success" onClose={() => setToastOpen(false)}>
+          {mode === 'edit' ? 'Monster updated' : 'Monster deleted'}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };

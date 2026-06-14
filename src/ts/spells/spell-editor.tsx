@@ -14,8 +14,9 @@ const getNumberingPostfix = (level: string): string => {
 const SpellEditor: FC<{
   onUpdateGear: (jsonInput: string) => void;
   onChange?: (spell: Spell) => void;
-}> = ({ onUpdateGear, onChange }) => {
-  const [newSpell, setNewSpell] = useState(defaultSpell);
+  initial?: Spell;
+}> = ({ onUpdateGear, onChange, initial }) => {
+  const [newSpell, setNewSpell] = useState<Spell>(initial ?? defaultSpell);
 
   const onUpdateGearFormatted = useCallback(
     () => onUpdateGear(JSON.stringify(newSpell, null, "\t")),

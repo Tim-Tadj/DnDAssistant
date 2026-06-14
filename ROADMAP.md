@@ -66,39 +66,53 @@ Close the biggest gap: the frontend cannot talk to the database.
 **Done when:** a spell, monster, and piece of gear created in the UI are
 all persisted in Postgres and reloaded from the API on refresh.
 
-## Phase 2 — Editors → Persistence *(in progress)* ← we are here
+## Phase 2 — Editors → Persistence
 
 Turn the JSON-emitting creation editors into real CRUD.
 
 - [x] Implement the stubbed **Monster editor**
-      (`src/ts/monsters/monster-editor.tsx`) — now a full form covering
+      (`src/ts/monsters/monster-editor.tsx`) — full form covering
       name/meta/AC/HP/Speed/CR, the six ability scores with mods,
       defenses (saves/skills/damage types/condition immunities),
       senses/languages/img_url, traits/actions/reactions/legendary
       actions, and description/lair/regional. POSTs to `/api/v1/monsters`.
 - [x] **CRUD on the API:** `PUT /api/v1/{spells,monsters,gear}/{id}` and
       `DELETE /api/v1/{spells,monsters,gear}/{id}` are implemented and
-      verified by smoke-test. Frontend API helpers expose `update` and
-      `delete` methods; the table UI does not yet expose edit/delete
-      buttons (the detail dialog reads but does not edit).
+      verified by smoke-test.
+- [x] **Edit/Delete UI in the tables.** Each browser's detail dialog
+      now has Edit (swaps the body to the editor, populated with the
+      current record) and Delete (with a confirmation dialog). The
+      SRD/derived provenance is read-only by design — only `homebrew`
+      rows expose Edit/Delete. Spells, monsters, and gear all wired.
 - [x] **All static-JSON reads replaced:** `monster-table.tsx`,
       `use-generate-encounter.ts`, and `use-track-encounter.ts` now
       fetch from `/api/v1/monsters` (via a shared `useMonsters` hook in
-      the encounter flow). `monster.ts` no longer imports the bundled
+      the encounter flow). `Monster.ts` no longer imports the bundled
       JSON. `gear.tsx` reads from `/api/v1/gear`. Static JSON files
       remain only as seed sources.
-- [ ] Add update / delete buttons to the monster, spell, and gear
-      tables (call the existing API helpers).
-- [ ] Switch the **spells editor** off the legacy "emit JSON" pattern
-      — already POSTs on Save but the editor markup is unchanged.
-      Add PUT/DELETE UI to the spell browser.
-- [ ] Switch the gear editors — already POST on Save; add PUT/DELETE UI
-      to the gear browser.
 
 **Done when:** monsters, spells and gear are fully CRUD-able through the UI and
 backed by the database; static JSON is only a seed source.
 
 ## Phase 3 — Content Ingestion
+
+Get real book content into the system.
+
+- [x] Define the canonical JSON formats (match existing `srd_5e_monsters.json`
+      shapes) — see [docs/spec/content-ingestion.md](docs/spec/content-ingestion.md).
+- [x] **Monsters:** ingest the Monster Manual into
+      `src/res/resources/monster_manual_monsters.json` (409 stat blocks,
+      with flavor lore + lair/regional effects + page art, tagged
+      `provenance: "derived"`). See
+      [docs/spec/monster-manual-ingestion.md](docs/spec/monster-manual-ingestion.md).
+- [x] Add a `provenance` field (SRD / derived / homebrew) to ingested content.
+- [ ] Spells: ingest the Player's Handbook (or equivalent) into the spell dataset.
+- [ ] Gear: ingest the Player's Handbook equipment into the gear dataset.
+- [ ] Build a generic importer: book/source → normalized JSON → DB.
+- [ ] Establish a seed/backup strategy (JSON snapshots preloaded as defaults).
+
+**Done when:** a curated content set loads into a fresh database via the importer,
+with provenance recorded. (Monsters done; spells and gear still to come.)
 
 Get real book content into the system.
 

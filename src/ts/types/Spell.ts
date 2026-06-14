@@ -19,6 +19,7 @@ export const defaultComponent = {
 };
 
 export type Spell = {
+  id?: number,
   casting_time: string,
   classes: string[],
   components: SpellComponent,
@@ -31,7 +32,8 @@ export type Spell = {
   ritual: boolean,
   school: string,
   tags: string[],
-  type: string
+  type: string,
+  provenance?: string,
 };
 
 export const defaultSpell: Spell = {

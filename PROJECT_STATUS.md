@@ -9,14 +9,16 @@ Legend: ✅ done · 🚧 in progress · ⛔ not started
 
 ## Current focus
 
-**Phase 1 is complete.** Spells, Monsters, and Gear/Weapons/Armour all
-work end-to-end against the API; Flyway owns the schema; the backend
-retries its first DB connection so it can survive a slow Postgres boot.
+**Phase 1 and Phase 2 are complete.** Spells, Monsters, and
+Gear/Weapons/Armour are fully CRUD-able through the UI and backed by
+Postgres. SRD/derived rows are read-only; homebrew rows are editable
+and deletable with a confirmation dialog. Static JSON is now only a
+seed source.
 
-**Phase 2 is underway.** The Monster editor is no longer a stub and
-POSTs to the API. The encounter generator and tracker read from the
-API. PUT/DELETE are wired on the API and verified by smoke-test; the
-table UIs don't yet expose edit/delete buttons.
+**Phase 3 is the next target.** The Monster Manual is ingested
+(409 stat blocks, `provenance='derived'`). Spells and gear still only
+have the SRD set; the Player's Handbook ingestion is the next big
+content task.
 
 ## Feature status
 
@@ -31,9 +33,12 @@ table UIs don't yet expose edit/delete buttons.
 | Combat tracker | ✅ | Initiative, per-monster HP, multi-select; **reads monsters from the API** |
 | Campaign map + lore | ✅ | Interactive Avandria map, lore viewer |
 | Mechanics / rules pages | ✅ | Renders bundled rules JSON |
-| Spell creation editor | ✅ | **Posts to `/api/v1/spells` (Phase 1)**; still shows JSON preview alongside |
-| Gear/Weapon/Armour editors | ✅ | **Post to `/api/v1/gear` (Phase 1)**; JSON preview alongside. Per-kind editor (weapon / armour / gear) chosen via the in-dialog picker. |
+| Spell creation editor | ✅ | **Posts to `/api/v1/spells`**; still shows JSON preview alongside |
+| Gear/Weapon/Armour editors | ✅ | **Post to `/api/v1/gear`**; JSON preview alongside. Per-kind editor (weapon / armour / gear) chosen via the in-dialog picker. |
 | Monster creation editor | ✅ | **Posts to `/api/v1/monsters` (Phase 2)**; full form (name, meta, AC, HP, Speed, CR, ability scores + mods, defenses, senses/languages/img_url, traits/actions/reactions/legendary, description/lair/regional). |
+| Spell edit / delete UI | ✅ | **Phase 2.** Detail dialog has Edit and Delete buttons (with confirmation). SRD rows are read-only. |
+| Monster edit / delete UI | ✅ | **Phase 2.** Detail dialog has Edit (swap to editor) and Delete. SRD rows are read-only. |
+| Gear edit / delete UI | ✅ | **Phase 2.** Row-click opens a detail dialog with Edit/Delete. SRD/derived rows are read-only; only homebrew rows expose the buttons. |
 
 ### Backend
 
@@ -59,8 +64,9 @@ table UIs don't yet expose edit/delete buttons.
 - **Old TypeScript** (`^3.4`) pinned against modern React/MUI.
 - **Unpinned deps:** several `package.json` entries use `latest` (non-reproducible
   installs).
-- **Gear/Weapon/Armour editors don't persist** — they only display generated
-  JSON for manual developer review. Same for the monster editor (stub).
+- **Gear/Weapon/Armour editors don't persist** — *resolved by Phase 2;
+  editors POST/PUT against the API, deletes go through the table UI
+  with a confirmation dialog. The "stub" monster editor is also gone.*
 - **OCR gaps in Monster Manual dataset:** 7 monsters are missing AC/HP/Speed
   lines because the source book's OCR dropped them — Cyclops, Half-Ogre,
   Specter, Stirge, Treant, Water Weird, Intellect Devourer. They are

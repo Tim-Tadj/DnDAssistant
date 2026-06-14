@@ -47,22 +47,25 @@ const Field: FC<FieldProps> = ({ label, value, onChange, onBlur, fullWidth, mult
 const MonsterEditor: FC<{
   onUpdateGear: (jsonInput: string) => void;
   onChange?: (monster: Monster) => void;
-}> = ({ onUpdateGear, onChange }) => {
-  const [m, setM] = useState<Monster>({
-    ...defaultMonster,
-    description: '',
-    Lair_Actions: '',
-    Regional_Effects: '',
-    Traits: '',
-    Saving_Throws: '',
-    Skills: '',
-    Damage_Vulnerabilities: '',
-    Damage_Resistances: '',
-    Damage_Immunities: '',
-    Condition_Immunities: '',
-    Reactions: '',
-    Legendary_Actions: '',
-  } as Monster);
+  initial?: Monster;
+}> = ({ onUpdateGear, onChange, initial }) => {
+  const [m, setM] = useState<Monster>(
+    initial ?? ({
+      ...defaultMonster,
+      description: '',
+      Lair_Actions: '',
+      Regional_Effects: '',
+      Traits: '',
+      Saving_Throws: '',
+      Skills: '',
+      Damage_Vulnerabilities: '',
+      Damage_Resistances: '',
+      Damage_Immunities: '',
+      Condition_Immunities: '',
+      Reactions: '',
+      Legendary_Actions: '',
+    } as Monster)
+  );
 
   const set = useCallback(<K extends keyof Monster>(key: K, value: Monster[K]) => {
     setM((prev) => ({ ...prev, [key]: value }));

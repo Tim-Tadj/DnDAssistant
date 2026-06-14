@@ -13,6 +13,7 @@ export const resolveImgUrl = (imgUrl: string): string => {
 };
 
 export type Monster = {
+  id?: number,
   name: string,
   meta: string,
   AC: string,

@@ -119,6 +119,16 @@ start a fresh `[Unreleased]` section.
     index and resumable progress manifest (both git-ignored).
 
 ### Changed
+- **Phase 2 — Edit/Delete UI in every table.** The detail dialog of
+  each browser (spells, monsters, gear) now exposes Edit and Delete
+  buttons with a confirmation dialog. Edit swaps the body to the
+  editor (seeded with the current record via a new `initial?` prop on
+  `SpellEditor` / `MonsterEditor`); Save calls the corresponding
+  `update(id, body)` API method and refreshes the table. Delete shows
+  a confirmation dialog and calls `delete(id)`. SRD/derived rows
+  are read-only by design — only `homebrew` rows expose the buttons.
+  `Monster` and `Spell` TypeScript types gained optional `id?` and
+  `provenance?` fields so the UI can drive the provenance check.
 - **Phase 2 — Monster editor implemented.** The previously-stub
   `src/ts/monsters/monster-editor.tsx` is now a full form covering
   basic stats (name, meta, AC, HP, Speed, Challenge), the six ability
@@ -133,8 +143,8 @@ start a fresh `[Unreleased]` section.
   controllers all expose `PUT /api/v1/{resource}/{id}` and
   `DELETE /api/v1/{resource}/{id}`. Frontend API helpers
   (`spellsApi.update/delete`, `monstersApi.update/delete`,
-  `gearApi.update/delete`) are wired and ready; the table UIs do not
-  yet expose edit/delete buttons.
+  `gearApi.update/delete`) are wired and used by the table UIs (see
+  the Edit/Delete UI bullet above).
 - **Phase 2 — Encounter hooks read from the API.**
   `use-generate-encounter.ts` and `use-track-encounter.ts` no longer
   import the bundled `monster_manual_monsters.json`; they share a new
@@ -150,11 +160,10 @@ start a fresh `[Unreleased]` section.
   unused `baseMonster` derived type was removed.
 - `docs/spec/api.md` — lists the monsters, gear, and CRUD endpoints as
   currently implemented.
-- `ROADMAP.md` — Phase 1 marked complete; Phase 2 marked in progress
-  with first three deliverables ticked.
+- `ROADMAP.md` — Phase 1 and Phase 2 both marked complete.
 - `PROJECT_STATUS.md` — Backend / frontend / wiring tables all updated
   to reflect the new state (Gear/Combat/Encounter rows, schema
-  management, REST API row, etc.).
+  management, REST API row, Edit/Delete UI rows, etc.).
 - Rewrote `README.md` as UTF-8 with prerequisites, corrected run instructions,
   a quick-start, and links to the new docs.
 - **`src/ts/types/Monster.ts`** default import now points at
