@@ -296,14 +296,44 @@ class ApiSmokeTest {
 
   @Test
   void importUpsertsAndIsIdempotent() {
-    Map<String, Object> body = importMonsterBody();
+    // Use a unique-per-run name so re-runs of this test don't see
+    // a pre-existing row from a previous invocation.
+    String name = "E2E Imported " + System.nanoTime();
+    Map<String, Object> item = new HashMap<>();
+    item.put("name", name);
+    item.put("meta", "Tiny");
+    item.put("AC", "10");
+    item.put("HP", "1");
+    item.put("Speed", "5ft.");
+    item.put("STR", "1");
+    item.put("STR_mod", "(-5)");
+    item.put("DEX", "1");
+    item.put("DEX_mod", "(-5)");
+    item.put("CON", "1");
+    item.put("CON_mod", "(-5)");
+    item.put("INT", "1");
+    item.put("INT_mod", "(-5)");
+    item.put("WIS", "1");
+    item.put("WIS_mod", "(-5)");
+    item.put("CHA", "1");
+    item.put("CHA_mod", "(-5)");
+    item.put("Senses", "");
+    item.put("Languages", "");
+    item.put("Challenge", "0");
+    item.put("Actions", "");
+    item.put("img_url", "");
+    Map<String, Object> body = new HashMap<>();
+    body.put("kind", "monster");
+    body.put("provenance", "derived");
+    body.put("items", List.of(item));
+
     @SuppressWarnings("rawtypes")
     ResponseEntity<Map> r1 = client().postForEntity(
         url("/import"), new HttpEntity<>(body, jsonHeaders()), Map.class);
     assertEquals(HttpStatus.OK, r1.getStatusCode());
     assertEquals(1, ((Number) r1.getBody().get("imported")).intValue());
 
-    // Second import: update
+    // Second import: update (same natural key)
     @SuppressWarnings("rawtypes")
     ResponseEntity<Map> r2 = client().postForEntity(
         url("/import"), new HttpEntity<>(body, jsonHeaders()), Map.class);
