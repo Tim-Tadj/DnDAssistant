@@ -47,6 +47,7 @@ import {
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './auth/AuthContext';
 import AuthDialog from './auth/AuthDialog';
+import ContextBar from './shared/ContextBar';
 import GlobalSearch from './shared/GlobalSearch';
 
 type NavItem = {
@@ -472,6 +473,7 @@ const AppLayout: FC = () => {
             )}
           </Toolbar>
         </AppBar>
+        <ContextBar />
         <Box
           sx={{
             flexGrow: 1,

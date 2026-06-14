@@ -101,8 +101,9 @@ const LinkedText: FC<LinkedTextProps> = ({ text, campaignId }) => {
     api.get<Spell[]>('/spells').then(setSpells).catch(() => undefined);
     api.get<GearItem[]>('/gear').then(setGear).catch(() => undefined);
     if (campaignId) {
+      // Phase 9: NPCs are global; filter by the active campaign tag.
       api
-        .get<CampaignNpc[]>(`/campaigns/${campaignId}/npcs`)
+        .get<CampaignNpc[]>(`/npcs?campaign=${encodeURIComponent(campaignId)}`)
         .then(setNpcs)
         .catch(() => undefined);
     }

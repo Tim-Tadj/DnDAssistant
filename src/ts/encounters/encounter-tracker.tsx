@@ -35,6 +35,7 @@ import {
   Delete,
   Favorite,
   Healing,
+  Info,
   PinDrop,
   RemoveCircle,
   Shield,
@@ -42,6 +43,7 @@ import {
 } from '@mui/icons-material';
 import { Monster } from '../types/Monster';
 import MonsterStatBlock from '../shared/MonsterStatBlock';
+import { useMonsterStatPane } from '../shared/MonsterStatPane';
 import SelectMonster from './select-monster';
 import useTrackEncounter, { RemainingMonster } from './use-track-encounter';
 import useMonsters from './use-monsters';
@@ -69,6 +71,7 @@ const EncounterTracker: FC<{ monstersInCombat: Monster[] }> = ({
 }) => {
   const theme = useTheme();
   const { monsters } = useMonsters();
+  const statPane = useMonsterStatPane();
   const tracker = useTrackEncounter(monstersInCombat);
   const {
     remainingMonsters,
@@ -88,6 +91,15 @@ const EncounterTracker: FC<{ monstersInCombat: Monster[] }> = ({
     if (!current) return null;
     return monsters.find((m) => m.name === current.name) ?? null;
   }, [monsters, remainingMonsters, currentIndex]);
+
+  // Phase 9: clicking a row's name pops up the global stat pane so
+  // the DM can read monster lore / stats to the players without
+  // leaving the tracker.
+  const onRowClick = (m: RemainingMonster) => {
+    if (!monsters) return;
+    const found = monsters.find((mm) => mm.name === m.name);
+    if (found) statPane.open(found);
+  };
 
   const [statusAnchor, setStatusAnchor] = useState<{
     uuid: string;
@@ -162,6 +174,7 @@ const EncounterTracker: FC<{ monstersInCombat: Monster[] }> = ({
                   key={m.uuid}
                   monster={m}
                   isCurrent={i === currentIndex}
+                  onRowClick={() => onRowClick(m)}
                   onUpdateHealth={(hp) => onUpdateHealth(m.uuid, hp)}
                   onDelete={() => onDeleteMonster(m)}
                   onStatusClick={(el) =>
@@ -291,10 +304,11 @@ const EncounterTracker: FC<{ monstersInCombat: Monster[] }> = ({
 const InitiativeRow: FC<{
   monster: RemainingMonster;
   isCurrent: boolean;
+  onRowClick: () => void;
   onUpdateHealth: (hp: number) => void;
   onDelete: () => void;
   onStatusClick: (el: HTMLElement) => void;
-}> = ({ monster, isCurrent, onUpdateHealth, onDelete, onStatusClick }) => {
+}> = ({ monster, isCurrent, onRowClick, onUpdateHealth, onDelete, onStatusClick }) => {
   const theme = useTheme();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<string>(String(monster.hp ?? ''));
@@ -352,14 +366,26 @@ const InitiativeRow: FC<{
           </Typography>
         </Box>
         <Stack spacing={0.25} sx={{ flexGrow: 1, minWidth: 0 }}>
-          <Typography
-            variant="body1"
-            fontWeight={isCurrent ? 600 : 500}
-            noWrap
-            sx={{ color: down ? 'error.main' : 'text.primary' }}
-          >
-            {monster.name}
-          </Typography>
+          <Stack direction="row" alignItems="center" spacing={0.5}>
+            <Typography
+              variant="body1"
+              fontWeight={isCurrent ? 600 : 500}
+              noWrap
+              onClick={onRowClick}
+              sx={{
+                color: down ? 'error.main' : 'text.primary',
+                cursor: 'pointer',
+                '&:hover': { textDecoration: 'underline' },
+              }}
+            >
+              {monster.name}
+            </Typography>
+            <Tooltip title="Stat block" arrow>
+              <IconButton size="small" onClick={onRowClick} sx={{ p: 0.25 }}>
+                <Info sx={{ fontSize: 14, opacity: 0.6 }} />
+              </IconButton>
+            </Tooltip>
+          </Stack>
           <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap" useFlexGap>
             <Typography
               variant="caption"

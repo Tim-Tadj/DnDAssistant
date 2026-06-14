@@ -20,12 +20,11 @@ import {
   useTheme,
 } from '@mui/material';
 import { Groups, Shield, Favorite, Star } from '@mui/icons-material';
-import { Character, DndClass, Race } from '../types/Character';
+import { Character, DndClass } from '../types/Character';
 
 type Props = {
   characters: Character[];
-  classes: DndClass[];
-  races: Race[];
+  classes?: DndClass[];
 };
 
 // Role inference based on class name. Lightweight heuristic for
@@ -41,7 +40,7 @@ function roleFor(character: Character, className: string): string {
   return 'Other';
 }
 
-const PartyComposition: FC<Props> = ({ characters, classes, races }) => {
+const PartyComposition: FC<Props> = ({ characters, classes = [] }) => {
   const theme = useTheme();
   const summary = useMemo(() => {
     if (characters.length === 0) return null;

@@ -1,6 +1,9 @@
 /**
  * NpcsRoster - the campaign's NPC roster, on the Campaign page.
  *
+ * Phase 9: NPCs are now global (per-user). The roster shows
+ * NPCs whose campaign_tags include this campaign, and creating
+ * an NPC here tags it with the campaign automatically.
  * Renders a list of NPC cards. Each card shows role, race, status,
  * location, and a one-line description. The detail view shows the
  * full description, notes, and (if linked) the monster stat block.
@@ -195,7 +198,7 @@ const NpcsRoster: FC<Props> = ({ campaignId, canEdit }) => {
 
   const onCreate = () => {
     setEditorInitial(null);
-    setDraft({ ...defaultCampaignNpc });
+    setDraft({ ...defaultCampaignNpc(), campaign_tags: [campaignId], campaign_id: campaignId });
     setSaveError(null);
     setEditorOpen(true);
   };
@@ -213,14 +216,17 @@ const NpcsRoster: FC<Props> = ({ campaignId, canEdit }) => {
       setSaveError('Name is required');
       return;
     }
+    // Ensure the campaign is in the tags list.
+    const tags = Array.from(new Set([campaignId, ...(draft.campaign_tags ?? [])]));
+    const payload: CampaignNpc = { ...draft, campaign_tags: tags, campaign_id: campaignId };
     setSaving(true);
     setSaveError(null);
     try {
       if (editorInitial?.id) {
-        await npcsApi.update(campaignId, editorInitial.id, draft);
+        await npcsApi.update(editorInitial.id, payload);
         toast('NPC updated', 'success');
       } else {
-        await npcsApi.create(campaignId, draft);
+        await npcsApi.create(payload);
         toast('NPC created', 'success');
       }
       setEditorOpen(false);
@@ -238,7 +244,7 @@ const NpcsRoster: FC<Props> = ({ campaignId, canEdit }) => {
     if (!n.id) return;
     setDeleting(true);
     try {
-      await npcsApi.remove(campaignId, n.id);
+      await npcsApi.delete(n.id);
       toast('NPC deleted', 'success');
       setConfirmDelete(null);
       await reload();

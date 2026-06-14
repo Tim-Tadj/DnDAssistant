@@ -1,39 +1,52 @@
 /**
  * Campaigns page.
  *
- * Phase 7: My Campaigns uses the shared EntityBrowser. Bundled
- * "Tales of Avandria" world data appears below as a "Browse example"
- * section so a new user has something to look at even before signing in.
+ * Phase 9: the page is centred on the active campaign (held in
+ * CampaignContext). If there is an active campaign, we show the
+ * full CampaignHub (workflow bar + parties + characters +
+ * sessions + NPCs + encounters + linked-entity notes).
+ *
+ * If the user has no active campaign, we show the EntityBrowser
+ * with a CTA to pick one from the ContextBar at the top.
+ *
+ * The "Tales of Avandria" example world is always shown at the
+ * bottom so a new user has something to look at.
  */
 
-import React, { FC, useState } from 'react';
+import React, { FC, ReactNode, useState } from 'react';
 import {
   Alert,
   Box,
   Button,
+  Paper,
   Stack,
   Typography,
   useTheme,
+  Card,
+  CardContent,
+  CardActionArea,
+  Chip,
 } from '@mui/material';
-import { Add, Save, AutoStories, Map as MapIcon } from '@mui/icons-material';
-import { Dialog, DialogContent, DialogTitle } from '@mui/material';
+import { Add, AutoStories, Map as MapIcon, OpenInNew } from '@mui/icons-material';
+import { Dialog, DialogContent, DialogTitle, Skeleton, Tab, Tabs } from '@mui/material';
+import { TextField } from '@mui/material';
 import { GridColDef } from '@mui/x-data-grid';
 import { Campaign, defaultCampaign } from '../types/Campaign';
 import { campaignsApi } from '../api/campaigns';
 import { useList } from '../shared/useList';
 import { EntityBrowser } from '../shared/EntityBrowser';
 import CampaignDetailCard from '../shared/CampaignDetailCard';
+import CampaignHub from '../shared/CampaignHub';
 import { useToast } from '../shared/ToastProvider';
 import { useAuth } from '../auth/AuthContext';
-import { Link as RouterLink } from 'react-router-dom';
+import { useCampaignContext } from '../shared/CampaignContext';
 
 import MapOfAvandria from '../../res/talesOfAvandria/Avandria.png';
 import MapProperties from '../../res/talesOfAvandria/Avandria.json';
 import AvandriaLore from '../../res/talesOfAvandria/AvandriaLore.json';
 import CampaignMap from '../campaigns/campaign-map';
 import RenderJsonRecursive from '../shared/render-json-recursive';
-import { Skeleton, Tab, Tabs, Paper } from '@mui/material';
-import { Suspense, lazy } from 'react';
+import { Suspense } from 'react';
 
 const LORE = 'Lore';
 const MAP = 'Map';
@@ -69,11 +82,7 @@ const AvandriaExample: FC = () => {
             Example world — bundled with the app
           </Typography>
         </Box>
-        <Tabs
-          value={tab}
-          onChange={(_e, v) => setTab(v)}
-          sx={{ minHeight: 36 }}
-        >
+        <Tabs value={tab} onChange={(_e, v) => setTab(v)} sx={{ minHeight: 36 }}>
           <Tab label={MAP} value={MAP} sx={{ minHeight: 36 }} />
           <Tab label={LORE} value={LORE} sx={{ minHeight: 36 }} />
           <Tab label={ADVENTURE_LOG} value={ADVENTURE_LOG} sx={{ minHeight: 36 }} />
@@ -84,9 +93,7 @@ const AvandriaExample: FC = () => {
           <CampaignMap campaignMap={MapOfAvandria} mapProperties={MapProperties} />
         )}
         {tab === LORE && (
-          <Suspense
-            fallback={<Skeleton animation="wave" variant="rounded" height={300} />}
-          >
+          <Suspense fallback={<Skeleton animation="wave" variant="rounded" height={300} />}>
             <RenderJsonRecursive instance={AvandriaLore} />
           </Suspense>
         )}
@@ -103,6 +110,7 @@ const AvandriaExample: FC = () => {
 
 const CampaignCreate: FC<{ onCreated?: () => void }> = ({ onCreated }) => {
   const { user } = useAuth();
+  const { setActiveCampaignId, reloadCampaigns } = useCampaignContext();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<Campaign | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -118,10 +126,12 @@ const CampaignCreate: FC<{ onCreated?: () => void }> = ({ onCreated }) => {
     setSaving(true);
     setError(null);
     try {
-      await campaignsApi.create({ ...draft, owner_user_id: user?.id ?? '' });
+      const created = await campaignsApi.create({ ...draft, owner_user_id: user?.id ?? '' });
       toast('Campaign created', 'success');
       setOpen(false);
       setDraft(null);
+      await reloadCampaigns();
+      if (created.id) setActiveCampaignId(created.id);
       onCreated?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -152,7 +162,6 @@ const CampaignCreate: FC<{ onCreated?: () => void }> = ({ onCreated }) => {
           sx: {
             backgroundColor: theme.palette.background.paper,
             backgroundImage: 'none',
-            maxHeight: '90vh',
           },
         }}
       >
@@ -165,7 +174,7 @@ const CampaignCreate: FC<{ onCreated?: () => void }> = ({ onCreated }) => {
               </Button>
               <Button
                 variant="contained"
-                startIcon={<Save />}
+                startIcon={<Add />}
                 onClick={onSave}
                 disabled={saving}
               >
@@ -176,17 +185,18 @@ const CampaignCreate: FC<{ onCreated?: () => void }> = ({ onCreated }) => {
         </DialogTitle>
         <DialogContent sx={{ p: 3 }}>
           {error && (
-            <Typography color="error" sx={{ mb: 2 }}>
+            <Alert severity="error" sx={{ mb: 2 }}>
               {error}
-            </Typography>
+            </Alert>
           )}
           {draft && (
-              <Stack spacing={2} sx={{ pt: 0 }}>
+            <Stack spacing={2} sx={{ pt: 0 }}>
               <TextField
                 label="Name"
                 value={draft.name}
                 onChange={(e) => setDraft({ ...draft, name: e.target.value })}
                 fullWidth
+                InputLabelProps={{ shrink: true }}
               />
               <Stack direction="row" spacing={2}>
                 <TextField
@@ -194,6 +204,7 @@ const CampaignCreate: FC<{ onCreated?: () => void }> = ({ onCreated }) => {
                   value={draft.setting}
                   onChange={(e) => setDraft({ ...draft, setting: e.target.value })}
                   fullWidth
+                  InputLabelProps={{ shrink: true }}
                   helperText="e.g. Forgotten Realms, Eberron, homebrew"
                 />
                 <TextField
@@ -201,6 +212,7 @@ const CampaignCreate: FC<{ onCreated?: () => void }> = ({ onCreated }) => {
                   value={draft.status}
                   onChange={(e) => setDraft({ ...draft, status: e.target.value })}
                   sx={{ width: 200 }}
+                  InputLabelProps={{ shrink: true }}
                   helperText="active / paused / completed"
                 />
               </Stack>
@@ -211,6 +223,7 @@ const CampaignCreate: FC<{ onCreated?: () => void }> = ({ onCreated }) => {
                 fullWidth
                 multiline
                 rows={2}
+                InputLabelProps={{ shrink: true }}
               />
               <TextField
                 label="Notes"
@@ -219,6 +232,8 @@ const CampaignCreate: FC<{ onCreated?: () => void }> = ({ onCreated }) => {
                 fullWidth
                 multiline
                 rows={6}
+                InputLabelProps={{ shrink: true }}
+                helperText="Use [[monster:Goblin]], [[npc:Captain Yara]], [[location:Iron Keep]] to link to stat blocks and NPCs."
               />
             </Stack>
           )}
@@ -235,118 +250,147 @@ const columns: GridColDef<Campaign>[] = [
   { field: 'description', headerName: 'Description', flex: 3, sortable: true, filterable: true },
 ];
 
-import { TextField } from '@mui/material';
-import SessionsLog from '../shared/SessionsLog';
-import NpcsRoster from '../shared/NpcsRoster';
-import EncounterHistory from '../shared/EncounterHistory';
-
 const CampaignManager: FC = () => {
   const { user } = useAuth();
   const { items, loadError, reload } = useList<Campaign>(campaignsApi.list);
+  const { activeCampaign, setActiveCampaignId, reloadCampaigns } = useCampaignContext();
   const [mineFilter, setMineFilter] = useState(false);
-  const [focusedCampaignId, setFocusedCampaignId] = useState<string | null>(null);
-  // Default to the most-recently-updated campaign so the sessions panel
-  // is meaningful as soon as the user has any campaigns.
-  const focusedId =
-    focusedCampaignId ?? (items && items.length > 0 ? items[0].id ?? null : null);
+  const theme = useTheme();
+
+  const setActiveExtraAction = (c: Campaign): ReactNode => {
+    if (!c.id) return null;
+    return (
+      <Button
+        size="small"
+        variant="text"
+        startIcon={<OpenInNew fontSize="small" />}
+        onClick={() => setActiveCampaignId(c.id ?? null)}
+      >
+        {activeCampaign?.id === c.id ? 'Active' : 'Set active'}
+      </Button>
+    );
+  };
+
   return (
     <Stack spacing={3}>
       {user ? (
-        <>
-          <EntityBrowser<Campaign>
-            title="My Campaigns"
-            items={items}
-            loadError={loadError}
-            reload={reload}
-            mutations={{
-              create: campaignsApi.create,
-              update: campaignsApi.update,
-              remove: campaignsApi.delete,
-            }}
-            columns={columns as GridColDef[]}
-            DetailCard={({ item }) => <CampaignDetailCard item={item} />}
-            Editor={({ initial, onChange }) => (
-            <Stack spacing={2} sx={{ pt: 0 }}>
-                <TextField
-                  label="Name"
-                  value={initial.name}
-                  onChange={(e) => onChange({ ...initial, name: e.target.value })}
-                  fullWidth
-                />
-                <Stack direction="row" spacing={2}>
+        activeCampaign ? (
+          <CampaignHub campaign={activeCampaign} onChanged={reloadCampaigns} />
+        ) : (
+          <>
+            <Alert severity="info">
+              {items && items.length > 0
+                ? 'Pick a campaign from the top bar to focus on it, or create a new one below.'
+                : 'No active campaign. Create your first campaign to get started.'}
+            </Alert>
+            <EntityBrowser<Campaign>
+              title="My Campaigns"
+              items={items}
+              loadError={loadError}
+              reload={reload}
+              mutations={{
+                create: campaignsApi.create,
+                update: campaignsApi.update,
+                remove: campaignsApi.delete,
+              }}
+              columns={columns as GridColDef[]}
+              DetailCard={({ item }) => <CampaignDetailCard item={item} />}
+              Editor={({ initial, onChange }) => (
+                <Stack spacing={2} sx={{ pt: 0 }}>
                   <TextField
-                    label="Setting"
-                    value={initial.setting}
-                    onChange={(e) => onChange({ ...initial, setting: e.target.value })}
+                    label="Name"
+                    value={initial.name}
+                    onChange={(e) => onChange({ ...initial, name: e.target.value })}
                     fullWidth
+                    InputLabelProps={{ shrink: true }}
+                  />
+                  <Stack direction="row" spacing={2}>
+                    <TextField
+                      label="Setting"
+                      value={initial.setting}
+                      onChange={(e) => onChange({ ...initial, setting: e.target.value })}
+                      fullWidth
+                      InputLabelProps={{ shrink: true }}
+                    />
+                    <TextField
+                      label="Status"
+                      value={initial.status}
+                      onChange={(e) => onChange({ ...initial, status: e.target.value })}
+                      sx={{ width: 200 }}
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </Stack>
+                  <TextField
+                    label="Description"
+                    value={initial.description}
+                    onChange={(e) => onChange({ ...initial, description: e.target.value })}
+                    fullWidth
+                    multiline
+                    rows={2}
+                    InputLabelProps={{ shrink: true }}
                   />
                   <TextField
-                    label="Status"
-                    value={initial.status}
-                    onChange={(e) => onChange({ ...initial, status: e.target.value })}
-                    sx={{ width: 200 }}
+                    label="Notes"
+                    value={initial.notes}
+                    onChange={(e) => onChange({ ...initial, notes: e.target.value })}
+                    fullWidth
+                    multiline
+                    rows={6}
+                    InputLabelProps={{ shrink: true }}
                   />
                 </Stack>
-                <TextField
-                  label="Description"
-                  value={initial.description}
-                  onChange={(e) => onChange({ ...initial, description: e.target.value })}
-                  fullWidth
-                  multiline
-                  rows={2}
-                />
-                <TextField
-                  label="Notes"
-                  value={initial.notes}
-                  onChange={(e) => onChange({ ...initial, notes: e.target.value })}
-                  fullWidth
-                  multiline
-                  rows={6}
-                />
-              </Stack>
+              )}
+              defaultItem={() => ({ ...defaultCampaign, name: '' })}
+              getRowId={(r) => r.id ?? r.name}
+              getRowName={(r) => r.name}
+              CreateButton={CampaignCreate}
+              searchHint="Search your campaigns…"
+              emptyTitle="No campaigns yet"
+              emptyDescription="Create your first campaign to get started."
+              showMineFilter={!!user}
+              mineFilter={mineFilter}
+              onMineFilterChange={setMineFilter}
+              extraActions={setActiveExtraAction}
+            />
+            {items && items.length > 0 && (
+              <Box>
+                <Typography variant="overline" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                  Or pick an existing one
+                </Typography>
+                <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
+                  {items.slice(0, 8).map((c) => (
+                    <Card
+                      key={c.id}
+                      variant="outlined"
+                      sx={{ width: 220, position: 'relative' }}
+                    >
+                      <CardActionArea onClick={() => c.id && setActiveCampaignId(c.id)}>
+                        <CardContent>
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            <MapIcon fontSize="small" color="primary" />
+                            <Typography variant="h6" noWrap sx={{ flexGrow: 1 }}>
+                              {c.name}
+                            </Typography>
+                          </Stack>
+                          {c.setting && (
+                            <Typography variant="caption" color="text.secondary">
+                              {c.setting}
+                            </Typography>
+                          )}
+                          <Chip
+                            label={c.status}
+                            size="small"
+                            sx={{ mt: 1, height: 18, fontSize: '0.65rem', textTransform: 'capitalize' }}
+                          />
+                        </CardContent>
+                      </CardActionArea>
+                    </Card>
+                  ))}
+                </Stack>
+              </Box>
             )}
-            defaultItem={() => ({ ...defaultCampaign, name: '' })}
-            getRowId={(r) => r.id ?? r.name}
-            getRowName={(r) => r.name}
-            CreateButton={CampaignCreate}
-            searchHint="Search your campaigns…"
-            emptyTitle="No campaigns yet"
-            emptyDescription="Create your first campaign to get started."
-            showMineFilter={!!user}
-            mineFilter={mineFilter}
-            onMineFilterChange={setMineFilter}
-            extraActions={(c) =>
-              c.id ? (
-                <Button
-                  size="small"
-                  variant="text"
-                  onClick={() => setFocusedCampaignId(c.id ?? null)}
-                >
-                  {focusedId === c.id ? 'Viewing' : 'View sessions'}
-                </Button>
-              ) : null
-            }
-          />
-          {focusedId && (
-            <Stack
-              direction={{ xs: 'column', md: 'row' }}
-              spacing={2}
-              alignItems="flex-start"
-            >
-              <Box sx={{ flex: 1, minWidth: 0, width: '100%' }}>
-                <SessionsLog campaignId={focusedId} canEdit={true} />
-              </Box>
-              <Box sx={{ flex: 1, minWidth: 0, width: '100%' }}>
-                <NpcsRoster campaignId={focusedId} canEdit={true} />
-              </Box>
-            </Stack>
-          )}
-          {focusedId && (
-            <Box>
-              <EncounterHistory campaignId={focusedId} canEdit={true} />
-            </Box>
-          )}
-        </>
+          </>
+        )
       ) : (
         <Alert severity="info">
           Sign in (top right) to create and manage your own campaigns. The

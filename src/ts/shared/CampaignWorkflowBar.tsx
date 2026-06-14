@@ -34,7 +34,7 @@ import { api } from '../api/api-client';
 
 type Props = {
   campaign: Campaign;
-  canEdit: boolean;
+  canEdit?: boolean;
   onChanged?: (c: Campaign) => void;
 };
 
@@ -60,7 +60,7 @@ const cadenceDays: Record<string, number> = {
   'ad-hoc': 0,
 };
 
-const CampaignWorkflowBar: FC<Props> = ({ campaign, canEdit, onChanged }) => {
+const CampaignWorkflowBar: FC<Props> = ({ campaign, canEdit = true, onChanged }) => {
   const theme = useTheme();
   const { toast } = useToast();
   const [editOpen, setEditOpen] = useState(false);

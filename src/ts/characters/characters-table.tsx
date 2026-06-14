@@ -311,7 +311,6 @@ const CharactersTable: FC = () => {
       <PartyComposition
         characters={items ?? []}
         classes={classes}
-        races={races}
       />
       <PartiesPanel
         characters={items ?? []}
