@@ -1,5 +1,6 @@
 import React from 'react';
 import { RouterProvider, createHashRouter } from 'react-router-dom';
+import AppLayout from './AppLayout';
 import MonsterTable from './monsters/monster-table';
 import EncounterGenerate from './encounters/encounter-generator';
 import Mechanics from './mechanics/mechanics';
@@ -7,42 +8,20 @@ import SpellTable from './spells/spell-table';
 import Shop from './gear/gear';
 import CampaignManager from './campaigns/campaign-manager';
 import CharactersTable from './characters/characters-table';
-import Header from './Header';
 
 const AppRouter = () => {
   const router = createHashRouter([
     {
       path: '/*',
-      element: <Header />,
+      element: <AppLayout />,
       children: [
-        {
-          path: '',
-          element: <Mechanics />,
-        },
-        {
-          path: 'monsters',
-          element: <MonsterTable />,
-        },
-        {
-          path: 'spells',
-          element: <SpellTable />,
-        },
-        {
-          path: 'gear',
-          element: <Shop />,
-        },
-        {
-          path: 'encounter',
-          element: <EncounterGenerate />,
-        },
-        {
-          path: 'characters',
-          element: <CharactersTable />,
-        },
-        {
-          path: 'campaign',
-          element: <CampaignManager />,
-        },
+        { path: '', element: <Mechanics /> },
+        { path: 'monsters', element: <MonsterTable /> },
+        { path: 'spells', element: <SpellTable /> },
+        { path: 'gear', element: <Shop /> },
+        { path: 'encounter', element: <EncounterGenerate /> },
+        { path: 'characters', element: <CharactersTable /> },
+        { path: 'campaign', element: <CampaignManager /> },
       ],
     },
   ]);

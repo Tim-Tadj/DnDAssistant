@@ -1,27 +1,27 @@
 /**
- * Main application for executing the website
- * @author Lachlan Charteris
+ * Main application entry point
  */
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { Box, CssBaseline, ThemeProvider } from '@mui/material';
+import { CssBaseline, ThemeProvider } from '@mui/material';
 import theme from './theme';
 import AppRouter from './ts/app-router';
 import { AuthProvider } from './ts/auth/AuthContext';
+import { ToastProvider } from './ts/shared/ToastProvider';
 
 const rootElement = document.getElementById('root');
 const root = ReactDOM.createRoot(rootElement!);
 
 root.render(
   <ThemeProvider theme={theme}>
+    <CssBaseline />
     <AuthProvider>
-      <React.StrictMode>
-        <Box>
-          <CssBaseline />
+      <ToastProvider>
+        <React.StrictMode>
           <AppRouter />
-        </Box>
-      </React.StrictMode>
+        </React.StrictMode>
+      </ToastProvider>
     </AuthProvider>
   </ThemeProvider>
 );

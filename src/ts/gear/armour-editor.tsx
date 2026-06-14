@@ -1,5 +1,5 @@
 import React, { FC, useCallback, useEffect, useState } from 'react';
-import { defaultArmour } from '../types/Gear';
+import { Armour, defaultArmour } from '../types/Gear';
 import { Autocomplete, Stack, TextField } from '@mui/material';
 
 enum ARMOUR_TYPE {
@@ -10,19 +10,22 @@ enum ARMOUR_TYPE {
 }
 
 const ArmourEditor: FC<{
-  onUpdateGear: (jsonInput: string) => void;
-  onChange?: (armour: typeof defaultArmour) => void;
-}> = ({ onUpdateGear, onChange }) => {
-  const [newArmour, setNewArmour] = useState(defaultArmour);
+  onUpdateGear?: (jsonInput: string) => void;
+  onChange?: (armour: Armour) => void;
+  initial?: Armour;
+}> = ({ onUpdateGear, onChange, initial }) => {
+  const [newArmour, setNewArmour] = useState<Armour>(initial ?? defaultArmour);
 
   const onUpdateGearFormatted = useCallback(() => {
-    onUpdateGear(
+    onUpdateGear?.(
       JSON.stringify(newArmour, null, "\t")
         .replaceAll("],\n\t\"", "],\n\n\t\"")
     )
   }, [newArmour]);
 
-  useEffect(onUpdateGearFormatted, [onUpdateGearFormatted]);
+  useEffect(() => {
+    onUpdateGearFormatted();
+  }, [onUpdateGearFormatted]);
   useEffect(() => onChange?.(newArmour), [newArmour, onChange]);
 
   const computeAC = (ac: string, type: string): string => {

@@ -1,105 +1,132 @@
+// Combat state: combatants in initiative order, current turn index, round.
+
 import { useCallback, useEffect, useState } from 'react';
 import { Monster } from '../types/Monster';
 import { v4 as uuidv4 } from 'uuid';
-import useMonsters from './use-monsters';
 
-type RemainingMonster = {
+export type RemainingMonster = {
   uuid: string;
   name: string;
   maxHP: string;
   hp: number | null;
   ac: number;
   initiative: number;
+  conditions: string[];
 };
 
 const createRemainingMonster = (monster: Monster): RemainingMonster => {
-  const modifier = parseInt(monster.DEX_mod.replace(/([(+)])/g, ''));
-  const initiative = Math.floor(Math.random() * 20) + modifier;
+  const modifier = parseInt(monster.DEX_mod.replace(/([(+)])/g, ''), 10);
+  const initiative = Math.floor(Math.random() * 20) + 1 + (isNaN(modifier) ? 0 : modifier);
   return {
     uuid: uuidv4(),
     name: monster.name,
     maxHP: monster.HP,
-    hp: parseInt(monster.HP),
-    ac: parseInt(monster.AC),
+    hp: parseInt(monster.HP, 10) || 0,
+    ac: parseInt(monster.AC, 10) || 10,
     initiative,
+    conditions: [],
   };
 };
 
 const getMonstersFromEncounter = (monsters: Monster[]): RemainingMonster[] => {
   return monsters
-    .map((monster) => createRemainingMonster(monster))
-    .sort((a, b) => (a.initiative < b.initiative ? 1 : -1));
+    .map(createRemainingMonster)
+    .sort((a, b) => b.initiative - a.initiative);
 };
 
 const useTrackEncounter = (monstersInCombat: Monster[]) => {
-  const { monsters } = useMonsters();
   const [remainingMonsters, setRemainingMonsters] = useState(
     getMonstersFromEncounter(monstersInCombat)
   );
-  const [selectedMonster, setSelectedMonster] =
-    useState<RemainingMonster | null>(remainingMonsters[0]);
-  const [pageNumber, setPageNumber] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [round, setRound] = useState(1);
 
   useEffect(() => {
-    const monstersInEncounter = getMonstersFromEncounter(monstersInCombat);
-    setRemainingMonsters(monstersInEncounter);
-    setSelectedMonster(monstersInEncounter[0]);
+    const next = getMonstersFromEncounter(monstersInCombat);
+    setRemainingMonsters(next);
+    setCurrentIndex(0);
+    setRound(1);
   }, [monstersInCombat]);
 
   const onUpdateHealth = useCallback(
     (uuid: string, newHealth: number) => {
-      const newRemainingMonsters = [...remainingMonsters];
-      const index = newRemainingMonsters.findIndex(
-        (monster) => monster.uuid === uuid
+      setRemainingMonsters((prev) =>
+        prev.map((m) => (m.uuid === uuid ? { ...m, hp: isNaN(newHealth) ? 0 : newHealth } : m))
       );
-      newRemainingMonsters[index].hp = isNaN(newHealth) ? null : newHealth;
-      setRemainingMonsters(newRemainingMonsters);
     },
-    [remainingMonsters, setRemainingMonsters]
+    []
   );
 
   const onDeleteMonster = useCallback(
     (monster: RemainingMonster) => {
-      if (selectedMonster?.uuid === monster.uuid) {
-        setSelectedMonster(null);
-      }
-      const filteredRemainingMonsters = remainingMonsters.filter(
-        (remainingMonster) => remainingMonster.uuid !== monster.uuid
+      setRemainingMonsters((prev) => {
+        const filtered = prev.filter((m) => m.uuid !== monster.uuid);
+        // Adjust the current index so it stays valid
+        const removedBefore = prev.findIndex((m) => m.uuid === monster.uuid);
+        if (removedBefore !== -1 && removedBefore < currentIndex) {
+          setCurrentIndex((i) => Math.max(0, i - 1));
+        }
+        return filtered;
+      });
+    },
+    [currentIndex]
+  );
+
+  const onAddMonsters = useCallback((monsters: Monster[]) => {
+    setRemainingMonsters((prev) => [
+      ...prev,
+      ...monsters.map(createRemainingMonster),
+    ].sort((a, b) => b.initiative - a.initiative));
+  }, []);
+
+  const onToggleCondition = useCallback(
+    (uuid: string, condition: string) => {
+      setRemainingMonsters((prev) =>
+        prev.map((m) => {
+          if (m.uuid !== uuid) return m;
+          const has = m.conditions.includes(condition);
+          return {
+            ...m,
+            conditions: has
+              ? m.conditions.filter((c) => c !== condition)
+              : [...m.conditions, condition],
+          };
+        })
       );
-      setRemainingMonsters(filteredRemainingMonsters);
     },
-    [
-      selectedMonster,
-      remainingMonsters,
-      setRemainingMonsters,
-    ]
+    []
   );
 
-  const onAddMonsters = useCallback(
-    (monsters: Monster[]) => {
-      const newRemainingMonsters = [
-        ...remainingMonsters,
-        ...monsters.map(createRemainingMonster),
-      ];
-      setRemainingMonsters(newRemainingMonsters);
-      setSelectedMonster(newRemainingMonsters[0]);
-    },
-    [remainingMonsters, setRemainingMonsters, setSelectedMonster]
-  );
+  const nextTurn = useCallback(() => {
+    setCurrentIndex((i) => {
+      const next = i + 1;
+      if (next >= remainingMonsters.length) {
+        setRound((r) => r + 1);
+        return 0;
+      }
+      return next;
+    });
+  }, [remainingMonsters.length]);
 
-  const identifiedMonster = (monsters ?? []).find(
-    (monster) => selectedMonster?.name === monster.name
-  );
+  const reset = useCallback(() => {
+    setRemainingMonsters(getMonstersFromEncounter(monstersInCombat));
+    setCurrentIndex(0);
+    setRound(1);
+  }, [monstersInCombat]);
+
+  const identifiedMonster: Monster | null = null;
 
   return {
     remainingMonsters,
     identifiedMonster,
     onAddMonsters,
     onDeleteMonster,
-    setSelectedMonster,
     onUpdateHealth,
-    pageNumber,
-    setPageNumber,
+    onToggleCondition,
+    currentIndex,
+    nextTurn,
+    reset,
+    round,
   };
 };
 

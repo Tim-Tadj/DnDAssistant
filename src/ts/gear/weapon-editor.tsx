@@ -1,21 +1,24 @@
 import React, { FC, useCallback, useEffect, useState } from 'react';
-import { defaultWeapon } from '../types/Gear';
+import { defaultWeapon, Weapon } from '../types/Gear';
 import { Stack, TextField } from '@mui/material';
 
 const WeaponEditor: FC<{
-  onUpdateGear: (jsonInput: string) => void;
-  onChange?: (weapon: typeof defaultWeapon) => void;
-}> = ({ onUpdateGear, onChange }) => {
-  const [newWeapon, setNewWeapon] = useState(defaultWeapon);
+  onUpdateGear?: (jsonInput: string) => void;
+  onChange?: (weapon: Weapon) => void;
+  initial?: Weapon;
+}> = ({ onUpdateGear, onChange, initial }) => {
+  const [newWeapon, setNewWeapon] = useState<Weapon>(initial ?? defaultWeapon);
 
   const onUpdateGearFormatted = useCallback(() => {
-    onUpdateGear(
+    onUpdateGear?.(
       JSON.stringify(newWeapon, null, "\t")
         .replaceAll("],\n\t\"", "],\n\n\t\"")
     )
   }, [newWeapon]);
 
-  useEffect(onUpdateGearFormatted, [onUpdateGearFormatted]);
+  useEffect(() => {
+    onUpdateGearFormatted();
+  }, [onUpdateGearFormatted]);
   useEffect(() => onChange?.(newWeapon), [newWeapon, onChange]);
 
   return (

@@ -1,339 +1,148 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import {
-  Alert,
-  Box,
-  Button,
-  CircularProgress,
-  Container,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  Divider,
-  IconButton,
-  Paper,
-  Snackbar,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material';
-import { Close, Delete, Edit, Save } from '@mui/icons-material';
-import { DataGrid, GridRowParams } from '@mui/x-data-grid';
-import { Spell } from '../types/Spell';
-import PageIterator from '../shared/page-iterator';
-import SpellCard from '../spells/spell-card';
-import SpellEditor from './spell-editor';
-import { spellColumnDescriptor } from './spell-column-descriptor';
-import CreateSpell from './create-spell';
+/**
+ * Spells page.
+ *
+ * Phase 7: uses the shared EntityBrowser shell; the detail view is
+ * SpellCard (PHB-style).
+ */
+
+import React, { FC, useState } from 'react';
+import { Button, Stack, Typography, useTheme } from '@mui/material';
+import { Add, Save } from '@mui/icons-material';
+import { Dialog, DialogContent, DialogTitle } from '@mui/material';
+import { GridColDef } from '@mui/x-data-grid';
+import { Spell, defaultSpell } from '../types/Spell';
 import { spellsApi } from '../api/spells';
+import { useList } from '../shared/useList';
+import { EntityBrowser } from '../shared/EntityBrowser';
+import SpellCard from '../shared/SpellCard';
+import SpellEditor from './spell-editor';
+import { useToast } from '../shared/ToastProvider';
 
-type Mode = 'view' | 'edit';
-
-export default function SpellTable() {
-  const [spells, setSpells] = useState<Spell[] | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [selectedSpell, setSelectedSpell] = useState<Spell | null>(null);
-  const [spellIndex, setSpellIndex] = useState<number>(0);
-  const [mode, setMode] = useState<Mode>('view');
-  const [editedSpell, setEditedSpell] = useState<Spell | null>(null);
-  const [editedJson, setEditedJson] = useState('');
+const SpellCreate: FC<{ onCreated?: () => void }> = ({ onCreated }) => {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<Spell | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [toastOpen, setToastOpen] = useState(false);
+  const { toast } = useToast();
+  const theme = useTheme();
 
-  const reload = useCallback(async () => {
-    setLoadError(null);
-    try {
-      const data = await spellsApi.list();
-      setSpells(data);
-    } catch (e) {
-      setLoadError(e instanceof Error ? e.message : String(e));
-      setSpells([]);
-    }
-  }, []);
-
-  useEffect(() => {
-    void reload();
-  }, [reload]);
-
-  const filteredSpells = (spells ?? []).filter((spell) =>
-    searchQuery
-      .split('+')
-      .some((query) => spell.name.toLowerCase().includes(query.toLowerCase()))
-  );
-
-  const onViewSpell = useCallback(
-    (params: GridRowParams) => {
-      setSelectedSpell(params.row as Spell);
-      setSpellIndex(
-        filteredSpells.findIndex((spell) => spell.name === params.row.name)
-      );
-      setMode('view');
-    },
-    [filteredSpells, setSelectedSpell, setSpellIndex]
-  );
-
-  const onViewNextSpell = useCallback(
-    (newPage: number) => {
-      setSpellIndex(newPage);
-      setSelectedSpell(filteredSpells[newPage]);
-      setMode('view');
-    },
-    [filteredSpells, setSelectedSpell]
-  );
-
-  const closeDialog = () => {
-    setSelectedSpell(null);
-    setMode('view');
-    setEditedSpell(null);
-    setEditedJson('');
-    setSaveError(null);
-  };
-
-  const onStartEdit = () => {
-    if (selectedSpell) {
-      setEditedSpell({ ...selectedSpell });
-      setMode('edit');
-      setSaveError(null);
-    }
-  };
-
-  const onCancelEdit = () => {
-    setMode('view');
-    setEditedSpell(null);
-    setEditedJson('');
-    setSaveError(null);
-  };
-
-  const onSaveEdit = async () => {
-    if (!editedSpell || editedSpell.id === undefined) {
-      setSaveError('Cannot save: missing id');
-      return;
-    }
-    if (!editedSpell.name.trim()) {
-      setSaveError('Name is required');
+  const onSave = async () => {
+    if (!draft || !draft.name.trim()) {
+      setError('Name is required');
       return;
     }
     setSaving(true);
-    setSaveError(null);
+    setError(null);
     try {
-      const updated = await spellsApi.update(editedSpell.id, editedSpell);
-      setSelectedSpell(updated);
-      setMode('view');
-      setEditedSpell(null);
-      setToastOpen(true);
-      void reload();
+      await spellsApi.create(draft);
+      toast('Spell created', 'success');
+      setOpen(false);
+      setDraft(null);
+      onCreated?.();
     } catch (e) {
-      setSaveError(e instanceof Error ? e.message : String(e));
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setSaving(false);
     }
   };
 
-  const onConfirmDelete = async () => {
-    if (!selectedSpell || selectedSpell.id === undefined) {
-      setConfirmDelete(false);
-      return;
-    }
-    setDeleting(true);
-    try {
-      await spellsApi.delete(selectedSpell.id);
-      setToastOpen(true);
-      setConfirmDelete(false);
-      closeDialog();
-      void reload();
-    } catch (e) {
-      setSaveError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setDeleting(false);
-    }
-  };
-
   return (
-    <Container maxWidth="xl">
-      <Stack direction="row" justifyContent="space-between">
-        <Typography variant="h4">Spells</Typography>
-        <CreateSpell onCreated={reload} />
-      </Stack>
-      <Divider orientation="horizontal" sx={{ mb: '1%', mt: '0.5%' }} />
-      <TextField
-        variant="filled"
-        fullWidth
-        value={searchQuery}
-        onChange={(event) => setSearchQuery(event.target.value)}
-        label="Search Spells"
-        size="small"
-      />
-      {loadError && (
-        <Alert severity="error" sx={{ mt: 2 }}>
-          Failed to load spells: {loadError}
-        </Alert>
-      )}
-      {spells === null && !loadError && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-          <CircularProgress />
-        </Box>
-      )}
-      {spells !== null && (
-        <Paper sx={{ margin: 1 }}>
-          <DataGrid
-            rows={filteredSpells}
-            columns={spellColumnDescriptor}
-            onRowClick={onViewSpell}
-            initialState={{
-              pagination: {
-                paginationModel: { pageSize: 25 },
-              },
-            }}
-            pageSizeOptions={[10, 25, 50]}
-            getRowId={(row) => (row as Spell).name}
-          />
-        </Paper>
-      )}
-      <Dialog
-        open={selectedSpell !== null}
-        onClose={closeDialog}
-        maxWidth="xl"
-        fullWidth
+    <>
+      <Button
+        variant="contained"
+        startIcon={<Add />}
+        onClick={() => {
+          setDraft({ ...defaultSpell, name: '' });
+          setError(null);
+          setOpen(true);
+        }}
       >
-        <DialogTitle>
-          <Stack
-            direction="row"
-            justifyContent="space-between"
-            alignItems="center"
-          >
-            <Typography variant="h5">
-              {mode === 'edit' ? 'Edit Spell' : 'Spell View'}
-            </Typography>
-            <PageIterator
-              page={spellIndex}
-              maxLength={filteredSpells.length}
-              pageSetter={onViewNextSpell}
-            />
+        Create Spell
+      </Button>
+      <Dialog
+        open={open}
+        onClose={() => !saving && setOpen(false)}
+        fullWidth
+        maxWidth="md"
+        PaperProps={{
+          sx: {
+            backgroundColor: theme.palette.background.paper,
+            backgroundImage: 'none',
+            maxHeight: '90vh',
+          },
+        }}
+      >
+        <DialogTitle sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center">
+            <Typography variant="h4">New Spell</Typography>
             <Stack direction="row" spacing={1}>
-              {mode === 'view' && selectedSpell?.id !== undefined && (
-                <>
-                  <Button
-                    startIcon={<Edit />}
-                    onClick={onStartEdit}
-                    disabled={selectedSpell.provenance === 'srd'}
-                    title={
-                      selectedSpell.provenance === 'srd'
-                        ? 'SRD content is read-only'
-                        : 'Edit'
-                    }
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    startIcon={<Delete />}
-                    color="error"
-                    onClick={() => setConfirmDelete(true)}
-                    disabled={selectedSpell.provenance === 'srd'}
-                    title={
-                      selectedSpell.provenance === 'srd'
-                        ? 'SRD content is read-only'
-                        : 'Delete'
-                    }
-                  >
-                    Delete
-                  </Button>
-                </>
-              )}
-              {mode === 'edit' && (
-                <>
-                  <Button
-                    startIcon={<Save />}
-                    variant="contained"
-                    onClick={onSaveEdit}
-                    disabled={saving}
-                  >
-                    {saving ? 'Saving…' : 'Save'}
-                  </Button>
-                  <Button onClick={onCancelEdit} disabled={saving}>
-                    Cancel
-                  </Button>
-                </>
-              )}
-              <IconButton onClick={closeDialog}>
-                <Close />
-              </IconButton>
+              <Button onClick={() => setOpen(false)} disabled={saving}>
+                Cancel
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={<Save />}
+                onClick={onSave}
+                disabled={saving}
+              >
+                {saving ? 'Saving…' : 'Save'}
+              </Button>
             </Stack>
           </Stack>
         </DialogTitle>
-        <DialogContent>
-          {saveError && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {saveError}
-            </Alert>
+        <DialogContent sx={{ p: 3 }}>
+          {error && (
+            <Typography color="error" sx={{ mb: 2 }}>
+              {error}
+            </Typography>
           )}
-          {mode === 'view' && selectedSpell && (
-            <Container sx={{ justifyContent: 'center', alignContent: 'center' }}>
-              <SpellCard spell={selectedSpell} />
-            </Container>
-          )}
-          {mode === 'edit' && editedSpell && (
-            <Stack direction="row" spacing={2} useFlexGap>
-              <Box flexGrow={1}>
-                <SpellEditor
-                  initial={editedSpell}
-                  onUpdateGear={setEditedJson}
-                  onChange={setEditedSpell}
-                />
-              </Box>
-              <Stack spacing={1} flexGrow={1}>
-                <Alert severity="info">JSON preview (also sent to the API on Save)</Alert>
-                <TextField
-                  fullWidth
-                  value={editedJson}
-                  disabled
-                  inputProps={{ readOnly: true }}
-                  multiline
-                  sx={{ flex: 1, flexDirection: 'row' }}
-                />
-              </Stack>
-            </Stack>
-          )}
+          {draft && <SpellEditor initial={draft} onChange={setDraft} />}
         </DialogContent>
       </Dialog>
-      <Dialog
-        open={confirmDelete}
-        onClose={() => !deleting && setConfirmDelete(false)}
-      >
-        <DialogTitle>Delete spell?</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            This will permanently delete &quot;{selectedSpell?.name}&quot; from the
-            database. This cannot be undone.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmDelete(false)} disabled={deleting}>
-            Cancel
-          </Button>
-          <Button
-            color="error"
-            onClick={onConfirmDelete}
-            disabled={deleting}
-          >
-            {deleting ? 'Deleting…' : 'Delete'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-      <Snackbar
-        open={toastOpen}
-        autoHideDuration={3000}
-        onClose={() => setToastOpen(false)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-      >
-        <Alert severity="success" onClose={() => setToastOpen(false)}>
-          {mode === 'edit' ? 'Spell updated' : 'Spell deleted'}
-        </Alert>
-      </Snackbar>
-    </Container>
+    </>
   );
-}
+};
+
+const columns: GridColDef<Spell>[] = [
+  { field: 'name', headerName: 'Name', flex: 2, sortable: true, filterable: true },
+  { field: 'level', headerName: 'Level', flex: 0.7, sortable: true, filterable: true, align: 'center', headerAlign: 'center' },
+  { field: 'school', headerName: 'School', flex: 1, sortable: true, filterable: true },
+  { field: 'casting_time', headerName: 'Casting Time', flex: 1.2, sortable: true, filterable: true },
+  { field: 'range', headerName: 'Range', flex: 1, sortable: true, filterable: true },
+  { field: 'duration', headerName: 'Duration', flex: 1.2, sortable: true, filterable: true },
+  {
+    field: 'provenance',
+    headerName: 'Source',
+    flex: 0.8,
+    sortable: true,
+    filterable: true,
+    align: 'center',
+    headerAlign: 'center',
+  },
+];
+
+const SpellTable: FC = () => {
+  return (
+    <EntityBrowser<Spell>
+      title="Spells"
+      useList={() => useList(spellsApi.list)}
+      mutations={{
+        create: spellsApi.create,
+        update: (id, s) => spellsApi.update(id as number, s),
+        remove: (id) => spellsApi.delete(id as number),
+      }}
+      columns={columns as GridColDef[]}
+      DetailCard={({ item }) => <SpellCard spell={item} />}
+      Editor={({ initial, onChange }) => (
+        <SpellEditor initial={initial} onChange={onChange} />
+      )}
+      defaultItem={() => ({ ...defaultSpell, name: '' })}
+      getRowId={(r) => r.id ?? r.name}
+      getRowName={(r) => r.name}
+      CreateButton={SpellCreate}
+      searchHint="Search spells by name (e.g. fireball, eldritch)…"
+    />
+  );
+};
+
+export default SpellTable;

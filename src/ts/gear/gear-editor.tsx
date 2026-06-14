@@ -1,21 +1,24 @@
 import React, { FC, useCallback, useEffect, useState } from 'react';
-import { defaultGear } from '../types/Gear';
+import { defaultGear, Gear } from '../types/Gear';
 import { Stack, TextField } from '@mui/material';
 
 const GearEditor: FC<{
-  onUpdateGear: (jsonInput: string) => void;
-  onChange?: (gear: typeof defaultGear) => void;
-}> = ({ onUpdateGear, onChange }) => {
-  const [newGear, setNewGear] = useState(defaultGear);
+  onUpdateGear?: (jsonInput: string) => void;
+  onChange?: (gear: Gear) => void;
+  initial?: Gear;
+}> = ({ onUpdateGear, onChange, initial }) => {
+  const [newGear, setNewGear] = useState<Gear>(initial ?? defaultGear);
 
   const onUpdateGearFormatted = useCallback(() => {
-    onUpdateGear(
+    onUpdateGear?.(
       JSON.stringify(newGear, null, "\t")
         .replaceAll("],\n\t\"", "],\n\n\t\"")
     )
   }, [newGear]);
 
-  useEffect(onUpdateGearFormatted, [onUpdateGearFormatted]);
+  useEffect(() => {
+    onUpdateGearFormatted();
+  }, [onUpdateGearFormatted]);
   useEffect(() => onChange?.(newGear), [newGear, onChange]);
 
   return (

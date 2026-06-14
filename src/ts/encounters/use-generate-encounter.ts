@@ -107,6 +107,8 @@ export default function useGenerateEncounter() {
     setMonstersInCombat(next);
   };
 
+  const clearEncounter = () => setMonstersInCombat([]);
+
   return {
     searchQuery,
     setSearchQuery,
@@ -122,6 +124,7 @@ export default function useGenerateEncounter() {
     experience,
     setExperience,
     determineMonstersInEncounter,
+    clearEncounter,
     monstersInCombat,
   };
 }

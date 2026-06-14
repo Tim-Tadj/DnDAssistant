@@ -1,13 +1,9 @@
+// Lightweight shared hook for fetching the full monster list from the API.
+// Both the encounter generator and tracker consume this.
 import { useCallback, useEffect, useState } from 'react';
 import { monstersApi } from '../api/monsters';
 import { Monster } from '../types/Monster';
 
-/**
- * Shared hook for fetching the full monster list from the API. The
- * encounter generator and tracker both filter against this list at
- * click time, so we cache the result at the module/hook level and
- * reload on demand.
- */
 export default function useMonsters() {
   const [monsters, setMonsters] = useState<Monster[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);

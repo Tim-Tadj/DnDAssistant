@@ -45,7 +45,7 @@ const Field: FC<FieldProps> = ({ label, value, onChange, onBlur, fullWidth, mult
 );
 
 const MonsterEditor: FC<{
-  onUpdateGear: (jsonInput: string) => void;
+  onUpdateGear?: (jsonInput: string) => void;
   onChange?: (monster: Monster) => void;
   initial?: Monster;
 }> = ({ onUpdateGear, onChange, initial }) => {
@@ -72,11 +72,13 @@ const MonsterEditor: FC<{
   }, []);
 
   const onUpdateGearFormatted = useCallback(
-    () => onUpdateGear(JSON.stringify(m, null, '\t')),
+    () => onUpdateGear?.(JSON.stringify(m, null, '\t')),
     [m, onUpdateGear]
   );
 
-  useEffect(onUpdateGearFormatted, [onUpdateGearFormatted]);
+  useEffect(() => {
+    onUpdateGearFormatted();
+  }, [onUpdateGearFormatted]);
   useEffect(() => onChange?.(m), [m, onChange]);
 
   return (

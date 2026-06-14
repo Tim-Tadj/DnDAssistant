@@ -1,28 +1,28 @@
-import React, { FC, useState } from 'react';
+import React, { FC, useEffect, useState } from 'react';
 import {
   Alert,
   Box,
   Button,
   Dialog,
-  DialogActions,
   DialogContent,
-  DialogTitle,
   Stack,
-  Tab,
-  Tabs,
   TextField,
   Typography,
+  alpha,
+  useTheme,
 } from '@mui/material';
+import { Lock, Person, PersonAdd } from '@mui/icons-material';
 import { useAuth } from './AuthContext';
 
 type Mode = 'login' | 'signup';
 
-const AuthDialog: FC<{ open: boolean; onClose: () => void; defaultMode?: Mode }> = ({
-  open,
-  onClose,
-  defaultMode = 'login',
-}) => {
+const AuthDialog: FC<{
+  open: boolean;
+  onClose: () => void;
+  defaultMode?: Mode;
+}> = ({ open, onClose, defaultMode = 'login' }) => {
   const { login, signup } = useAuth();
+  const theme = useTheme();
   const [mode, setMode] = useState<Mode>(defaultMode);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -31,19 +31,17 @@ const AuthDialog: FC<{ open: boolean; onClose: () => void; defaultMode?: Mode }>
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const reset = () => {
-    setUsername('');
-    setPassword('');
-    setEmail('');
-    setDisplayName('');
-    setError(null);
-    setSubmitting(false);
-  };
-
-  const close = () => {
-    reset();
-    onClose();
-  };
+  useEffect(() => {
+    if (open) {
+      setMode(defaultMode);
+      setUsername('');
+      setPassword('');
+      setEmail('');
+      setDisplayName('');
+      setError(null);
+      setSubmitting(false);
+    }
+  }, [open, defaultMode]);
 
   const onSubmit = async () => {
     if (!username.trim() || !password) {
@@ -62,7 +60,7 @@ const AuthDialog: FC<{ open: boolean; onClose: () => void; defaultMode?: Mode }>
       } else {
         await signup(username, password, email || undefined, displayName || undefined);
       }
-      close();
+      onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -71,74 +69,149 @@ const AuthDialog: FC<{ open: boolean; onClose: () => void; defaultMode?: Mode }>
   };
 
   return (
-    <Dialog open={open} onClose={close} fullWidth maxWidth="xs">
-      <DialogTitle>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Typography variant="h6">{mode === 'login' ? 'Sign in' : 'Create account'}</Typography>
-          <Tabs
-            value={mode}
-            onChange={(_e, v) => {
-              setMode(v);
-              setError(null);
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogContent sx={{ p: 0, '&:first-of-type': { paddingTop: 0 } }}>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' } }}>
+          <Stack
+            sx={{
+              flex: 1,
+              p: 3,
+              background: `linear-gradient(180deg, ${alpha(
+                theme.palette.primary.main,
+                0.18
+              )} 0%, ${alpha(theme.palette.primary.main, 0.06)} 100%)`,
+              borderRight: {
+                xs: 'none',
+                sm: `1px solid ${theme.palette.divider}`,
+              },
+              borderBottom: {
+                xs: `1px solid ${theme.palette.divider}`,
+                sm: 'none',
+              },
             }}
+            spacing={2}
+            alignItems="center"
+            justifyContent="center"
           >
-            <Tab label="Sign in" value="login" />
-            <Tab label="Sign up" value="signup" />
-          </Tabs>
-        </Stack>
-      </DialogTitle>
-      <DialogContent>
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
-        <Stack spacing={2}>
-          <TextField
-            label="Username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            autoFocus
-            fullWidth
-            size="small"
-          />
-          {mode === 'signup' && (
-            <>
-              <TextField
-                label="Email (optional)"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                fullWidth
+            <Box
+              sx={{
+                width: 64,
+                height: 64,
+                borderRadius: 2,
+                background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: `0 0 20px ${alpha(theme.palette.primary.main, 0.4)}`,
+              }}
+            >
+              <Typography
+                sx={{
+                  fontFamily: '"Cinzel", serif',
+                  fontWeight: 700,
+                  fontSize: 28,
+                  color: theme.palette.primary.contrastText,
+                }}
+              >
+                D
+              </Typography>
+            </Box>
+            <Stack spacing={0.5} alignItems="center" textAlign="center">
+              <Typography variant="h4">DnD Assistant</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 240 }}>
+                Sign in to manage your campaigns, characters, and homebrew content.
+              </Typography>
+            </Stack>
+            <Stack direction="row" spacing={0.5} sx={{ pt: 1 }}>
+              <Button
                 size="small"
-              />
-              <TextField
-                label="Display name (optional)"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                fullWidth
+                variant={mode === 'login' ? 'contained' : 'outlined'}
+                startIcon={<Person />}
+                onClick={() => {
+                  setMode('login');
+                  setError(null);
+                }}
+              >
+                Sign in
+              </Button>
+              <Button
                 size="small"
+                variant={mode === 'signup' ? 'contained' : 'outlined'}
+                startIcon={<PersonAdd />}
+                onClick={() => {
+                  setMode('signup');
+                  setError(null);
+                }}
+              >
+                Sign up
+              </Button>
+            </Stack>
+          </Stack>
+          <Box sx={{ flex: 1, p: 3 }}>
+            <Stack spacing={2}>
+              <Box>
+                <Typography variant="h5">
+                  {mode === 'login' ? 'Welcome back' : 'Create your account'}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {mode === 'login'
+                    ? 'Sign in to access your content.'
+                    : 'A few details to get you started.'}
+                </Typography>
+              </Box>
+              {error && <Alert severity="error">{error}</Alert>}
+              <TextField
+                label="Username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                autoFocus
+                fullWidth
               />
-            </>
-          )}
-          <TextField
-            label="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            fullWidth
-            size="small"
-            helperText={mode === 'signup' ? 'At least 8 characters' : ''}
-          />
-        </Stack>
+              {mode === 'signup' && (
+                <>
+                  <TextField
+                    label="Email (optional)"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    fullWidth
+                  />
+                  <TextField
+                    label="Display name (optional)"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    fullWidth
+                    helperText="Shown in the navigation rail"
+                  />
+                </>
+              )}
+              <TextField
+                label="Password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                fullWidth
+                helperText={mode === 'signup' ? 'At least 8 characters' : ''}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void onSubmit();
+                }}
+              />
+              <Button
+                variant="contained"
+                onClick={onSubmit}
+                disabled={submitting}
+                size="large"
+                startIcon={<Lock />}
+              >
+                {submitting
+                  ? 'Working…'
+                  : mode === 'login'
+                  ? 'Sign in'
+                  : 'Create account'}
+              </Button>
+            </Stack>
+          </Box>
+        </Box>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={close} disabled={submitting}>
-          Cancel
-        </Button>
-        <Button variant="contained" onClick={onSubmit} disabled={submitting}>
-          {submitting ? 'Working…' : mode === 'login' ? 'Sign in' : 'Sign up'}
-        </Button>
-      </DialogActions>
     </Dialog>
   );
 };

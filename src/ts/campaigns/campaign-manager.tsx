@@ -1,385 +1,319 @@
+/**
+ * Campaigns page.
+ *
+ * Phase 7: My Campaigns uses the shared EntityBrowser. Bundled
+ * "Tales of Avandria" world data appears below as a "Browse example"
+ * section so a new user has something to look at even before signing in.
+ */
+
+import React, { FC, useState } from 'react';
 import {
+  Alert,
   Box,
   Button,
-  Container,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  Divider,
-  IconButton,
-  Paper,
-  Skeleton,
-  Snackbar,
   Stack,
-  Tab,
-  Tabs,
-  TextField,
   Typography,
-  Alert,
+  useTheme,
 } from '@mui/material';
-import React, { FC, Suspense, useCallback, useEffect, useState } from 'react';
-import { Add, Close, Delete, Edit, Save } from '@mui/icons-material';
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
-import CampaignMap from './campaign-map';
+import { Add, Save, AutoStories, Map as MapIcon } from '@mui/icons-material';
+import { Dialog, DialogContent, DialogTitle } from '@mui/material';
+import { GridColDef } from '@mui/x-data-grid';
+import { Campaign, defaultCampaign } from '../types/Campaign';
+import { campaignsApi } from '../api/campaigns';
+import { useList } from '../shared/useList';
+import { EntityBrowser } from '../shared/EntityBrowser';
+import CampaignDetailCard from '../shared/CampaignDetailCard';
+import { useToast } from '../shared/ToastProvider';
+import { useAuth } from '../auth/AuthContext';
+import { Link as RouterLink } from 'react-router-dom';
 
 import MapOfAvandria from '../../res/talesOfAvandria/Avandria.png';
 import MapProperties from '../../res/talesOfAvandria/Avandria.json';
 import AvandriaLore from '../../res/talesOfAvandria/AvandriaLore.json';
+import CampaignMap from '../campaigns/campaign-map';
 import RenderJsonRecursive from '../shared/render-json-recursive';
-import { Campaign, defaultCampaign } from '../types/Campaign';
-import { campaignsApi } from '../api/campaigns';
-import { useAuth } from '../auth/AuthContext';
+import { Skeleton, Tab, Tabs, Paper } from '@mui/material';
+import { Suspense, lazy } from 'react';
 
 const LORE = 'Lore';
 const MAP = 'Map';
 const ADVENTURE_LOG = 'Adventure Log';
 
-const CampaignsPanel: FC = () => {
+const AvandriaExample: FC = () => {
+  const [tab, setTab] = useState<string>(MAP);
+  return (
+    <Paper sx={{ overflow: 'hidden' }}>
+      <Stack
+        direction="row"
+        spacing={1}
+        alignItems="center"
+        sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}
+      >
+        <Box
+          sx={{
+            width: 36,
+            height: 36,
+            borderRadius: 1,
+            backgroundColor: 'primary.main',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'primary.contrastText',
+          }}
+        >
+          <AutoStories fontSize="small" />
+        </Box>
+        <Box sx={{ flexGrow: 1 }}>
+          <Typography variant="h5">Tales of Avandria</Typography>
+          <Typography variant="caption" color="text.secondary">
+            Example world — bundled with the app
+          </Typography>
+        </Box>
+        <Tabs
+          value={tab}
+          onChange={(_e, v) => setTab(v)}
+          sx={{ minHeight: 36 }}
+        >
+          <Tab label={MAP} value={MAP} sx={{ minHeight: 36 }} />
+          <Tab label={LORE} value={LORE} sx={{ minHeight: 36 }} />
+          <Tab label={ADVENTURE_LOG} value={ADVENTURE_LOG} sx={{ minHeight: 36 }} />
+        </Tabs>
+      </Stack>
+      <Box sx={{ p: 2 }}>
+        {tab === MAP && (
+          <CampaignMap campaignMap={MapOfAvandria} mapProperties={MapProperties} />
+        )}
+        {tab === LORE && (
+          <Suspense
+            fallback={<Skeleton animation="wave" variant="rounded" height={300} />}
+          >
+            <RenderJsonRecursive instance={AvandriaLore} />
+          </Suspense>
+        )}
+        {tab === ADVENTURE_LOG && (
+          <Alert severity="info">
+            Adventure log coming soon. Use the Notes field on a campaign to keep
+            session notes in the meantime.
+          </Alert>
+        )}
+      </Box>
+    </Paper>
+  );
+};
+
+const CampaignCreate: FC<{ onCreated?: () => void }> = ({ onCreated }) => {
   const { user } = useAuth();
-  const [campaigns, setCampaigns] = useState<Campaign[] | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [edited, setEdited] = useState<Campaign | null>(null);
-  const [mode, setMode] = useState<'view' | 'edit' | 'create'>('view');
-  const [selected, setSelected] = useState<Campaign | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [toastOpen, setToastOpen] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<Campaign | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+  const theme = useTheme();
 
-  const reload = useCallback(async () => {
-    setLoadError(null);
-    try {
-      const data = await campaignsApi.list();
-      setCampaigns(data);
-    } catch (e) {
-      setLoadError(e instanceof Error ? e.message : String(e));
-      setCampaigns([]);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (user) void reload();
-  }, [user, reload]);
-
-  if (!user) {
-    return (
-      <Alert severity="info" sx={{ m: 2 }}>
-        Sign in to create and manage your own campaigns.
-      </Alert>
-    );
-  }
-
-  const onStartCreate = () => {
-    setEdited({ ...(defaultCampaign as Campaign), owner_user_id: user.id });
-    setMode('create');
-  };
-  const onStartEdit = (c: Campaign) => {
-    setEdited({ ...c });
-    setMode('edit');
-  };
-  const close = () => {
-    setSelected(null);
-    setEdited(null);
-    setMode('view');
-    setSubmitError(null);
-  };
   const onSave = async () => {
-    if (!edited) return;
-    if (!edited.name.trim()) {
-      setSubmitError('Name is required');
+    if (!draft || !draft.name.trim()) {
+      setError('Name is required');
       return;
     }
-    setSubmitting(true);
-    setSubmitError(null);
+    setSaving(true);
+    setError(null);
     try {
-      if (mode === 'create') {
-        await campaignsApi.create(edited);
-        setToastOpen(true);
-        close();
-      } else {
-        if (!edited.id) {
-          setSubmitError('Cannot save: missing id');
-          return;
-        }
-        await campaignsApi.update(edited.id, edited);
-        setToastOpen(true);
-        close();
-      }
-      void reload();
+      await campaignsApi.create({ ...draft, owner_user_id: user?.id ?? '' });
+      toast('Campaign created', 'success');
+      setOpen(false);
+      setDraft(null);
+      onCreated?.();
     } catch (e) {
-      setSubmitError(e instanceof Error ? e.message : String(e));
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
-      setSubmitting(false);
+      setSaving(false);
     }
   };
-  const onDelete = async () => {
-    if (!selected || !selected.id) return;
-    try {
-      await campaignsApi.delete(selected.id);
-      setToastOpen(true);
-      setConfirmDelete(false);
-      close();
-      void reload();
-    } catch (e) {
-      setSubmitError(e instanceof Error ? e.message : String(e));
-    }
-  };
-
-  const columns: GridColDef[] = [
-    { field: 'name', headerName: 'Name', flex: 2 },
-    { field: 'setting', headerName: 'Setting', flex: 1 },
-    { field: 'status', headerName: 'Status', flex: 1 },
-    {
-      field: 'description',
-      headerName: 'Description',
-      flex: 3,
-    },
-  ];
 
   return (
-    <Box>
-      {loadError && (
-        <Alert severity="error" sx={{ m: 2 }}>
-          Failed to load campaigns: {loadError}
-        </Alert>
-      )}
-      {campaigns === null && !loadError && (
-        <Skeleton animation="wave" variant="rounded" height={300} sx={{ m: 2 }} />
-      )}
-      {campaigns !== null && (
-        <Paper sx={{ p: 2, m: 2 }}>
-          <Stack direction="row" justifyContent="space-between" sx={{ mb: 2 }}>
-            <Typography variant="h5">My Campaigns</Typography>
-            <Button variant="outlined" startIcon={<Add />} onClick={onStartCreate}>
-              New Campaign
-            </Button>
-          </Stack>
-          {campaigns.length === 0 ? (
-            <Typography color="text.secondary">
-              You have no campaigns yet. Click &quot;New Campaign&quot; to start one.
-            </Typography>
-          ) : (
-            <Box sx={{ width: '100%' }}>
-              <DataGrid
-                rows={campaigns}
-                columns={columns}
-                onRowClick={(p) => setSelected(p.row as Campaign)}
-                initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
-                pageSizeOptions={[10, 25, 50]}
-                getRowId={(row) => (row as Campaign).id ?? ''}
-                getRowHeight={() => 'auto'}
-                autoHeight
-              />
-            </Box>
-          )}
-        </Paper>
-      )}
-
+    <>
+      <Button
+        variant="contained"
+        startIcon={<Add />}
+        onClick={() => {
+          setDraft({ ...defaultCampaign, name: '', owner_user_id: user?.id });
+          setError(null);
+          setOpen(true);
+        }}
+      >
+        New Campaign
+      </Button>
       <Dialog
-        open={mode === 'create' || mode === 'edit'}
-        onClose={() => !submitting && close()}
+        open={open}
+        onClose={() => !saving && setOpen(false)}
         fullWidth
         maxWidth="md"
+        PaperProps={{
+          sx: {
+            backgroundColor: theme.palette.background.paper,
+            backgroundImage: 'none',
+            maxHeight: '90vh',
+          },
+        }}
       >
-        <DialogTitle>
-          {mode === 'create' ? 'New Campaign' : 'Edit Campaign'}
+        <DialogTitle sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center">
+            <Typography variant="h4">New Campaign</Typography>
+            <Stack direction="row" spacing={1}>
+              <Button onClick={() => setOpen(false)} disabled={saving}>
+                Cancel
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={<Save />}
+                onClick={onSave}
+                disabled={saving}
+              >
+                {saving ? 'Saving…' : 'Save'}
+              </Button>
+            </Stack>
+          </Stack>
         </DialogTitle>
-        <DialogContent>
-          {submitError && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {submitError}
-            </Alert>
+        <DialogContent sx={{ p: 3 }}>
+          {error && (
+            <Typography color="error" sx={{ mb: 2 }}>
+              {error}
+            </Typography>
           )}
-          {edited && (
-            <Stack spacing={2} sx={{ mt: 1 }}>
+          {draft && (
+            <Stack spacing={2}>
               <TextField
                 label="Name"
-                value={edited.name}
-                onChange={(e) => setEdited({ ...edited, name: e.target.value })}
+                value={draft.name}
+                onChange={(e) => setDraft({ ...draft, name: e.target.value })}
                 fullWidth
-                size="small"
               />
-              <TextField
-                label="Setting"
-                value={edited.setting}
-                onChange={(e) => setEdited({ ...edited, setting: e.target.value })}
-                fullWidth
-                size="small"
-                helperText="e.g. Forgotten Realms, Eberron, homebrew"
-              />
-              <TextField
-                label="Status"
-                value={edited.status}
-                onChange={(e) => setEdited({ ...edited, status: e.target.value })}
-                fullWidth
-                size="small"
-                helperText="active / paused / completed"
-              />
+              <Stack direction="row" spacing={2}>
+                <TextField
+                  label="Setting"
+                  value={draft.setting}
+                  onChange={(e) => setDraft({ ...draft, setting: e.target.value })}
+                  fullWidth
+                  helperText="e.g. Forgotten Realms, Eberron, homebrew"
+                />
+                <TextField
+                  label="Status"
+                  value={draft.status}
+                  onChange={(e) => setDraft({ ...draft, status: e.target.value })}
+                  sx={{ width: 200 }}
+                  helperText="active / paused / completed"
+                />
+              </Stack>
               <TextField
                 label="Description"
-                value={edited.description}
-                onChange={(e) =>
-                  setEdited({ ...edited, description: e.target.value })
-                }
+                value={draft.description}
+                onChange={(e) => setDraft({ ...draft, description: e.target.value })}
                 fullWidth
-                size="small"
                 multiline
                 rows={2}
               />
               <TextField
                 label="Notes"
-                value={edited.notes}
-                onChange={(e) => setEdited({ ...edited, notes: e.target.value })}
+                value={draft.notes}
+                onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
                 fullWidth
-                size="small"
                 multiline
-                rows={4}
+                rows={6}
               />
             </Stack>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={close} disabled={submitting}>
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<Save />}
-            onClick={onSave}
-            disabled={submitting}
-          >
-            {submitting ? 'Saving…' : 'Save'}
-          </Button>
-        </DialogActions>
       </Dialog>
-
-      <Dialog
-        open={selected !== null && mode === 'view'}
-        onClose={close}
-        fullWidth
-        maxWidth="md"
-      >
-        <DialogTitle>
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Typography variant="h6">{selected?.name}</Typography>
-            <Stack direction="row" spacing={1}>
-              <Button
-                size="small"
-                startIcon={<Edit />}
-                onClick={() => selected && onStartEdit(selected)}
-              >
-                Edit
-              </Button>
-              <Button
-                size="small"
-                startIcon={<Delete />}
-                color="error"
-                onClick={() => setConfirmDelete(true)}
-              >
-                Delete
-              </Button>
-              <IconButton onClick={close}>
-                <Close />
-              </IconButton>
-            </Stack>
-          </Stack>
-        </DialogTitle>
-        <DialogContent>
-          {selected && (
-            <Stack spacing={1}>
-              <Typography variant="body2">
-                {selected.setting} · {selected.status}
-              </Typography>
-              {selected.description && (
-                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                  {selected.description}
-                </Typography>
-              )}
-              {selected.notes && (
-                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                  {selected.notes}
-                </Typography>
-              )}
-            </Stack>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)}>
-        <DialogTitle>Delete campaign?</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            This will permanently delete &quot;{selected?.name}&quot; and all of
-            its data. This cannot be undone.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmDelete(false)}>Cancel</Button>
-          <Button color="error" onClick={onDelete}>
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
-      <Snackbar
-        open={toastOpen}
-        autoHideDuration={3000}
-        onClose={() => setToastOpen(false)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-      >
-        <Alert severity="success" onClose={() => setToastOpen(false)}>
-          Campaign saved
-        </Alert>
-      </Snackbar>
-    </Box>
+    </>
   );
 };
 
-const CampaignManager: FC = () => {
-  const [openTab, setOpenTab] = useState<string>(MAP);
+const columns: GridColDef<Campaign>[] = [
+  { field: 'name', headerName: 'Name', flex: 2, sortable: true, filterable: true },
+  { field: 'setting', headerName: 'Setting', flex: 1.5, sortable: true, filterable: true },
+  { field: 'status', headerName: 'Status', flex: 0.8, sortable: true, filterable: true, align: 'center', headerAlign: 'center' },
+  { field: 'description', headerName: 'Description', flex: 3, sortable: true, filterable: true },
+];
 
+import { TextField } from '@mui/material';
+
+const CampaignManager: FC = () => {
+  const { user } = useAuth();
   return (
-    <Container maxWidth="xl">
-      <Typography variant="h4">Campaign</Typography>
-      <Divider orientation="horizontal" sx={{ mb: '1%', mt: '0.5%' }} />
-      <Stack spacing={1} direction="column" textAlign="center">
-        <Paper sx={{ p: 1, m: 2 }}>
-          <Typography variant="h4">Tales of Avandria</Typography>
-          <Tabs
-            indicatorColor="secondary"
-            variant="fullWidth"
-            value={openTab}
-            onChange={(_e, newValue) => setOpenTab(newValue)}
-          >
-            <Tab label={LORE} value={LORE} />
-            <Tab label={MAP} value={MAP} />
-            <Tab label={ADVENTURE_LOG} value={ADVENTURE_LOG} />
-          </Tabs>
-        </Paper>
-        <Paper sx={{ p: 1, m: 2 }}>
-          <Box sx={{ p: 2, textAlign: 'left' }}>
-            {openTab === LORE && (
-              <Suspense
-                fallback={<Skeleton animation="wave" variant="rounded" />}
-              >
-                <RenderJsonRecursive instance={AvandriaLore} />
-              </Suspense>
-            )}
-            {openTab === MAP && (
-              <CampaignMap
-                campaignMap={MapOfAvandria}
-                mapProperties={MapProperties}
+    <Stack spacing={3}>
+      {user ? (
+        <EntityBrowser<Campaign>
+          title="My Campaigns"
+          useList={() => useList(campaignsApi.list)}
+          mutations={{
+            create: campaignsApi.create,
+            update: campaignsApi.update,
+            remove: campaignsApi.delete,
+          }}
+          columns={columns as GridColDef[]}
+          DetailCard={({ item }) => <CampaignDetailCard item={item} />}
+          Editor={({ initial, onChange }) => (
+            <Stack spacing={2}>
+              <TextField
+                label="Name"
+                value={initial.name}
+                onChange={(e) => onChange({ ...initial, name: e.target.value })}
+                fullWidth
               />
-            )}
-            {openTab === ADVENTURE_LOG && (
-              <Typography>{ADVENTURE_LOG}</Typography>
-            )}
-          </Box>
-        </Paper>
-        <CampaignsPanel />
-      </Stack>
-    </Container>
+              <Stack direction="row" spacing={2}>
+                <TextField
+                  label="Setting"
+                  value={initial.setting}
+                  onChange={(e) => onChange({ ...initial, setting: e.target.value })}
+                  fullWidth
+                />
+                <TextField
+                  label="Status"
+                  value={initial.status}
+                  onChange={(e) => onChange({ ...initial, status: e.target.value })}
+                  sx={{ width: 200 }}
+                />
+              </Stack>
+              <TextField
+                label="Description"
+                value={initial.description}
+                onChange={(e) => onChange({ ...initial, description: e.target.value })}
+                fullWidth
+                multiline
+                rows={2}
+              />
+              <TextField
+                label="Notes"
+                value={initial.notes}
+                onChange={(e) => onChange({ ...initial, notes: e.target.value })}
+                fullWidth
+                multiline
+                rows={6}
+              />
+            </Stack>
+          )}
+          defaultItem={() => ({ ...defaultCampaign, name: '' })}
+          getRowId={(r) => r.id ?? r.name}
+          getRowName={(r) => r.name}
+          CreateButton={CampaignCreate}
+          searchHint="Search your campaigns…"
+          emptyTitle="No campaigns yet"
+          emptyDescription="Create your first campaign to get started."
+        />
+      ) : (
+        <Alert severity="info">
+          Sign in (top right) to create and manage your own campaigns. The
+          Tales of Avandria example world is below.
+        </Alert>
+      )}
+      <Box>
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
+          <AutoStories fontSize="small" sx={{ color: 'primary.main' }} />
+          <Typography variant="h5">Browse example world</Typography>
+        </Stack>
+        <AvandriaExample />
+      </Box>
+    </Stack>
   );
 };
 
