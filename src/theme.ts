@@ -223,12 +223,44 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           borderBottom: `1px solid ${COLORS.divider}`,
-          padding: '16px 24px',
+          padding: '20px 24px 16px',
+          marginBottom: 12,
         },
       },
     },
     MuiDialogContent: {
-      styleOverrides: { root: { padding: '20px 24px' } },
+      styleOverrides: {
+        root: { padding: '24px 24px 20px' },
+        // First child needs breathing room from the title's
+        // border-bottom; otherwise the labels visually clip.
+      },
+    },
+    MuiInputLabel: {
+      styleOverrides: {
+        root: {
+          color: COLORS.textPrimary,
+          opacity: 0.7,
+          fontWeight: 500,
+          '&.Mui-focused': { color: COLORS.primary, opacity: 1 },
+        },
+        sizeSmall: {
+          // Default shrunk-position transform for size="small"
+          // outlined TextFields centers the label on the input
+          // border, which makes it look cut off in dark mode.
+          // Nudge it up a few pixels so the label sits clearly
+          // above the border, with no clipping.
+          '&.MuiInputLabel-shrink': {
+            transform: 'translate(8px, -10px) scale(0.75)',
+            maxWidth: 'calc(133% - 32px)',
+          },
+        },
+        outlined: {
+          '&.MuiInputLabel-shrink': {
+            transform: 'translate(14px, -10px) scale(0.75)',
+            maxWidth: 'calc(133% - 32px)',
+          },
+        },
+      },
     },
     MuiDialogActions: {
       styleOverrides: {

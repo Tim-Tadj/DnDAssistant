@@ -63,6 +63,7 @@ const CharacterEditorForm: FC<{
           value={c.name}
           onChange={(e) => set('name', e.target.value)}
           fullWidth
+          InputLabelProps={{ shrink: true }}
         />
         <TextField
           label="Level"
@@ -70,12 +71,14 @@ const CharacterEditorForm: FC<{
           value={c.level}
           onChange={(e) => set('level', Math.max(1, Number(e.target.value) || 1))}
           sx={{ width: 100 }}
+          InputLabelProps={{ shrink: true }}
         />
         <TextField
           label="Alignment"
           value={c.alignment}
           onChange={(e) => set('alignment', e.target.value)}
           sx={{ width: 180 }}
+          InputLabelProps={{ shrink: true }}
         />
       </Stack>
       <Stack direction="row" spacing={2}>
@@ -85,7 +88,9 @@ const CharacterEditorForm: FC<{
           getOptionLabel={(o) => o.name}
           value={races.find((r) => r.id === c.race_id) ?? null}
           onChange={(_e, v) => v && set('race_id', v.id)}
-          renderInput={(p) => <TextField {...p} label="Race" />}
+          renderInput={(p) => (
+            <TextField {...p} label="Race" InputLabelProps={{ shrink: true }} />
+          )}
         />
         <Autocomplete
           sx={{ flex: 1 }}
@@ -93,7 +98,9 @@ const CharacterEditorForm: FC<{
           getOptionLabel={(o) => o.name}
           value={classes.find((c2) => c2.id === c.class_id) ?? null}
           onChange={(_e, v) => v && set('class_id', v.id)}
-          renderInput={(p) => <TextField {...p} label="Class" />}
+          renderInput={(p) => (
+            <TextField {...p} label="Class" InputLabelProps={{ shrink: true }} />
+          )}
         />
       </Stack>
       <Typography variant="overline" color="text.secondary">
@@ -108,6 +115,7 @@ const CharacterEditorForm: FC<{
             value={(c[key] as number) ?? 10}
             onChange={(e) => set(key, Math.max(1, Number(e.target.value) || 10))}
             sx={{ width: 110 }}
+            InputLabelProps={{ shrink: true }}
           />
         ))}
       </Stack>
@@ -118,6 +126,7 @@ const CharacterEditorForm: FC<{
           value={c.hp_max}
           onChange={(e) => set('hp_max', Math.max(0, Number(e.target.value) || 0))}
           sx={{ width: 120 }}
+          InputLabelProps={{ shrink: true }}
         />
         <TextField
           label="AC"
@@ -125,12 +134,14 @@ const CharacterEditorForm: FC<{
           value={c.ac}
           onChange={(e) => set('ac', Math.max(0, Number(e.target.value) || 0))}
           sx={{ width: 100 }}
+          InputLabelProps={{ shrink: true }}
         />
         <TextField
           label="Background"
           value={c.background}
           onChange={(e) => set('background', e.target.value)}
           fullWidth
+          InputLabelProps={{ shrink: true }}
         />
       </Stack>
       <TextField
@@ -140,6 +151,7 @@ const CharacterEditorForm: FC<{
         multiline
         rows={4}
         fullWidth
+        InputLabelProps={{ shrink: true }}
       />
     </Stack>
   );

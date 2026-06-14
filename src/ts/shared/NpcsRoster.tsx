@@ -70,20 +70,21 @@ const NpcEditor: FC<{
           value={n.name}
           onChange={(e) => set('name', e.target.value)}
           fullWidth
+          InputLabelProps={{ shrink: true }}
         />
         <Autocomplete
           sx={{ width: 200 }}
           options={NPC_ROLES}
           value={n.role}
           onChange={(_e, v) => set('role', v ?? 'Notable')}
-          renderInput={(p) => <TextField {...p} label="Role" />}
+          renderInput={(p) => <TextField {...p} label="Role" InputLabelProps={{ shrink: true }} />}
         />
         <Autocomplete
           sx={{ width: 180 }}
           options={NPC_STATUSES}
           value={n.status}
           onChange={(_e, v) => set('status', v ?? 'alive')}
-          renderInput={(p) => <TextField {...p} label="Status" />}
+          renderInput={(p) => <TextField {...p} label="Status" InputLabelProps={{ shrink: true }} />}
         />
       </Stack>
       <Stack direction="row" spacing={2}>
@@ -92,18 +93,21 @@ const NpcEditor: FC<{
           value={n.race}
           onChange={(e) => set('race', e.target.value)}
           fullWidth
+          InputLabelProps={{ shrink: true }}
         />
         <TextField
           label="Alignment"
           value={n.alignment}
           onChange={(e) => set('alignment', e.target.value)}
           sx={{ width: 200 }}
+          InputLabelProps={{ shrink: true }}
         />
         <TextField
           label="Location"
           value={n.location}
           onChange={(e) => set('location', e.target.value)}
           sx={{ width: 240 }}
+          InputLabelProps={{ shrink: true }}
         />
       </Stack>
       <Autocomplete
@@ -126,6 +130,7 @@ const NpcEditor: FC<{
         fullWidth
         multiline
         rows={3}
+        InputLabelProps={{ shrink: true }}
       />
       <TextField
         label="Notes"
@@ -134,6 +139,7 @@ const NpcEditor: FC<{
         fullWidth
         multiline
         rows={3}
+        InputLabelProps={{ shrink: true }}
       />
     </Stack>
   );

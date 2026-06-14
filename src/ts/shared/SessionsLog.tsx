@@ -68,6 +68,7 @@ const SessionEditor: FC<{
           value={s.session_number}
           onChange={(e) => set('session_number', Math.max(1, Number(e.target.value) || 1))}
           sx={{ width: 120 }}
+          InputLabelProps={{ shrink: true }}
         />
         <TextField
           label="Played on"
@@ -82,6 +83,7 @@ const SessionEditor: FC<{
           value={s.title}
           onChange={(e) => set('title', e.target.value)}
           fullWidth
+          InputLabelProps={{ shrink: true }}
         />
       </Stack>
       <TextField
@@ -98,6 +100,7 @@ const SessionEditor: FC<{
         }
         helperText="Comma-separated player names"
         fullWidth
+        InputLabelProps={{ shrink: true }}
       />
       <TextField
         label="Summary"
@@ -107,6 +110,7 @@ const SessionEditor: FC<{
         multiline
         rows={5}
         placeholder="What happened in this session?"
+        InputLabelProps={{ shrink: true }}
       />
       <TextField
         label="Prep notes for next session"
@@ -116,6 +120,7 @@ const SessionEditor: FC<{
         multiline
         rows={4}
         placeholder="Hooks, NPCs to introduce, encounters to plan…"
+        InputLabelProps={{ shrink: true }}
       />
     </Stack>
   );

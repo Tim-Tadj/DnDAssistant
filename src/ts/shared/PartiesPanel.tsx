@@ -123,6 +123,7 @@ const PartyEditorDialog: FC<{
               fullWidth
               size="small"
               autoFocus
+              InputLabelProps={{ shrink: true }}
             />
             <TextField
               label="Description"
@@ -132,6 +133,7 @@ const PartyEditorDialog: FC<{
               multiline
               rows={2}
               size="small"
+              InputLabelProps={{ shrink: true }}
             />
             <Autocomplete
               multiple
@@ -149,6 +151,7 @@ const PartyEditorDialog: FC<{
                   helperText={`${draft.member_ids.length} character${
                     draft.member_ids.length === 1 ? '' : 's'
                   }`}
+                  InputLabelProps={{ shrink: true }}
                 />
               )}
             />
