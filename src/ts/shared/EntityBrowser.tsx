@@ -352,7 +352,7 @@ export function EntityBrowser<T extends { id?: string | number; provenance?: str
             autoHeight
             rows={filtered}
             columns={columns}
-            getRowId={(r) => String(getRowId(r as T))}
+            getRowId={(r) => r ? String(getRowId(r as T)) : 'null'}
             onRowClick={onRowClick}
             getRowHeight={() => 'auto'}
             initialState={{
@@ -404,9 +404,9 @@ export function EntityBrowser<T extends { id?: string | number; provenance?: str
               <Stack spacing={0.5} sx={{ minWidth: 0, flexGrow: 1 }}>
                 <Stack direction="row" spacing={1} alignItems="center">
                   <Typography variant="h4" noWrap>
-                    {getRowName(drawerItem)}
+                    {drawerItem ? getRowName(drawerItem) : ''}
                   </Typography>
-                  <ProvenanceChip value={drawerItem.provenance} />
+                  <ProvenanceChip value={drawerItem?.provenance} />
                 </Stack>
                 {extraActions && (
                   <Stack direction="row" spacing={1}>
@@ -476,7 +476,9 @@ export function EntityBrowser<T extends { id?: string | number; provenance?: str
           }}
         >
           <Typography variant="h4">
-            {editMode === 'create' ? `New ${title.replace(/s$/, '')}` : `Edit ${getRowName(draft ?? drawerItem!)}`}
+            {editMode === 'create'
+              ? `New ${title.replace(/s$/, '')}`
+              : `Edit ${(draft || drawerItem) ? getRowName((draft || drawerItem) as T) : ''}`}
           </Typography>
           <Stack direction="row" spacing={1}>
             <Button onClick={() => {
