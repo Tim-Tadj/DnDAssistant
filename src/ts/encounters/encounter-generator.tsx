@@ -494,7 +494,7 @@ const EncounterGenerator: FC = () => {
       >
         <DialogTitle>Save encounter to a campaign</DialogTitle>
         <DialogContent>
-          <Stack spacing={2} sx={{ pt: 2 }}>
+          <Stack spacing={2} sx={{ pt: 4 }}>
             <Autocomplete
               options={campaigns}
               getOptionLabel={(o) => o.name}
