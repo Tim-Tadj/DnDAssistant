@@ -112,7 +112,7 @@ const EncounterGenerator: FC = () => {
       const party = activePartyId
         ? parties.find((p) => p.id === activePartyId)
         : null;
-      let chars = party
+      const chars = party
         ? (await charactersApi.list()).filter((c) =>
             party.member_ids.includes(c.id)
           )

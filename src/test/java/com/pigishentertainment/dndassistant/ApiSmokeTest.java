@@ -350,4 +350,161 @@ class ApiSmokeTest {
     assertEquals("monster", r.getBody().get("kind"));
     assertEquals("derived", r.getBody().get("provenance"));
   }
+
+  // ---- Phase 8: parties, sessions, npcs, character-state ----
+
+  @Test
+  void partyCrudAndOwnership() {
+    String token = tokenFor("partyuser");
+    Map<String, Object> body = Map.of(
+        "name", "QA Party",
+        "description", "test",
+        "member_ids", List.of());
+    ResponseEntity<Map> created = client().postForEntity(
+        url("/parties"), new HttpEntity<>(body, auth(token)), Map.class);
+    assertEquals(HttpStatus.CREATED, created.getStatusCode());
+    String id = (String) created.getBody().get("id");
+
+    ResponseEntity<List> listed = client().exchange(
+        url("/parties"), HttpMethod.GET, new HttpEntity<>(auth(token)), List.class);
+    assertEquals(HttpStatus.OK, listed.getStatusCode());
+    assertTrue(((List<?>) listed.getBody()).size() >= 1);
+
+    client().exchange(
+        url("/parties/" + id), HttpMethod.DELETE,
+        new HttpEntity<>(auth(token)), Void.class);
+  }
+
+  @Test
+  void partyRequiresAuth() {
+    ResponseEntity<String> r = client().getForEntity(
+        url("/parties"), String.class);
+    // Spring Security returns 403 for unauthenticated requests to
+    // protected endpoints; the controller would otherwise return 400.
+    assertEquals(HttpStatus.FORBIDDEN, r.getStatusCode());
+  }
+
+  @Test
+  void campaignSessionAndNpcCrud() {
+    String token = tokenFor("sessionnpcuser");
+    // Create a campaign first
+    Map<String, Object> cbody = Map.of(
+        "name", "Test", "description", "", "setting", "",
+        "status", "active", "notes", "");
+    ResponseEntity<Map> ccreated = client().postForEntity(
+        url("/campaigns"), new HttpEntity<>(cbody, auth(token)), Map.class);
+    String cid = (String) ccreated.getBody().get("id");
+
+    // Add a session
+    Map<String, Object> sbody = Map.of(
+        "session_number", 1,
+        "title", "First session",
+        "played_on", "2026-06-14",
+        "summary", "We met in a tavern.",
+        "prep_notes", "Hook: goblins",
+        "attendees", List.of("Alice", "Bob"));
+    ResponseEntity<Map> screated = client().postForEntity(
+        url("/campaigns/" + cid + "/sessions"),
+        new HttpEntity<>(sbody, auth(token)), Map.class);
+    assertEquals(HttpStatus.CREATED, screated.getStatusCode());
+
+    ResponseEntity<List> slisted = client().exchange(
+        url("/campaigns/" + cid + "/sessions"),
+        HttpMethod.GET, new HttpEntity<>(auth(token)), List.class);
+    assertEquals(HttpStatus.OK, slisted.getStatusCode());
+    assertEquals(1, ((List<?>) slisted.getBody()).size());
+
+    // Add an NPC
+    Map<String, Object> nbody = new HashMap<>();
+    nbody.put("name", "Captain Yara");
+    nbody.put("role", "Ally");
+    nbody.put("race", "Half-Elf");
+    nbody.put("alignment", "CG");
+    nbody.put("description", "Captain of the guard.");
+    nbody.put("status", "alive");
+    nbody.put("location", "Iron Keep");
+    nbody.put("monster_id", null);
+    nbody.put("notes", "");
+    ResponseEntity<Map> ncreated = client().postForEntity(
+        url("/campaigns/" + cid + "/npcs"),
+        new HttpEntity<>(nbody, auth(token)), Map.class);
+    assertEquals(HttpStatus.CREATED, ncreated.getStatusCode());
+
+    // Encounter save
+    Map<String, Object> ebody = Map.of(
+        "campaign_id", cid,
+        "name", "Iron Keep Ambush",
+        "monsters", List.of(Map.of("id", 1, "name", "Goblin",
+            "count", 3, "xp_each", 50)),
+        "party_snapshot_ids", List.of(),
+        "difficulty", "Hard",
+        "total_xp", 150,
+        "played_on", "2026-06-14",
+        "notes", "");
+    ResponseEntity<Map> ecreated = client().postForEntity(
+        url("/encounter-saves"),
+        new HttpEntity<>(ebody, auth(token)), Map.class);
+    assertEquals(HttpStatus.CREATED, ecreated.getStatusCode());
+
+    ResponseEntity<List> elisted = client().exchange(
+        url("/campaigns/" + cid + "/encounters"),
+        HttpMethod.GET, new HttpEntity<>(auth(token)), List.class);
+    assertEquals(HttpStatus.OK, elisted.getStatusCode());
+    assertEquals(1, ((List<?>) elisted.getBody()).size());
+  }
+
+  @Test
+  void characterStateAutoInitAndPersist() {
+    String token = tokenFor("stateuser");
+    Map<String, Object> cbody = new HashMap<>();
+    cbody.put("name", "State Char");
+    cbody.put("race_id", 4);
+    cbody.put("class_id", 5);
+    cbody.put("level", 3);
+    cbody.put("alignment", "N");
+    cbody.put("background", "");
+    cbody.put("str", 14);
+    cbody.put("dex", 12);
+    cbody.put("con", 13);
+    cbody.put("int_", 10);
+    cbody.put("wis", 11);
+    cbody.put("cha", 10);
+    cbody.put("hp_max", 30);
+    cbody.put("ac", 15);
+    cbody.put("notes", "");
+    ResponseEntity<Map> ccreated = client().postForEntity(
+        url("/characters"), new HttpEntity<>(cbody, auth(token)), Map.class);
+    String cid = (String) ccreated.getBody().get("id");
+
+    // GET /state should auto-init with current_hp = hp_max = 30
+    ResponseEntity<Map> sget = client().exchange(
+        url("/characters/" + cid + "/state"),
+        HttpMethod.GET, new HttpEntity<>(auth(token)), Map.class);
+    assertEquals(HttpStatus.OK, sget.getStatusCode());
+    assertEquals(30, ((Number) sget.getBody().get("current_hp")).intValue());
+
+    // PUT updates
+    Map<String, Object> update = new HashMap<>();
+    update.put("character_id", cid);
+    update.put("current_hp", 18);
+    update.put("temp_hp", 5);
+    update.put("conditions", List.of("Prone"));
+    update.put("death_save_successes", 0);
+    update.put("death_save_failures", 0);
+    update.put("hit_dice_used", 1);
+    update.put("last_long_rest", null);
+    update.put("last_short_rest", null);
+    ResponseEntity<Map> sput = client().exchange(
+        url("/characters/" + cid + "/state"), HttpMethod.PUT,
+        new HttpEntity<>(update, auth(token)), Map.class);
+    assertEquals(HttpStatus.OK, sput.getStatusCode());
+    assertEquals(18, ((Number) sput.getBody().get("current_hp")).intValue());
+
+    // Re-GET round-trips
+    ResponseEntity<Map> sget2 = client().exchange(
+        url("/characters/" + cid + "/state"),
+        HttpMethod.GET, new HttpEntity<>(auth(token)), Map.class);
+    assertEquals(18, ((Number) sget2.getBody().get("current_hp")).intValue());
+    assertEquals(List.of("Prone"), sget2.getBody().get("conditions"));
+  }
 }
