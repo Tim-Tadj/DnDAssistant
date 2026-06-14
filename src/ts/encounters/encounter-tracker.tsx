@@ -35,6 +35,7 @@ import {
   Delete,
   Favorite,
   Healing,
+  PinDrop,
   RemoveCircle,
   Shield,
   Speed,
@@ -200,6 +201,89 @@ const EncounterTracker: FC<{ monstersInCombat: Monster[] }> = ({
           </MenuItem>
         ))}
       </Menu>
+
+      {/* Floating quick-reference panel pinned to bottom-right */}
+      {remainingMonsters.length > 0 && (
+        <Paper
+          elevation={6}
+          sx={{
+            position: 'fixed',
+            bottom: { xs: 12, md: 24 },
+            right: { xs: 12, md: 24 },
+            zIndex: (t) => t.zIndex.drawer - 1,
+            px: 1.5,
+            py: 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            backgroundColor: 'background.paper',
+            border: (t) => `1px solid ${t.palette.divider}`,
+            borderRadius: 999,
+          }}
+        >
+          <Tooltip title="Current turn" arrow>
+            <Stack direction="row" spacing={0.5} alignItems="center">
+              <PinDrop fontSize="small" sx={{ color: 'primary.main' }} />
+              <Typography
+                variant="body2"
+                sx={{ fontFamily: '"JetBrains Mono", monospace' }}
+              >
+                {remainingMonsters[currentIndex]?.name ?? '—'}
+              </Typography>
+            </Stack>
+          </Tooltip>
+          <Tooltip title="Armor Class" arrow>
+            <Stack direction="row" spacing={0.5} alignItems="center">
+              <Shield fontSize="small" sx={{ color: 'secondary.main' }} />
+              <Typography
+                variant="body2"
+                sx={{ fontFamily: '"JetBrains Mono", monospace' }}
+              >
+                {remainingMonsters[currentIndex]?.ac ?? '—'}
+              </Typography>
+            </Stack>
+          </Tooltip>
+          <Tooltip title="Hit points" arrow>
+            <Stack direction="row" spacing={0.5} alignItems="center">
+              <Favorite fontSize="small" sx={{ color: 'error.main' }} />
+              <Typography
+                variant="body2"
+                sx={{ fontFamily: '"JetBrains Mono", monospace' }}
+              >
+                {remainingMonsters[currentIndex]?.hp ?? 0}/
+                {remainingMonsters[currentIndex]?.maxHP.split(' ')[0] ?? 0}
+              </Typography>
+            </Stack>
+          </Tooltip>
+          <Box
+            sx={{
+              width: 1,
+              height: 18,
+              backgroundColor: 'divider',
+            }}
+          />
+          <Tooltip title="Round" arrow>
+            <Typography
+              variant="body2"
+              sx={{ fontFamily: '"JetBrains Mono", monospace', color: 'text.secondary' }}
+            >
+              R{round}
+            </Typography>
+          </Tooltip>
+          <Tooltip title="Next turn" arrow>
+            <span>
+              <IconButton
+                size="small"
+                onClick={nextTurn}
+                disabled={remainingMonsters.length === 0}
+                color="primary"
+              >
+                <ArrowForward fontSize="small" />
+              </IconButton>
+            </span>
+          </Tooltip>
+        </Paper>
+      )}
     </Box>
   );
 };
