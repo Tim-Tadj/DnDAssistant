@@ -60,7 +60,7 @@ const SpellEditor: FC<{
   }, [newSpell, onChange]);
 
   return (
-    <Stack spacing={2} direction="column" justifyContent="space-between" alignItems="center">
+    <Stack spacing={2} direction="column" justifyContent="space-between" alignItems="center" sx={{ pt: 2 }}>
       <TextField
         fullWidth
         value={newSpell.name}

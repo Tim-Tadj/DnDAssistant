@@ -63,7 +63,7 @@ const NpcEditor: FC<{
   const set = <K extends keyof CampaignNpc>(k: K, v: CampaignNpc[K]) =>
     setN((prev) => ({ ...prev, [k]: v }));
   return (
-    <Stack spacing={2}>
+    <Stack spacing={2} sx={{ pt: 2 }}>
       <Stack direction="row" spacing={2}>
         <TextField
           label="Name"

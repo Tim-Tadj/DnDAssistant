@@ -115,7 +115,7 @@ const PartyEditorDialog: FC<{
           </Alert>
         )}
         {draft && (
-          <Stack spacing={2}>
+          <Stack spacing={2} sx={{ pt: 2 }}>
             <TextField
               label="Name"
               value={draft.name}

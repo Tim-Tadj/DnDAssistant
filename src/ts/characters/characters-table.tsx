@@ -56,7 +56,7 @@ const CharacterEditorForm: FC<{
     setC((prev) => ({ ...prev, [k]: v }));
 
   return (
-    <Stack spacing={2}>
+    <Stack spacing={2} sx={{ pt: 2 }}>
       <Stack direction="row" spacing={2}>
         <TextField
           label="Name"
