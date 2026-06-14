@@ -28,6 +28,7 @@ import GearEditor from './gear-editor';
 import WeaponEditor from './weapon-editor';
 import ArmourEditor from './armour-editor';
 import { useToast } from '../shared/ToastProvider';
+import { useAuth } from '../auth/AuthContext';
 
 const GearCreate: FC<{ onCreated?: () => void }> = ({ onCreated }) => {
   const [open, setOpen] = useState(false);
@@ -230,7 +231,9 @@ const columns: GridColDef<GearItem>[] = [
 ];
 
 const GearTable: FC = () => {
+  const { user } = useAuth();
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
+  const [mineFilter, setMineFilter] = useState(false);
   const { items, loadError, reload } = useList<GearItem>(() => gearApi.list());
   return (
     <EntityBrowser<GearItem>
@@ -315,6 +318,9 @@ const GearTable: FC = () => {
       searchHint="Search weapons, armour, and gear…"
       isDeletable={(r) => r.provenance === 'homebrew'}
       isEditable={(r) => r.provenance === 'homebrew'}
+      showMineFilter={!!user}
+      mineFilter={mineFilter}
+      onMineFilterChange={setMineFilter}
     />
   );
 };

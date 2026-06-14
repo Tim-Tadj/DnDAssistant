@@ -265,6 +265,7 @@ const columns: GridColDef<Character>[] = [
 const CharactersTable: FC = () => {
   const { user } = useAuth();
   const { items, loadError, reload } = useList<Character>(charactersApi.list);
+  const [mineFilter, setMineFilter] = useState(false);
   if (!user) {
     return (
       <Box>
@@ -319,6 +320,9 @@ const CharactersTable: FC = () => {
       searchHint="Search characters by name…"
       emptyTitle="No characters yet"
       emptyDescription="Create your first character to get started."
+      showMineFilter={!!user}
+      mineFilter={mineFilter}
+      onMineFilterChange={setMineFilter}
     />
   );
 };

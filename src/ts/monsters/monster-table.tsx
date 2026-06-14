@@ -17,6 +17,7 @@ import { EntityBrowser } from '../shared/EntityBrowser';
 import MonsterStatBlock from '../shared/MonsterStatBlock';
 import MonsterEditor from './monster-editor';
 import { useToast } from '../shared/ToastProvider';
+import { useAuth } from '../auth/AuthContext';
 
 const MonsterCreate: FC<{ onCreated?: () => void }> = ({ onCreated }) => {
   const [open, setOpen] = useState(false);
@@ -174,7 +175,9 @@ const columns: GridColDef<Monster>[] = [
 ];
 
 const MonsterTable: FC = () => {
+  const { user } = useAuth();
   const { items, loadError, reload } = useList<Monster>(monstersApi.list);
+  const [mineFilter, setMineFilter] = useState(false);
   return (
     <EntityBrowser<Monster>
       title="Monsters"
@@ -210,6 +213,9 @@ const MonsterTable: FC = () => {
       getRowName={(r) => r.name}
       CreateButton={MonsterCreate}
       searchHint="Search monsters by name (e.g. dragon, orc)…"
+      showMineFilter={!!user}
+      mineFilter={mineFilter}
+      onMineFilterChange={setMineFilter}
     />
   );
 };

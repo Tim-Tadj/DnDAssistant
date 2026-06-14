@@ -17,6 +17,7 @@ import { EntityBrowser } from '../shared/EntityBrowser';
 import SpellCard from '../shared/SpellCard';
 import SpellEditor from './spell-editor';
 import { useToast } from '../shared/ToastProvider';
+import { useAuth } from '../auth/AuthContext';
 
 const SpellCreate: FC<{ onCreated?: () => void }> = ({ onCreated }) => {
   const [open, setOpen] = useState(false);
@@ -122,7 +123,9 @@ const columns: GridColDef<Spell>[] = [
 ];
 
 const SpellTable: FC = () => {
+  const { user } = useAuth();
   const { items, loadError, reload } = useList<Spell>(spellsApi.list);
+  const [mineFilter, setMineFilter] = useState(false);
   return (
     <EntityBrowser<Spell>
       title="Spells"
@@ -144,6 +147,9 @@ const SpellTable: FC = () => {
       getRowName={(r) => r.name}
       CreateButton={SpellCreate}
       searchHint="Search spells by name (e.g. fireball, eldritch)…"
+      showMineFilter={!!user}
+      mineFilter={mineFilter}
+      onMineFilterChange={setMineFilter}
     />
   );
 };

@@ -21,6 +21,7 @@
 
 import React, { FC, ReactNode, useState } from 'react';
 import {
+  Alert,
   Box,
   Button,
   Dialog,
@@ -84,10 +85,17 @@ export type EntityBrowserProps<T> = {
   getRowName: (row: T) => string;
   isEditable?: (row: T) => boolean;
   isDeletable?: (row: T) => boolean;
+  // Owner predicate; defaults to provenance === 'homebrew'. The user
+  // is considered the owner of homebrew rows and not of srd/derived.
+  isMine?: (row: T) => boolean;
   // Optional kind filter chips (for Gear).
   filterChips?: { label: string; value: string }[];
   activeFilter?: string | null;
   onFilterChange?: (value: string | null) => void;
+  // "My homebrew" filter toggle.
+  showMineFilter?: boolean;
+  mineFilter?: boolean;
+  onMineFilterChange?: (v: boolean) => void;
   searchHint?: string;
   CreateButton?: FC<{ onCreated?: () => void }>;
   extraActions?: (item: T) => ReactNode;
@@ -110,9 +118,13 @@ export function EntityBrowser<T extends { id?: string | number; provenance?: str
   getRowName,
   isEditable,
   isDeletable,
+  isMine,
   filterChips,
   activeFilter,
   onFilterChange,
+  showMineFilter,
+  mineFilter,
+  onMineFilterChange,
   searchHint,
   CreateButton,
   extraActions,
@@ -133,12 +145,14 @@ export function EntityBrowser<T extends { id?: string | number; provenance?: str
   const [deleting, setDeleting] = useState(false);
 
   // Filter + search
+  const mineCheck = isMine ?? ((row: T) => row.provenance === 'homebrew');
   const filtered = (items ?? []).filter((row) => {
     if (!row) return false;
     if (activeFilter) {
       const k = (row as unknown as Record<string, unknown>)['kind'];
       if (k !== activeFilter) return false;
     }
+    if (mineFilter && !mineCheck(row)) return false;
     if (!search.trim()) return true;
     const name = (getRowName(row) || '').toLowerCase();
     return search
@@ -300,27 +314,40 @@ export function EntityBrowser<T extends { id?: string | number; provenance?: str
           }}
           sx={{ flexGrow: 1 }}
         />
-        {filterChips && filterChips.length > 0 && (
+        {(filterChips && filterChips.length > 0) || showMineFilter ? (
           <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-            <Chip
-              label="All"
-              size="small"
-              onClick={() => onFilterChange?.(null)}
-              color={activeFilter == null ? 'primary' : 'default'}
-              variant={activeFilter == null ? 'filled' : 'outlined'}
-            />
-            {filterChips.map((chip) => (
+            {showMineFilter && (
               <Chip
-                key={chip.value}
-                label={chip.label}
+                label="My homebrew"
                 size="small"
-                onClick={() => onFilterChange?.(chip.value)}
-                color={activeFilter === chip.value ? 'primary' : 'default'}
-                variant={activeFilter === chip.value ? 'filled' : 'outlined'}
+                onClick={() => onMineFilterChange?.(!mineFilter)}
+                color={mineFilter ? 'primary' : 'default'}
+                variant={mineFilter ? 'filled' : 'outlined'}
               />
-            ))}
+            )}
+            {filterChips && filterChips.length > 0 && (
+              <>
+                <Chip
+                  label="All"
+                  size="small"
+                  onClick={() => onFilterChange?.(null)}
+                  color={activeFilter == null ? 'primary' : 'default'}
+                  variant={activeFilter == null ? 'filled' : 'outlined'}
+                />
+                {filterChips.map((chip) => (
+                  <Chip
+                    key={chip.value}
+                    label={chip.label}
+                    size="small"
+                    onClick={() => onFilterChange?.(chip.value)}
+                    color={activeFilter === chip.value ? 'primary' : 'default'}
+                    variant={activeFilter === chip.value ? 'filled' : 'outlined'}
+                  />
+                ))}
+              </>
+            )}
           </Stack>
-        )}
+        ) : null}
       </Paper>
 
       {/* Body */}
@@ -351,7 +378,62 @@ export function EntityBrowser<T extends { id?: string | number; provenance?: str
           <DataGrid
             autoHeight
             rows={filtered}
-            columns={columns}
+            columns={[
+              ...columns,
+              {
+                field: '__actions',
+                headerName: '',
+                width: 90,
+                sortable: false,
+                filterable: false,
+                disableColumnMenu: true,
+                renderCell: (params) => {
+                  const row = params.row as T;
+                  if (!row) return null;
+                  if (!mineCheck(row)) return null;
+                  return (
+                    <Stack
+                      direction="row"
+                      spacing={0.25}
+                      sx={{
+                        opacity: 0,
+                        transition: 'opacity 120ms ease',
+                        '.MuiDataGrid-row:hover &': { opacity: 1 },
+                      }}
+                    >
+                      <Tooltip title="Edit" arrow>
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDrawerItem(row);
+                            setEditMode('view');
+                            setDraft({ ...row });
+                            setEditMode('edit');
+                            setSaveError(null);
+                          }}
+                        >
+                          <Edit fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Delete" arrow>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDrawerItem(row);
+                            setConfirmDelete(true);
+                          }}
+                        >
+                          <Delete fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
+                  );
+                },
+              },
+            ]}
             getRowId={(r) => r ? String(getRowId(r as T)) : 'null'}
             onRowClick={onRowClick}
             getRowHeight={() => 'auto'}
@@ -441,6 +523,21 @@ export function EntityBrowser<T extends { id?: string | number; provenance?: str
               </Stack>
             </Stack>
             <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 2 }}>
+              {mineCheck(drawerItem) && (
+                <Alert
+                  severity="success"
+                  icon={false}
+                  sx={{
+                    mb: 2,
+                    backgroundColor: alpha(theme.palette.success.main, 0.1),
+                    color: theme.palette.success.main,
+                    border: `1px solid ${alpha(theme.palette.success.main, 0.3)}`,
+                    fontWeight: 500,
+                  }}
+                >
+                  You created this. Edit or delete it from the header buttons.
+                </Alert>
+              )}
               <DetailCard item={drawerItem} />
             </Box>
           </Box>

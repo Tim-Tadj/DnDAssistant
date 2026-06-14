@@ -240,6 +240,7 @@ import { TextField } from '@mui/material';
 const CampaignManager: FC = () => {
   const { user } = useAuth();
   const { items, loadError, reload } = useList<Campaign>(campaignsApi.list);
+  const [mineFilter, setMineFilter] = useState(false);
   return (
     <Stack spacing={3}>
       {user ? (
@@ -302,6 +303,9 @@ const CampaignManager: FC = () => {
           searchHint="Search your campaigns…"
           emptyTitle="No campaigns yet"
           emptyDescription="Create your first campaign to get started."
+          showMineFilter={!!user}
+          mineFilter={mineFilter}
+          onMineFilterChange={setMineFilter}
         />
       ) : (
         <Alert severity="info">
