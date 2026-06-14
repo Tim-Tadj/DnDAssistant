@@ -236,77 +236,99 @@ const columns: GridColDef<Campaign>[] = [
 ];
 
 import { TextField } from '@mui/material';
+import SessionsLog from '../shared/SessionsLog';
 
 const CampaignManager: FC = () => {
   const { user } = useAuth();
   const { items, loadError, reload } = useList<Campaign>(campaignsApi.list);
   const [mineFilter, setMineFilter] = useState(false);
+  const [focusedCampaignId, setFocusedCampaignId] = useState<string | null>(null);
+  // Default to the most-recently-updated campaign so the sessions panel
+  // is meaningful as soon as the user has any campaigns.
+  const focusedId =
+    focusedCampaignId ?? (items && items.length > 0 ? items[0].id ?? null : null);
   return (
     <Stack spacing={3}>
       {user ? (
-        <EntityBrowser<Campaign>
-          title="My Campaigns"
-          items={items}
-          loadError={loadError}
-          reload={reload}
-          mutations={{
-            create: campaignsApi.create,
-            update: campaignsApi.update,
-            remove: campaignsApi.delete,
-          }}
-          columns={columns as GridColDef[]}
-          DetailCard={({ item }) => <CampaignDetailCard item={item} />}
-          Editor={({ initial, onChange }) => (
-            <Stack spacing={2}>
-              <TextField
-                label="Name"
-                value={initial.name}
-                onChange={(e) => onChange({ ...initial, name: e.target.value })}
-                fullWidth
-              />
-              <Stack direction="row" spacing={2}>
+        <>
+          <EntityBrowser<Campaign>
+            title="My Campaigns"
+            items={items}
+            loadError={loadError}
+            reload={reload}
+            mutations={{
+              create: campaignsApi.create,
+              update: campaignsApi.update,
+              remove: campaignsApi.delete,
+            }}
+            columns={columns as GridColDef[]}
+            DetailCard={({ item }) => <CampaignDetailCard item={item} />}
+            Editor={({ initial, onChange }) => (
+              <Stack spacing={2}>
                 <TextField
-                  label="Setting"
-                  value={initial.setting}
-                  onChange={(e) => onChange({ ...initial, setting: e.target.value })}
+                  label="Name"
+                  value={initial.name}
+                  onChange={(e) => onChange({ ...initial, name: e.target.value })}
                   fullWidth
                 />
+                <Stack direction="row" spacing={2}>
+                  <TextField
+                    label="Setting"
+                    value={initial.setting}
+                    onChange={(e) => onChange({ ...initial, setting: e.target.value })}
+                    fullWidth
+                  />
+                  <TextField
+                    label="Status"
+                    value={initial.status}
+                    onChange={(e) => onChange({ ...initial, status: e.target.value })}
+                    sx={{ width: 200 }}
+                  />
+                </Stack>
                 <TextField
-                  label="Status"
-                  value={initial.status}
-                  onChange={(e) => onChange({ ...initial, status: e.target.value })}
-                  sx={{ width: 200 }}
+                  label="Description"
+                  value={initial.description}
+                  onChange={(e) => onChange({ ...initial, description: e.target.value })}
+                  fullWidth
+                  multiline
+                  rows={2}
+                />
+                <TextField
+                  label="Notes"
+                  value={initial.notes}
+                  onChange={(e) => onChange({ ...initial, notes: e.target.value })}
+                  fullWidth
+                  multiline
+                  rows={6}
                 />
               </Stack>
-              <TextField
-                label="Description"
-                value={initial.description}
-                onChange={(e) => onChange({ ...initial, description: e.target.value })}
-                fullWidth
-                multiline
-                rows={2}
-              />
-              <TextField
-                label="Notes"
-                value={initial.notes}
-                onChange={(e) => onChange({ ...initial, notes: e.target.value })}
-                fullWidth
-                multiline
-                rows={6}
-              />
-            </Stack>
+            )}
+            defaultItem={() => ({ ...defaultCampaign, name: '' })}
+            getRowId={(r) => r.id ?? r.name}
+            getRowName={(r) => r.name}
+            CreateButton={CampaignCreate}
+            searchHint="Search your campaigns…"
+            emptyTitle="No campaigns yet"
+            emptyDescription="Create your first campaign to get started."
+            showMineFilter={!!user}
+            mineFilter={mineFilter}
+            onMineFilterChange={setMineFilter}
+            extraActions={(c) =>
+              c.id ? (
+                <Button
+                  size="small"
+                  variant="text"
+                  onClick={() => setFocusedCampaignId(c.id ?? null)}
+                >
+                  {focusedId === c.id ? 'Viewing' : 'View sessions'}
+                </Button>
+              ) : null
+            }
+          />
+          {focusedId && (
+            <SessionsLog campaignId={focusedId} canEdit={true} />
           )}
-          defaultItem={() => ({ ...defaultCampaign, name: '' })}
-          getRowId={(r) => r.id ?? r.name}
-          getRowName={(r) => r.name}
-          CreateButton={CampaignCreate}
-          searchHint="Search your campaigns…"
-          emptyTitle="No campaigns yet"
-          emptyDescription="Create your first campaign to get started."
-          showMineFilter={!!user}
-          mineFilter={mineFilter}
-          onMineFilterChange={setMineFilter}
-        />
+        </>
       ) : (
         <Alert severity="info">
           Sign in (top right) to create and manage your own campaigns. The

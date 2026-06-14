@@ -259,7 +259,9 @@ export function EntityBrowser<T extends { id?: string | number; provenance?: str
           <Typography variant="h3">{title}</Typography>
           {items && (
             <Typography variant="caption" color="text.secondary">
-              {items.length} {items.length === 1 ? 'item' : 'items'}
+              {mineFilter
+                ? `${filtered.length} of ${items.length} ${items.length === 1 ? 'item' : 'items'} (yours)`
+                : `${items.length} ${items.length === 1 ? 'item' : 'items'}`}
               {search && filtered.length !== items.length
                 ? ` · ${filtered.length} matching "${search}"`
                 : ''}
@@ -370,8 +372,18 @@ export function EntityBrowser<T extends { id?: string | number; provenance?: str
       ) : filtered.length === 0 ? (
         <EmptyState
           title="No matches"
-          description={`No ${title.toLowerCase()} match "${search}".`}
-          action={{ label: 'Clear search', onClick: () => setSearch('') }}
+          description={
+            mineFilter
+              ? `You have no homebrew ${title.toLowerCase()} yet. ${search ? `Also, your search "${search}" returned nothing. ` : ''}Create one to see it here.`
+              : `No ${title.toLowerCase()} match "${search}".`
+          }
+          action={
+            mineFilter && search
+              ? { label: 'Clear filters', onClick: () => { setSearch(''); onMineFilterChange?.(false); } }
+              : mineFilter
+              ? { label: 'Show all', onClick: () => onMineFilterChange?.(false) }
+              : { label: 'Clear search', onClick: () => setSearch('') }
+          }
         />
       ) : (
         <Paper sx={{ overflow: 'hidden' }}>
