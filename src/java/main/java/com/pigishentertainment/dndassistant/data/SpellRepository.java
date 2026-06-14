@@ -65,6 +65,24 @@ public class SpellRepository {
         spellRowMapper);
   }
 
+  /**
+   * Phase 5: returns all SRD/derived spells (global reference) plus
+   * any homebrew spells owned by the given user. Pass {@code null} to
+   * return only the global reference rows (no homebrew).
+   */
+  public List<Spell> findVisibleTo(String ownerUserId) {
+    if (ownerUserId == null) {
+      return jdbc.query(
+          "SELECT * FROM spells WHERE provenance <> 'homebrew' ORDER BY level, name",
+          spellRowMapper);
+    }
+    return jdbc.query(
+        "SELECT * FROM spells"
+            + " WHERE provenance <> 'homebrew' OR owner_user_id = ?"
+            + " ORDER BY level, name",
+        spellRowMapper, ownerUserId);
+  }
+
   public Optional<Spell> findById(long id) {
     List<Spell> rows = jdbc.query(
         "SELECT * FROM spells WHERE id = ?",

@@ -8,9 +8,11 @@ import com.pigishentertainment.dndassistant.data.SpellRepository;
 import com.pigishentertainment.dndassistant.domain.Gear;
 import com.pigishentertainment.dndassistant.domain.Monster;
 import com.pigishentertainment.dndassistant.domain.Spell;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
@@ -145,5 +147,66 @@ public class ImportController {
     }
     public String getName() { return name; }
     public String getReason() { return reason; }
+  }
+
+  // ---------- Snapshot / export ----------
+
+  /**
+   * Exports the current DB contents for a single resource kind, in the
+   * exact shape the importer accepts. Round-trips through POST /import:
+   * re-importing the result of a snapshot is a no-op (all natural keys
+   * already match). Used for backups and for shipping a curated DB
+   * snapshot in CI.
+   *
+   * `?provenance=...` filters to a single provenance (e.g. `derived`).
+   * Omitting the parameter exports everything.
+   */
+  @GetMapping("/snapshot")
+  public Snapshot snapshot(
+      @RequestParam String kind,
+      @RequestParam(value = "provenance", required = false) String provenance) {
+    if (kind == null) {
+      throw new IllegalArgumentException("Query param 'kind' is required");
+    }
+    if (provenance != null && !PROVENANCES.contains(provenance)) {
+      throw new IllegalArgumentException(
+          "Query param 'provenance' must be one of: srd, derived, homebrew");
+    }
+    List<JsonNode> items = new ArrayList<>();
+    switch (kind) {
+      case "spell":
+        for (Spell s : spells.findAll()) {
+          if (provenance != null && !provenance.equals(s.getProvenance())) continue;
+          items.add(mapper.valueToTree(s));
+        }
+        break;
+      case "monster":
+        for (Monster m : monsters.findAll()) {
+          if (provenance != null && !provenance.equals(m.getProvenance())) continue;
+          items.add(mapper.valueToTree(m));
+        }
+        break;
+      case "gear":
+        for (Gear g : gear.findAll()) {
+          if (provenance != null && !provenance.equals(g.getProvenance())) continue;
+          items.add(mapper.valueToTree(g));
+        }
+        break;
+      default:
+        throw new IllegalArgumentException(
+            "Query param 'kind' must be one of: spell, monster, gear");
+    }
+    return new Snapshot(kind, provenance, items);
+  }
+
+  public static class Snapshot {
+    public String kind;
+    public String provenance;
+    public List<JsonNode> items;
+    public Snapshot(String kind, String provenance, List<JsonNode> items) {
+      this.kind = kind;
+      this.provenance = provenance;
+      this.items = items;
+    }
   }
 }

@@ -4,6 +4,8 @@ import com.pigishentertainment.dndassistant.data.SpellRepository;
 import com.pigishentertainment.dndassistant.domain.Spell;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import com.pigishentertainment.dndassistant.security.CurrentUser;
+
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,7 +30,7 @@ public class SpellController {
 
   @GetMapping
   public List<Spell> list() {
-    return repo.findAll();
+    return repo.findVisibleTo(CurrentUser.idOrNull());
   }
 
   @GetMapping("/{id}")
@@ -48,28 +50,41 @@ public class SpellController {
     if (body.getSchool() == null || body.getSchool().isBlank()) {
       throw new IllegalArgumentException("Spell 'school' is required");
     }
-    // Phase 1: provenance defaults to 'homebrew' on create, owner is null
-    // (auth lands in Phase 5; the owner_user_id column already exists).
+    // Phase 5: only authenticated users can create spells; provenance
+    // is always 'homebrew' and the JWT subject is the owner.
     body.setId(null);
     body.setProvenance("homebrew");
-    body.setOwner_user_id(null);
+    body.setOwner_user_id(CurrentUser.idOrNull());
     Spell saved = repo.insert(body);
     return ResponseEntity.status(HttpStatus.CREATED).body(saved);
   }
 
   @PutMapping("/{id}")
   public Spell update(@PathVariable long id, @RequestBody Spell body) {
-    // Phase 1: no auth, so any caller can update any row. Phase 5 will
-    // restrict to owner. The id in the path is authoritative; body's
-    // id (if any) is ignored. provenance/owner are also preserved
-    // (homebrew/null for created-by-UI rows; existing values for SRD
-    // rows are kept).
+    // Phase 5: only the owner can update; SRD/derived are read-only.
+    enforceOwnership(id);
     return repo.update(id, body);
   }
 
   @DeleteMapping("/{id}")
   public ResponseEntity<Void> delete(@PathVariable long id) {
+    enforceOwnership(id);
     repo.deleteById(id);
     return ResponseEntity.noContent().build();
+  }
+
+  private void enforceOwnership(long id) {
+    String userId = CurrentUser.idOrNull();
+    if (userId == null) {
+      throw new IllegalArgumentException("Authentication required");
+    }
+    Spell existing = repo.findById(id)
+        .orElseThrow(() -> new NoSuchElementException("Spell " + id + " not found"));
+    if (!"homebrew".equals(existing.getProvenance())) {
+      throw new IllegalArgumentException("Only homebrew spells can be modified");
+    }
+    if (!userId.equals(existing.getOwner_user_id())) {
+      throw new IllegalArgumentException("Only the owner can modify this spell");
+    }
   }
 }

@@ -126,24 +126,6 @@ Get real book content into the system.
 with provenance recorded. (Monsters done; spells and gear pending corpus +
 normalizer.)
 
-Get real book content into the system.
-
-- [x] Define the canonical JSON formats (match existing `srd_5e_monsters.json`
-      shapes) — see [docs/spec/content-ingestion.md](docs/spec/content-ingestion.md).
-- [x] **Monsters:** ingest the Monster Manual into
-      `src/res/resources/monster_manual_monsters.json` (409 stat blocks,
-      with flavor lore + lair/regional effects + page art, tagged
-      `provenance: "derived"`). See
-      [docs/spec/monster-manual-ingestion.md](docs/spec/monster-manual-ingestion.md).
-- [x] Add a `provenance` field (SRD / derived / homebrew) to ingested content.
-- [ ] Spells: ingest the Player's Handbook (or equivalent) into the spell dataset.
-- [ ] Gear: ingest the Player's Handbook equipment into the gear dataset.
-- [ ] Build a generic importer: book/source → normalized JSON → DB.
-- [ ] Establish a seed/backup strategy (JSON snapshots preloaded as defaults).
-
-**Done when:** a curated content set loads into a fresh database via the importer,
-with provenance recorded. (Monsters done; spells and gear still to come.)
-
 ## Phase 4 — Characters, Classes, Races
 
 Extend the domain beyond bestiary/spell reference.

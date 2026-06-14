@@ -70,6 +70,44 @@ public class GearRepository {
         new MapSqlParameterSource("kind", kind), rowMapper);
   }
 
+  /**
+   * Phase 5: returns all SRD/derived gear (global reference) plus any
+   * homebrew entries owned by the given user. Pass {@code null} to
+   * return only the global reference rows.
+   */
+  public List<Gear> findVisibleTo(String ownerUserId) {
+    if (ownerUserId == null) {
+      return jdbc.query(
+          "SELECT " + COLUMNS + " FROM gear"
+              + " WHERE provenance <> 'homebrew' ORDER BY kind, name",
+          rowMapper);
+    }
+    return jdbc.query(
+        "SELECT " + COLUMNS + " FROM gear"
+            + " WHERE provenance <> 'homebrew' OR owner_user_id = :owner"
+            + " ORDER BY kind, name",
+        new MapSqlParameterSource("owner", ownerUserId),
+        rowMapper);
+  }
+
+  public List<Gear> findByKindVisibleTo(String kind, String ownerUserId) {
+    if (ownerUserId == null) {
+      return jdbc.query(
+          "SELECT " + COLUMNS + " FROM gear"
+              + " WHERE kind = :kind AND provenance <> 'homebrew' ORDER BY name",
+          new MapSqlParameterSource("kind", kind), rowMapper);
+    }
+    return jdbc.query(
+        "SELECT " + COLUMNS + " FROM gear"
+              + " WHERE kind = :kind"
+              + " AND (provenance <> 'homebrew' OR owner_user_id = :owner)"
+              + " ORDER BY name",
+        new MapSqlParameterSource()
+              .addValue("kind", kind)
+              .addValue("owner", ownerUserId),
+        rowMapper);
+  }
+
   public Optional<Gear> findById(long id) {
     List<Gear> rows = jdbc.query(
         "SELECT " + COLUMNS + " FROM gear WHERE id = :id",

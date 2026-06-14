@@ -4,6 +4,8 @@ import com.pigishentertainment.dndassistant.data.GearRepository;
 import com.pigishentertainment.dndassistant.domain.Gear;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import com.pigishentertainment.dndassistant.security.CurrentUser;
+
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -29,10 +31,11 @@ public class GearController {
 
   @GetMapping
   public List<Gear> list(@RequestParam(value = "kind", required = false) String kind) {
+    String userId = CurrentUser.idOrNull();
     if (kind != null && !kind.isBlank()) {
-      return repo.findByKind(kind);
+      return repo.findByKindVisibleTo(kind, userId);
     }
-    return repo.findAll();
+    return repo.findVisibleTo(userId);
   }
 
   @GetMapping("/{id}")
@@ -49,7 +52,7 @@ public class GearController {
     validateKind(body.getKind());
     body.setId(null);
     body.setProvenance("homebrew");
-    body.setOwner_user_id(null);
+    body.setOwner_user_id(CurrentUser.idOrNull());
     Gear saved = repo.insert(body);
     return ResponseEntity.status(HttpStatus.CREATED).body(saved);
   }
@@ -60,13 +63,30 @@ public class GearController {
       throw new IllegalArgumentException("Gear 'name' is required");
     }
     validateKind(body.getKind());
+    enforceOwnership(id);
     return repo.update(id, body);
   }
 
   @DeleteMapping("/{id}")
   public ResponseEntity<Void> delete(@PathVariable long id) {
+    enforceOwnership(id);
     repo.deleteById(id);
     return ResponseEntity.noContent().build();
+  }
+
+  private void enforceOwnership(long id) {
+    String userId = CurrentUser.idOrNull();
+    if (userId == null) {
+      throw new IllegalArgumentException("Authentication required");
+    }
+    Gear existing = repo.findById(id)
+        .orElseThrow(() -> new NoSuchElementException("Gear " + id + " not found"));
+    if (!"homebrew".equals(existing.getProvenance())) {
+      throw new IllegalArgumentException("Only homebrew gear can be modified");
+    }
+    if (!userId.equals(existing.getOwner_user_id())) {
+      throw new IllegalArgumentException("Only the owner can modify this gear");
+    }
   }
 
   private static void validateKind(String kind) {

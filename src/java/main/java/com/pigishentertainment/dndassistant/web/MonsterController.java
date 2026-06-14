@@ -4,6 +4,8 @@ import com.pigishentertainment.dndassistant.data.MonsterRepository;
 import com.pigishentertainment.dndassistant.domain.Monster;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import com.pigishentertainment.dndassistant.security.CurrentUser;
+
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,7 +30,7 @@ public class MonsterController {
 
   @GetMapping
   public List<Monster> list() {
-    return repo.findAll();
+    return repo.findVisibleTo(CurrentUser.idOrNull());
   }
 
   @GetMapping("/{id}")
@@ -44,19 +46,36 @@ public class MonsterController {
     }
     body.setId(null);
     body.setProvenance("homebrew");
-    body.setOwner_user_id(null);
+    body.setOwner_user_id(CurrentUser.idOrNull());
     Monster saved = repo.insert(body);
     return ResponseEntity.status(HttpStatus.CREATED).body(saved);
   }
 
   @PutMapping("/{id}")
   public Monster update(@PathVariable long id, @RequestBody Monster body) {
+    enforceOwnership(id);
     return repo.update(id, body);
   }
 
   @DeleteMapping("/{id}")
   public ResponseEntity<Void> delete(@PathVariable long id) {
+    enforceOwnership(id);
     repo.deleteById(id);
     return ResponseEntity.noContent().build();
+  }
+
+  private void enforceOwnership(long id) {
+    String userId = CurrentUser.idOrNull();
+    if (userId == null) {
+      throw new IllegalArgumentException("Authentication required");
+    }
+    Monster existing = repo.findById(id)
+        .orElseThrow(() -> new NoSuchElementException("Monster " + id + " not found"));
+    if (!"homebrew".equals(existing.getProvenance())) {
+      throw new IllegalArgumentException("Only homebrew monsters can be modified");
+    }
+    if (!userId.equals(existing.getOwner_user_id())) {
+      throw new IllegalArgumentException("Only the owner can modify this monster");
+    }
   }
 }

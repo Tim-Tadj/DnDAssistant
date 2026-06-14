@@ -106,6 +106,26 @@ public class MonsterRepository {
     return jdbc.query("SELECT " + COLUMNS + " FROM monsters ORDER BY name", monsterRowMapper);
   }
 
+  /**
+   * Phase 5: returns all SRD/derived monsters (global reference) plus
+   * any homebrew monsters owned by the given user. Pass {@code null} to
+   * return only the global reference rows.
+   */
+  public List<Monster> findVisibleTo(String ownerUserId) {
+    if (ownerUserId == null) {
+      return jdbc.query(
+          "SELECT " + COLUMNS + " FROM monsters"
+              + " WHERE provenance <> 'homebrew' ORDER BY name",
+          monsterRowMapper);
+    }
+    return jdbc.query(
+        "SELECT " + COLUMNS + " FROM monsters"
+            + " WHERE provenance <> 'homebrew' OR owner_user_id = :owner"
+            + " ORDER BY name",
+        new MapSqlParameterSource("owner", ownerUserId),
+        monsterRowMapper);
+  }
+
   public Optional<Monster> findById(long id) {
     List<Monster> rows = jdbc.query(
         "SELECT " + COLUMNS + " FROM monsters WHERE id = :id",
