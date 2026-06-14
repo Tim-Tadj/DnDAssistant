@@ -9,19 +9,15 @@ Legend: ✅ done · 🚧 in progress · ⛔ not started
 
 ## Current focus
 
-**Phase 1 and Phase 2 are complete.** Spells, Monsters, and
-Gear/Weapons/Armour are fully CRUD-able through the UI and backed by
-Postgres. SRD/derived rows are read-only; homebrew rows are editable
-and deletable with a confirmation dialog. Static JSON is now only a
-seed source.
+**Phases 1, 2, 3 (infrastructure), 4, 5 are complete.** Spells, Monsters,
+Gear, Characters, and Campaigns are all CRUD-able through the UI
+and backed by Postgres. JWT auth gates every write; ownership is
+enforced (SRD/derived are read-only, homebrew rows are visible only
+to their owner). The generic content importer is in place. The
+backend is Dockerized and integrated into the postgres compose stack.
 
-**Phase 3 is in progress.** The generic content importer infrastructure
-is in place: `POST /api/v1/import` accepts a `{kind, provenance,
-items[]}` payload, upserts each item by natural key, and returns a
-per-item summary. A CLI driver (`scripts/import-content.ps1`) drives
-the endpoint. The Monster Manual is ingested (409 stat blocks,
-`provenance='derived'`). Spells and gear still only have the SRD set
-loaded; the Player's Handbook ingestion awaits a corpus source.
+**Phase 6 polish is in progress.** Backend tests pass (13 smoke
+tests). Deps are pinned. Frontend tests are a known gap.
 
 ## Feature status
 

@@ -53,10 +53,11 @@ Close the biggest gap: the frontend cannot talk to the database.
       to fetch from `/api/v1/gear` (single list, client-side `kind` filter
       for the existing Weapons / Armour / Gear tabs). Create-gear POSTs
       via the new editor flow.
-- [x] Adopt Flyway (or Liquibase) for schema migrations. V2__add_gear.sql
-      is the first migration; the dev DB was baselined at V1 to preserve
-      the existing spells/monsters tables, so V2 is the first new version
-      applied. `spring.sql.init` is disabled — Flyway owns the schema.
+- [x] Adopt Flyway (or Liquibase) for schema migrations. V1 (initial
+      schema) + V2 (gear) + V3 (users) + V4 (characters/classes/races) +
+      V5 (campaigns). The dev DB was baselined at V1 before V1__init.sql
+      existed; the migration is a no-op there but creates the full
+      schema on a fresh DB.
 - [x] Backend doesn't fail-fast on a slow DB. `DataSourceReadiness`
       (a `BeanPostProcessor` at `HIGHEST_PRECEDENCE`) blocks startup
       until `DataSource.getConnection()` succeeds, retrying up to 30
@@ -94,7 +95,7 @@ Turn the JSON-emitting creation editors into real CRUD.
 **Done when:** monsters, spells and gear are fully CRUD-able through the UI and
 backed by the database; static JSON is only a seed source.
 
-## Phase 3 — Content Ingestion *(in progress)* ← we are here
+## Phase 3 — Content Ingestion
 
 Get real book content into the system.
 
@@ -116,44 +117,91 @@ Get real book content into the system.
       with smoke tests: a 1-item payload imports (1) then re-imports
       as an update (1) — idempotent. Spec updated in
       [content-ingestion.md](docs/spec/content-ingestion.md).
+- [x] **Snapshot/backup endpoint.** `GET /api/v1/import/snapshot?kind=...&provenance=...`
+      exports the DB in the exact shape the importer accepts. Closes
+      the snapshot step of the content-ingestion pipeline.
 - [ ] Spells: ingest the Player's Handbook (or equivalent) into the spell dataset.
 - [ ] Gear: ingest the Player's Handbook equipment into the gear dataset.
 - [ ] Build a corpus-specific normalizer for the PHB (the generic importer
       is in place; the normalizer is the missing piece for any new source).
-- [ ] Establish a seed/backup strategy (JSON snapshots preloaded as defaults).
 
 **Done when:** a curated content set loads into a fresh database via the importer,
 with provenance recorded. (Monsters done; spells and gear pending corpus +
-normalizer.)
+normalizer. The infrastructure is in place to slot them in when source is
+available.)
 
-## Phase 4 — Characters, Classes, Races
+## Phase 4 — Characters, Classes, Races *(in progress)*
 
 Extend the domain beyond bestiary/spell reference.
 
-- [ ] Data model + UI for player/non-player characters.
-- [ ] Class and race entities backing richer rules than the static mechanics pages.
-- [ ] Tie characters into encounters (party composition) where useful.
+- [x] Data model for characters (id UUID, name, race_id, class_id, level,
+      alignment, background, ability scores, hp_max, ac, notes,
+      owner_user_id, timestamps). FKs to classes/races.
+- [x] Class and race entities (12 SRD classes + 9 SRD races seeded
+      on first boot via `ReferenceDataSeed`).
+- [x] REST endpoints: `GET/POST/PUT/DELETE /api/v1/characters` (auth
+      required, owner-scoped); `GET /api/v1/classes` and
+      `GET /api/v1/races` (public read).
+- [x] Frontend `/characters` page: DataGrid of the signed-in user's
+      characters with create/view/edit/delete dialogs. Race and Class
+      pickers are Autocompletes populated from the reference API.
+- [x] Tie characters into encounters: the Encounter Generator gains
+      a 'Use my party' button that, when signed in, fetches the
+      user's characters and pre-fills party size + average level.
 
-**Done when:** a DM can create and store characters with class/race data.
+**Done when:** a DM can create and store characters with class/race data
+and see them factor into encounter generation.
 
-## Phase 5 — Multi-user & Campaigns
+## Phase 5 — Multi-user & Campaigns *(in progress)*
 
 Make it genuinely multi-user — a committed requirement, so the API and data model
 in Phases 1–2 are designed user-aware up front.
 
-- [ ] Authentication and user accounts.
-- [ ] Per-user ownership: campaigns and created content reference an owning user.
-- [ ] Each user creates and manages their own campaigns and homebrew content.
-- [ ] Access control enforced on every API endpoint.
+- [x] Authentication: signup / login / me, BCrypt-hashed passwords, JWT
+      (HS256, 24h TTL). `JwtService`, `JwtAuthFilter`, `UserAuthentication`,
+      `CurrentUser`, `SecurityConfig`. Authenticated routes:
+      POST/PUT/DELETE on spells/monsters/gear/characters/campaigns.
+- [x] Per-user ownership: every writable row carries `owner_user_id`
+      (TEXT). Repositories expose `findByNaturalKey` and `upsert` for
+      the import pipeline; controllers call `findVisibleTo(userId)`
+      on read so SRD/derived rows remain global and homebrew rows
+      are visible only to their owner.
+- [x] Each user creates and manages their own campaigns: V5
+      migration + `CampaignController` (CRUD scoped to owner).
+- [x] Access control enforced on every writable endpoint (403 on
+      no-token POST/PUT/DELETE; 400 on cross-user update; 400 on
+      SRD/derived write attempts).
+- [x] Frontend `AuthContext` + `AuthDialog`; `api-client` adds
+      `Authorization: Bearer <token>` when a token is in localStorage.
+      Header shows the signed-in user with a Sign out button.
+- [ ] Fine-grained role-based access (admin role, banned users, etc.) —
+      the broader auth model lands in a future phase.
 
 **Done when:** two users can sign in independently and each sees only their own
 campaigns and homebrew content.
 
-## Phase 6 — Polish & Ship
+## Phase 6 — Polish & Ship *(in progress)* ← we are here
 
-- [ ] Error handling and input validation across UI and API.
-- [ ] Test coverage (frontend + backend).
-- [ ] Full-stack deployment story (today only the frontend ships to GitHub Pages).
-- [ ] Dependency hygiene: pin `latest` deps, upgrade `typescript ^3.4`.
+- [x] Error handling and input validation across the API
+      (`GlobalExceptionHandler`, per-endpoint argument checks; UI
+      surfaces server errors via `Alert`).
+- [x] Backend test coverage: 13 Spring Boot integration tests in
+      `ApiSmokeTest` covering public reads, auth flows, ownership
+      enforcement, idempotent import, and snapshot export. All pass
+      with `mvnw.cmd test` against a dedicated `dnd_assistant_test`
+      Postgres database.
+- [x] Dependency hygiene: 10 `latest` deps pinned to their
+      lockfile-resolved versions; TypeScript upgraded from `^3.4.0`
+      to `4.9.5` (the 3.x pin predated React 18 and MUI 5). Verified
+      with `tsc --noEmit` and `react-scripts build`.
+- [x] Full-stack deployment story: multi-stage `Dockerfile` produces
+      a Spring Boot image; `postgres/docker-compose.yml` brings up
+      `postgres + adminer + backend` together. `scripts/run-all.ps1`
+      honours `USE_DOCKER_BACKEND=false` to run the backend as a
+      local jar instead.
+- [ ] Frontend test coverage (Jest + React Testing Library) — the
+      test scaffold is in place via CRA's `react-scripts test` but
+      the suite is currently empty. A follow-up session can add
+      component tests for the auth flow and the Edit/Delete dialogs.
 
 **Done when:** the full stack deploys reproducibly and is usable in a real session.

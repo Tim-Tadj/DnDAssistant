@@ -43,7 +43,7 @@ start a fresh `[Unreleased]` section.
 - **Phase 1 — Gear/Weapons/Armour vertical slice.**
 - **Phase 1 — Gear/Weapons/Armour vertical slice.** A single `gear`
   table (kind ∈ {weapon, armour, gear}) covers all three; 152 rows
-  seed on first boot (37 + 2 + 13 + 0 + 99 + 1 from SRD + custom JSON).
+  seed on first boot (37 + 2 + 13 + 0 + 99 + 1 = SRD + custom).
   The frontend `gear.tsx` fetches `/api/v1/gear` (single list,
   client-side `kind` filter) and the `Create Gear` dialog POSTs to the
   API on Save. New files: `src/java/.../domain/Gear.java`,
@@ -54,6 +54,80 @@ start a fresh `[Unreleased]` section.
   and editors). Endpoints: `GET /api/v1/gear`,
   `GET /api/v1/gear?kind={weapon|armour|gear}`, `GET /api/v1/gear/{id}`,
   `POST /api/v1/gear`.
+- **Phase 3 — Snapshot/backup endpoint.** `GET
+  /api/v1/import/snapshot?kind=...&provenance=...` exports the DB in
+  the exact shape the importer accepts; re-importing the result of
+  a snapshot is a no-op (the importer is idempotent on natural
+  key). Closes the snapshot step of the content-ingestion pipeline.
+- **Phase 4 — Characters, classes, races (backend + frontend).** V4
+  migration adds the classes / races / characters tables (the
+  latter with FKs to the first two and to a `users` row); 12 SRD
+  classes + 9 SRD races are seeded on first boot via
+  `ReferenceDataSeed`. New `DndClass`, `Race`, `Character` domains
+  and `*Repository` classes; `ReferenceDataController` exposes
+  `GET /api/v1/classes` and `GET /api/v1/races` (public read);
+  `CharacterController` exposes the full CRUD for
+  `/api/v1/characters` (auth required, owner-scoped). Frontend:
+  new `/characters` route with a DataGrid of the signed-in user's
+  characters, create/view/edit/delete dialogs, Autocomplete
+  pickers for race and class, ability score inputs, HP/AC,
+  notes. The Encounter Generator gains a 'Use my party' button
+  that, when signed in, fetches the user's characters and
+  pre-fills party size + average level.
+- **Phase 5 — Multi-user + auth + campaigns.**
+  - **V3 migration** adds the `users` table (id UUID, username
+    unique, email, password_hash, display_name, timestamps).
+  - **V5 migration** adds the `campaigns` table (id UUID, name,
+    description, setting, status, notes, owner_user_id,
+    timestamps).
+  - **Spring Security + JJWT 0.12.6** in a new `security` package:
+    `JwtService` (HS256 sign/verify), `JwtAuthFilter`
+    (OncePerRequestFilter that reads `Authorization: Bearer
+    <jwt>`), `UserAuthentication` (carries the user id through
+    the SecurityContext), `CurrentUser` helper, `SecurityConfig`
+    (stateless, public reads on the resource browsers, auth
+    required for everything else). `AuthController` exposes
+    `POST /auth/signup`, `POST /auth/login`, `GET /auth/me`.
+    BCrypt-hashed passwords. 24h JWT TTL.
+  - **Ownership enforcement.** POST/PUT/DELETE on spells, monsters,
+    gear, characters, and campaigns stamp `owner_user_id` from
+    the JWT subject. PUT/DELETE require the caller to be the
+    owner AND the row to be `homebrew` provenance. SRD and
+    derived rows remain read-only. GET filters homebrew rows to
+    the calling user; SRD/derived remain visible to everyone.
+    Verified end-to-end: anon GET sees 396 spells, alice sees
+    397 (her homebrew + global SRD), bob sees 396 only. Anon
+    POST/PUT/DELETE returns 403. Cross-user PUT/DELETE returns
+    400. SRD PUT returns 400.
+  - **Frontend** `auth/` package: `AuthContext` (token + user
+    state, localStorage persistence), `AuthDialog` (sign in /
+    sign up tabs), `useAuth` hook. `api-client` adds
+    `Authorization: Bearer <token>` when a token is present.
+    `Header` shows the signed-in user with a Sign out button;
+    otherwise a Sign in button. The `/campaigns` route now
+    hosts a 'My Campaigns' panel below the Tales of Avandria
+    reference (lore/map tabs), with full CRUD and a Sign in
+    to manage gating.
+- **Phase 6 — Polish.**
+  - **V1 migration** (`V1__init_spells_monsters.sql`) introduces
+    the pre-Flyway schema (spells, monsters) as a real migration
+    so a fresh database has the full table set. The dev DB was
+    baselined at V1; the migration is a no-op there but creates
+    the full schema on a clean DB.
+  - **Backend test suite**: 13 Spring Boot integration tests in
+    `src/test/java/.../ApiSmokeTest` covering health, public
+    reads, signup/login, ownership enforcement, idempotent
+    import, and snapshot export. Runs against a dedicated
+    `dnd_assistant_test` Postgres database. All 13 pass.
+  - **Dependency hygiene**: 10 `latest` deps pinned to their
+    lockfile-resolved versions; TypeScript upgraded from
+    `^3.4.0` to `4.9.5` (the 3.x pin predated React 18 + MUI 5).
+    Verified with `tsc --noEmit` and `react-scripts build`.
+  - **Docker**: multi-stage `Dockerfile` produces a Spring Boot
+    image. `postgres/docker-compose.yml` brings up
+    `postgres + adminer + backend` together. `scripts/run-all.ps1`
+    honours `USE_DOCKER_BACKEND=false` to run the backend as a
+    local jar instead.
 - **Flyway 9.22** now owns the schema. The legacy `schema.sql` was
   removed; `V2__add_gear.sql` is the first real migration. The dev DB
   was baselined at V1 (Spring Boot `baseline-version=1`,
