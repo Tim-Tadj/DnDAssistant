@@ -2,8 +2,13 @@ import React, { FC } from 'react';
 import { Box, Divider, Stack, Typography, alpha, useTheme, Chip } from '@mui/material';
 import { Campaign } from '../types/Campaign';
 import LinkedText from './LinkedText';
+import CampaignWorkflowBar from './CampaignWorkflowBar';
 
-const CampaignDetailCard: FC<{ item: Campaign }> = ({ item }) => {
+const CampaignDetailCard: FC<{ item: Campaign; canEdit?: boolean; onChanged?: (c: Campaign) => void }> = ({
+  item,
+  canEdit = false,
+  onChanged,
+}) => {
   const theme = useTheme();
   return (
     <Box
@@ -27,19 +32,14 @@ const CampaignDetailCard: FC<{ item: Campaign }> = ({ item }) => {
         >
           {item.name}
         </Typography>
-        <Chip
-          label={item.status || 'active'}
-          size="small"
-          color={
-            item.status === 'completed'
-              ? 'success'
-              : item.status === 'paused'
-              ? 'warning'
-              : 'primary'
-          }
-          variant="outlined"
-        />
       </Stack>
+      <Box sx={{ mb: 1.5 }}>
+        <CampaignWorkflowBar
+          campaign={item}
+          canEdit={canEdit}
+          onChanged={onChanged}
+        />
+      </Box>
       <Stack direction="row" spacing={1} sx={{ mb: 1.5 }}>
         {item.setting && (
           <Chip label={item.setting} size="small" variant="outlined" />

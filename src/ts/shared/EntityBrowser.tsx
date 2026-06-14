@@ -72,7 +72,7 @@ export type EntityBrowserProps<T> = {
   reload: () => Promise<void> | void;
   mutations: EntityMutations<T>;
   columns: GridColDef[];
-  DetailCard: FC<{ item: T }>;
+  DetailCard: FC<{ item: T; canEdit?: boolean; onChanged?: (item: T) => void }>;
   defaultItem: () => T;
   // Editor is rendered inside the dialog; receives { initial, onChange } so the
   // dialog can build the current object for save.
@@ -550,7 +550,10 @@ export function EntityBrowser<T extends { id?: string | number; provenance?: str
                   You created this. Edit or delete it from the header buttons.
                 </Alert>
               )}
-              <DetailCard item={drawerItem} />
+              <DetailCard
+                item={drawerItem}
+                canEdit={editable(drawerItem)}
+              />
             </Box>
           </Box>
         )}

@@ -3,16 +3,21 @@ package com.pigishentertainment.dndassistant.domain;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Instant;
+import java.time.LocalDate;
 
-/** Phase 5: a user-owned campaign. */
+/** Phase 5: a user-owned campaign. Phase 8: workflow fields. */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class Campaign {
   @JsonProperty("id")             private String id;
   @JsonProperty("name")           private String name;
-  @JsonProperty("description")     private String description;
+  @JsonProperty("description")    private String description;
   @JsonProperty("setting")        private String setting;
   @JsonProperty("status")         private String status;
   @JsonProperty("notes")          private String notes;
+  @JsonProperty("next_session_on") private LocalDate next_session_on;
+  @JsonProperty("cadence")        private String cadence;
+  @JsonProperty("started_on")     private LocalDate started_on;
+  @JsonProperty("archived")       private Boolean archived;
   @JsonProperty("owner_user_id")  private String owner_user_id;
   @JsonProperty("created_at")     private Instant created_at;
   @JsonProperty("updated_at")     private Instant updated_at;
@@ -29,6 +34,14 @@ public class Campaign {
   public void setStatus(String status) { this.status = status; }
   public String getNotes() { return notes; }
   public void setNotes(String notes) { this.notes = notes; }
+  public LocalDate getNext_session_on() { return next_session_on; }
+  public void setNext_session_on(LocalDate next_session_on) { this.next_session_on = next_session_on; }
+  public String getCadence() { return cadence; }
+  public void setCadence(String cadence) { this.cadence = cadence; }
+  public LocalDate getStarted_on() { return started_on; }
+  public void setStarted_on(LocalDate started_on) { this.started_on = started_on; }
+  public Boolean getArchived() { return archived; }
+  public void setArchived(Boolean archived) { this.archived = archived; }
   public String getOwner_user_id() { return owner_user_id; }
   public void setOwner_user_id(String owner_user_id) { this.owner_user_id = owner_user_id; }
   public Instant getCreated_at() { return created_at; }
