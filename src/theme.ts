@@ -230,7 +230,7 @@ const theme = createTheme({
     },
     MuiDialogContent: {
       styleOverrides: {
-        root: { padding: '24px 24px 20px' },
+        root: { padding: '32px 24px 24px' },
         // First child needs breathing room from the title's
         // border-bottom; otherwise the labels visually clip.
       },
