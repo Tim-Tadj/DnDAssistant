@@ -226,7 +226,6 @@ const CharacterCreate: FC<{
           sx: {
             backgroundColor: theme.palette.background.paper,
             backgroundImage: 'none',
-            maxHeight: '90vh',
           },
         }}
       >

@@ -356,7 +356,6 @@ const SessionsLog: FC<Props> = ({ campaignId, canEdit }) => {
           sx: {
             backgroundColor: theme.palette.background.paper,
             backgroundImage: 'none',
-            maxHeight: '90vh',
           },
         }}
       >
@@ -408,7 +407,6 @@ const SessionsLog: FC<Props> = ({ campaignId, canEdit }) => {
           sx: {
             backgroundColor: theme.palette.background.paper,
             backgroundImage: 'none',
-            maxHeight: '90vh',
           },
         }}
       >

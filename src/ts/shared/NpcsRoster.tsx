@@ -410,7 +410,6 @@ const NpcsRoster: FC<Props> = ({ campaignId, canEdit }) => {
           sx: {
             backgroundColor: theme.palette.background.paper,
             backgroundImage: 'none',
-            maxHeight: '90vh',
           },
         }}
       >
@@ -451,7 +450,6 @@ const NpcsRoster: FC<Props> = ({ campaignId, canEdit }) => {
           sx: {
             backgroundColor: theme.palette.background.paper,
             backgroundImage: 'none',
-            maxHeight: '90vh',
           },
         }}
       >
