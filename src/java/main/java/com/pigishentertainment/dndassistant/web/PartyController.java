@@ -1,5 +1,6 @@
 package com.pigishentertainment.dndassistant.web;
 
+import com.pigishentertainment.dndassistant.data.CampaignPartyRepository;
 import com.pigishentertainment.dndassistant.data.CharacterRepository;
 import com.pigishentertainment.dndassistant.data.PartyRepository;
 import com.pigishentertainment.dndassistant.domain.Character;
@@ -28,10 +29,12 @@ public class PartyController {
 
   private final PartyRepository parties;
   private final CharacterRepository characters;
+  private final CampaignPartyRepository campaignParties;
 
-  public PartyController(PartyRepository parties, CharacterRepository characters) {
+  public PartyController(PartyRepository parties, CharacterRepository characters, CampaignPartyRepository campaignParties) {
     this.parties = parties;
     this.characters = characters;
+    this.campaignParties = campaignParties;
   }
 
   @GetMapping
@@ -70,6 +73,7 @@ public class PartyController {
   @DeleteMapping("/{id}")
   public ResponseEntity<Void> delete(@PathVariable String id) {
     enforceOwnership(id);
+    campaignParties.unlinkByPartyId(id);
     parties.deleteById(id);
     return ResponseEntity.noContent().build();
   }

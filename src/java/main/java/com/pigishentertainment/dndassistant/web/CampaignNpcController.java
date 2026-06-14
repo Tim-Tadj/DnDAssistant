@@ -42,26 +42,35 @@ public class CampaignNpcController {
 
   @GetMapping
   public List<CampaignNpc> list(@PathVariable String campaignId) {
-    enforceCampaignOwnership(campaignId);
-    return npcs.findByCampaign(campaignId);
+    String userId = enforceCampaignOwnership(campaignId);
+    // Phase 9: NPCs are now global per-user. Return NPCs that
+    // either (a) have a legacy campaign_id pointing here, or
+    // (b) tag this campaign in their campaign_tags list.
+    return npcs.findByOwnerAndCampaignTag(userId, campaignId);
   }
 
   @GetMapping("/{id}")
   public CampaignNpc get(@PathVariable String campaignId, @PathVariable String id) {
     enforceCampaignOwnership(campaignId);
-    return enforceNpcOwnership(campaignId, id);
+    return enforceNpcVisibility(campaignId, id);
   }
 
   @PostMapping
   public ResponseEntity<CampaignNpc> create(
       @PathVariable String campaignId,
       @RequestBody CampaignNpc body) {
-    enforceCampaignOwnership(campaignId);
+    String userId = enforceCampaignOwnership(campaignId);
     if (body == null || body.getName() == null || body.getName().isBlank()) {
       throw new IllegalArgumentException("name is required");
     }
     body.setId(UUID.randomUUID().toString());
     body.setCampaign_id(campaignId);
+    body.setOwner_user_id(userId);
+    // Make sure the new NPC is tagged with this campaign.
+    if (body.getCampaign_tags() == null) body.setCampaign_tags(new java.util.ArrayList<>());
+    if (!body.getCampaign_tags().contains(campaignId)) {
+      body.getCampaign_tags().add(campaignId);
+    }
     validateMonster(body.getMonster_id());
     return ResponseEntity.status(HttpStatus.CREATED).body(npcs.insert(body));
   }
@@ -72,7 +81,7 @@ public class CampaignNpcController {
       @PathVariable String id,
       @RequestBody CampaignNpc body) {
     enforceCampaignOwnership(campaignId);
-    enforceNpcOwnership(campaignId, id);
+    enforceNpcOwnership(id);
     validateMonster(body.getMonster_id());
     return npcs.update(id, body);
   }
@@ -82,7 +91,7 @@ public class CampaignNpcController {
       @PathVariable String campaignId,
       @PathVariable String id) {
     enforceCampaignOwnership(campaignId);
-    enforceNpcOwnership(campaignId, id);
+    enforceNpcOwnership(id);
     npcs.deleteById(id);
     return ResponseEntity.noContent().build();
   }
@@ -97,20 +106,37 @@ public class CampaignNpcController {
     return userId;
   }
 
-  private void enforceCampaignOwnership(String campaignId) {
+  private String enforceCampaignOwnership(String campaignId) {
     String userId = requireUser();
     Campaign c = campaigns.findById(campaignId)
         .orElseThrow(() -> new NoSuchElementException("Campaign " + campaignId + " not found"));
     if (!userId.equals(c.getOwner_user_id())) {
       throw new IllegalArgumentException("Only the owner can modify this campaign");
     }
+    return userId;
   }
 
-  private CampaignNpc enforceNpcOwnership(String campaignId, String id) {
+  private CampaignNpc enforceNpcOwnership(String id) {
+    String userId = requireUser();
     CampaignNpc n = npcs.findById(id)
         .orElseThrow(() -> new NoSuchElementException("NPC " + id + " not found"));
-    if (!campaignId.equals(n.getCampaign_id())) {
-      throw new IllegalArgumentException("NPC " + id + " does not belong to campaign " + campaignId);
+    if (!userId.equals(n.getOwner_user_id())) {
+      throw new IllegalArgumentException("Only the owner can modify this NPC");
+    }
+    return n;
+  }
+
+  /**
+   * Phase 9: NPCs are now global, so "this NPC is in this
+   * campaign" is by visibility (campaign_id or campaign_tags
+   * contains the campaign id), not by ownership.
+   */
+  private CampaignNpc enforceNpcVisibility(String campaignId, String id) {
+    CampaignNpc n = enforceNpcOwnership(id);
+    boolean visible = campaignId.equals(n.getCampaign_id())
+        || (n.getCampaign_tags() != null && n.getCampaign_tags().contains(campaignId));
+    if (!visible) {
+      throw new IllegalArgumentException("NPC " + id + " is not associated with campaign " + campaignId);
     }
     return n;
   }
