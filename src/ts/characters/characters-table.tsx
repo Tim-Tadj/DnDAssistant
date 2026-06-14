@@ -28,7 +28,7 @@ import {
 import { charactersApi, referenceApi } from '../api/characters';
 import { useList } from '../shared/useList';
 import { EntityBrowser } from '../shared/EntityBrowser';
-import CharacterCard from '../shared/CharacterCard';
+import CharacterDetailPanel from '../shared/CharacterDetailPanel';
 import { useToast } from '../shared/ToastProvider';
 import { useAuth } from '../auth/AuthContext';
 import PartiesPanel from '../shared/PartiesPanel';
@@ -298,7 +298,7 @@ const CharactersTable: FC = () => {
           remove: charactersApi.delete,
         }}
         columns={columns as GridColDef[]}
-        DetailCard={({ item }) => <CharacterCard item={item} />}
+        DetailCard={({ item }) => <CharacterDetailPanel item={item} />}
         Editor={({ initial, onChange }) => {
           const [races, setRaces] = useState<Race[]>([]);
           const [classes, setClasses] = useState<DndClass[]>([]);
