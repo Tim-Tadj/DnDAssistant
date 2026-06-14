@@ -36,12 +36,15 @@ import {
   Favorite,
   Healing,
   Info,
+  People,
+  PersonAdd,
   PinDrop,
   RemoveCircle,
   Shield,
   Speed,
 } from '@mui/icons-material';
 import { Monster } from '../types/Monster';
+import { Character } from '../types/Character';
 import MonsterStatBlock from '../shared/MonsterStatBlock';
 import { useMonsterStatPane } from '../shared/MonsterStatPane';
 import SelectMonster from './select-monster';
@@ -66,19 +69,23 @@ const CONDITION_LIST = [
   'Unconscious',
 ];
 
-const EncounterTracker: FC<{ monstersInCombat: Monster[] }> = ({
+const EncounterTracker: FC<{ monstersInCombat: Monster[]; party?: Character[] }> = ({
   monstersInCombat,
+  party,
 }) => {
   const theme = useTheme();
   const { monsters } = useMonsters();
   const statPane = useMonsterStatPane();
-  const tracker = useTrackEncounter(monstersInCombat);
+  const tracker = useTrackEncounter(monstersInCombat, party);
   const {
     remainingMonsters,
     onAddMonsters,
     onDeleteMonster,
     onUpdateHealth,
     onToggleCondition,
+    addPCs,
+    removePCs,
+    pcsAdded,
     currentIndex,
     nextTurn,
     reset,
@@ -127,6 +134,31 @@ const EncounterTracker: FC<{ monstersInCombat: Monster[] }> = ({
           </Typography>
         </Stack>
         <Stack direction="row" spacing={1}>
+          {party && party.length > 0 && !pcsAdded && (
+            <Tooltip title="Add the active party to initiative" arrow>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<PersonAdd />}
+                onClick={addPCs}
+                disabled={remainingMonsters.length === 0}
+              >
+                Add party ({party.length})
+              </Button>
+            </Tooltip>
+          )}
+          {pcsAdded && (
+            <Tooltip title="Remove PCs from initiative" arrow>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<People />}
+                onClick={removePCs}
+              >
+                Remove party
+              </Button>
+            </Tooltip>
+          )}
           <SelectMonster onSelectMonster={onAddMonsters} />
           <Tooltip title="Start a fresh encounter" arrow>
             <span>
@@ -322,22 +354,25 @@ const InitiativeRow: FC<{
   const hpPct = max > 0 ? Math.max(0, Math.min(100, (hp / max) * 100)) : 0;
   const bloodied = max > 0 && hp <= max / 2;
   const down = max > 0 && hp <= 0;
+  const accent = monster.isPC ? theme.palette.secondary.main : theme.palette.primary.main;
 
   return (
     <Box
       sx={{
         p: 1.5,
         backgroundColor: isCurrent
-          ? alpha(theme.palette.primary.main, 0.16)
+          ? alpha(accent, 0.16)
+          : monster.isPC
+          ? alpha(theme.palette.secondary.main, 0.04)
           : 'transparent',
         borderLeft: `4px solid ${
-          isCurrent ? theme.palette.primary.main : 'transparent'
+          isCurrent ? accent : 'transparent'
         }`,
         transition: 'background-color 150ms ease',
         '&:hover': {
           backgroundColor: isCurrent
-            ? alpha(theme.palette.primary.main, 0.2)
-            : alpha(theme.palette.primary.main, 0.04),
+            ? alpha(accent, 0.2)
+            : alpha(accent, 0.04),
         },
       }}
     >
@@ -347,7 +382,7 @@ const InitiativeRow: FC<{
             width: 36,
             height: 36,
             borderRadius: 1,
-            backgroundColor: alpha(theme.palette.primary.main, 0.16),
+            backgroundColor: alpha(accent, 0.16),
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -359,7 +394,7 @@ const InitiativeRow: FC<{
               fontFamily: '"JetBrains Mono", monospace',
               fontWeight: 700,
               fontSize: '0.95rem',
-              color: isCurrent ? 'primary.main' : 'text.primary',
+              color: isCurrent ? accent : 'text.primary',
             }}
           >
             {monster.initiative}

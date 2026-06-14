@@ -13,7 +13,26 @@ const getMonsterXP = (monster: Monster) => {
   return Number(monster.Challenge.split('(')[1].replace(/[^0-9.]/g, ''));
 };
 
-export default function useGenerateEncounter() {
+type GenerateEncounterState = {
+  searchQuery: string;
+  setSearchQuery: (s: string) => void;
+  setMonsterTypes: (t: string[]) => void;
+  setAlignments: (a: string[]) => void;
+  setSizes: (s: string[]) => void;
+  playerLevel: number;
+  setPlayerLevel: (n: number) => void;
+  partySize: number;
+  setPartySize: (n: number) => void;
+  difficulty: string;
+  setDifficulty: (d: string) => void;
+  experience: number[];
+  setExperience: (e: number[]) => void;
+  monstersInCombat: Monster[];
+  determineMonstersInEncounter: () => void;
+  clearEncounter: () => void;
+};
+
+export default function useGenerateEncounter(): GenerateEncounterState {
   const { monsters } = useMonsters();
   const [searchQuery, setSearchQuery] = React.useState<string>('');
   const [monsterTypes, setMonsterTypes] = React.useState<string[]>([]);

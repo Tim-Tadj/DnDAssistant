@@ -1,7 +1,10 @@
 // Combat state: combatants in initiative order, current turn index, round.
+// Phase 9: also accepts a party of PCs (one-shot per character) so
+// the tracker can include the players.
 
 import { useCallback, useEffect, useState } from 'react';
 import { Monster } from '../types/Monster';
+import { Character } from '../types/Character';
 import { v4 as uuidv4 } from 'uuid';
 
 export type RemainingMonster = {
@@ -12,11 +15,13 @@ export type RemainingMonster = {
   ac: number;
   initiative: number;
   conditions: string[];
+  isPC: boolean;
+  character_id?: string;
 };
 
 const createRemainingMonster = (monster: Monster): RemainingMonster => {
-  const modifier = parseInt(monster.DEX_mod.replace(/([(+)])/g, ''), 10);
-  const initiative = Math.floor(Math.random() * 20) + 1 + (isNaN(modifier) ? 0 : modifier);
+  const dex = parseInt(monster.DEX_mod?.replace(/([(+)])/g, '') ?? '0', 10);
+  const initiative = Math.floor(Math.random() * 20) + 1 + (isNaN(dex) ? 0 : dex);
   return {
     uuid: uuidv4(),
     name: monster.name,
@@ -25,6 +30,25 @@ const createRemainingMonster = (monster: Monster): RemainingMonster => {
     ac: parseInt(monster.AC, 10) || 10,
     initiative,
     conditions: [],
+    isPC: false,
+  };
+};
+
+const createRemainingPC = (c: Character): RemainingMonster => {
+  // Crude DEX modifier: take the dex score, compute mod.
+  const dexScore = c.dex ?? 10;
+  const dexMod = Math.floor((dexScore - 10) / 2);
+  const initiative = Math.floor(Math.random() * 20) + 1 + dexMod;
+  return {
+    uuid: uuidv4(),
+    name: c.name,
+    maxHP: `${c.hp_max ?? 10}`,
+    hp: c.hp_max ?? 10,
+    ac: c.ac ?? 10,
+    initiative,
+    conditions: [],
+    isPC: true,
+    character_id: c.id,
   };
 };
 
@@ -34,19 +58,46 @@ const getMonstersFromEncounter = (monsters: Monster[]): RemainingMonster[] => {
     .sort((a, b) => b.initiative - a.initiative);
 };
 
-const useTrackEncounter = (monstersInCombat: Monster[]) => {
+const getPCsFromParty = (party: Character[]): RemainingMonster[] => {
+  return party
+    .map(createRemainingPC)
+    .sort((a, b) => b.initiative - a.initiative);
+};
+
+const useTrackEncounter = (
+  monstersInCombat: Monster[],
+  party: Character[] = []
+) => {
   const [remainingMonsters, setRemainingMonsters] = useState(
     getMonstersFromEncounter(monstersInCombat)
   );
+  const [partyCharacters] = useState(party);
+  const [pcsAdded, setPcsAdded] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [round, setRound] = useState(1);
 
   useEffect(() => {
+    // Monsters reset whenever the input list changes. PCs are
+    // re-added only if the user toggles "Add PCs".
     const next = getMonstersFromEncounter(monstersInCombat);
     setRemainingMonsters(next);
     setCurrentIndex(0);
     setRound(1);
+    setPcsAdded(false);
   }, [monstersInCombat]);
+
+  const addPCs = useCallback(() => {
+    setRemainingMonsters((prev) => {
+      const next = [...prev, ...getPCsFromParty(partyCharacters)];
+      return next.sort((a, b) => b.initiative - a.initiative);
+    });
+    setPcsAdded(true);
+  }, [partyCharacters]);
+
+  const removePCs = useCallback(() => {
+    setRemainingMonsters((prev) => prev.filter((m) => !m.isPC));
+    setPcsAdded(false);
+  }, []);
 
   const onUpdateHealth = useCallback(
     (uuid: string, newHealth: number) => {
@@ -61,7 +112,6 @@ const useTrackEncounter = (monstersInCombat: Monster[]) => {
     (monster: RemainingMonster) => {
       setRemainingMonsters((prev) => {
         const filtered = prev.filter((m) => m.uuid !== monster.uuid);
-        // Adjust the current index so it stays valid
         const removedBefore = prev.findIndex((m) => m.uuid === monster.uuid);
         if (removedBefore !== -1 && removedBefore < currentIndex) {
           setCurrentIndex((i) => Math.max(0, i - 1));
@@ -109,20 +159,22 @@ const useTrackEncounter = (monstersInCombat: Monster[]) => {
   }, [remainingMonsters.length]);
 
   const reset = useCallback(() => {
-    setRemainingMonsters(getMonstersFromEncounter(monstersInCombat));
+    const next = getMonstersFromEncounter(monstersInCombat);
+    setRemainingMonsters(next);
     setCurrentIndex(0);
     setRound(1);
+    setPcsAdded(false);
   }, [monstersInCombat]);
-
-  const identifiedMonster: Monster | null = null;
 
   return {
     remainingMonsters,
-    identifiedMonster,
     onAddMonsters,
     onDeleteMonster,
     onUpdateHealth,
     onToggleCondition,
+    addPCs,
+    removePCs,
+    pcsAdded,
     currentIndex,
     nextTurn,
     reset,

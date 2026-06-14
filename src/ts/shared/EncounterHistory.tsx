@@ -15,16 +15,20 @@ import {
   Card,
   CardContent,
   Chip,
+  CircularProgress,
   IconButton,
   Stack,
   Typography,
   alpha,
   useTheme,
 } from '@mui/material';
-import { Casino, Close, Delete, History, Replay } from '@mui/icons-material';
+import { Casino, Close, Delete, History, OpenInNew, Replay } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import { EncounterSave, MonsterRef } from '../types/EncounterSave';
 import { encounterSavesApi } from '../api/encounter-saves';
 import { useToast } from './ToastProvider';
+import { useCampaignContext } from './CampaignContext';
+import { hydrateEncounterSave } from '../api/hydrate-encounter';
 import { Monster } from '../types/Monster';
 
 type Props = {
@@ -47,9 +51,12 @@ const formatDate = (d: string | null): string => {
 const EncounterHistory: FC<Props> = ({ campaignId, canEdit, onRerun }) => {
   const theme = useTheme();
   const { toast } = useToast();
+  const { setActiveCampaignId } = useCampaignContext();
+  const navigate = useNavigate();
   const [saves, setSaves] = useState<EncounterSave[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [reRunId, setReRunId] = useState<string | null>(null);
 
   const reload = async () => {
     setLoadError(null);
@@ -79,13 +86,27 @@ const EncounterHistory: FC<Props> = ({ campaignId, canEdit, onRerun }) => {
     }
   };
 
-  const onRerunClick = (s: EncounterSave) => {
-    if (!onRerun) return;
-    // Best-effort: the saved monsters carry id+name only. We
-    // can't reconstruct the full Monster stat block from a save
-    // (we'd need to refetch from /api/v1/monsters by id), so
-    // show a hint.
-    toast(`Re-run '${s.name}' (${s.monsters.length} monster types). Open the Encounters page to re-fight.`, 'info');
+  const onRerunClick = async (s: EncounterSave) => {
+    setReRunId(s.id ?? null);
+    try {
+      const monsters = await hydrateEncounterSave(s);
+      if (onRerun) {
+        onRerun(monsters);
+        toast(`Loaded '${s.name}' into the tracker`, 'success');
+        return;
+      }
+      // No onRerun: navigate the user to the Encounters page
+      // with the active campaign pre-set, so they can drop into
+      // the Live tab manually. The Library tab has its own
+      // Re-run button for the proper end-to-end flow.
+      setActiveCampaignId(campaignId);
+      navigate('encounter');
+      toast(`'${s.name}' ready — open the Library tab to re-run`, 'info');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : String(e), 'error');
+    } finally {
+      setReRunId(null);
+    }
   };
 
   return (
@@ -191,13 +212,22 @@ const EncounterHistory: FC<Props> = ({ campaignId, canEdit, onRerun }) => {
                     )}
                   </Stack>
                   <Stack direction="row" spacing={0.5}>
-                    {onRerun && s.monsters.length > 0 && (
+                    {s.monsters.length > 0 && (
                       <Button
                         size="small"
-                        startIcon={<Replay fontSize="small" />}
+                        startIcon={
+                          reRunId === s.id ? (
+                            <CircularProgress size={12} />
+                          ) : onRerun ? (
+                            <Replay fontSize="small" />
+                          ) : (
+                            <OpenInNew fontSize="small" />
+                          )
+                        }
                         onClick={() => onRerunClick(s)}
+                        disabled={reRunId === s.id}
                       >
-                        Re-run
+                        {reRunId === s.id ? 'Loading…' : onRerun ? 'Re-run' : 'Open in Encounters'}
                       </Button>
                     )}
                     {canEdit && (
