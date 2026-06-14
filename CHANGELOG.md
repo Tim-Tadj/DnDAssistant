@@ -15,6 +15,96 @@ start a fresh `[Unreleased]` section.
 ## [Unreleased]
 
 ### Added
+- **UI/UX redesign: dark-fantasy theme, persistent left-rail navigation,
+  shared entity browser, global command-K search.**
+  - Theme: Cinzel (display), Inter (body), JetBrains Mono (stat-block
+    numbers) loaded from Google Fonts. Parchment-gold accent over a
+    slate background, larger baseline (14px), and shared component
+    overrides (AppBar, Drawer, Paper, Dialog, TextField, Tabs,
+    Tooltip, Chip, Alert). A `PROVENANCE` palette (srd gold, derived
+    blue, homebrew green) is exported for chips and badges.
+  - App shell: `AppLayout` replaces the old `Header`. 240px left rail
+    (icon-only under 900px) with active-route indicator, branding,
+    and signed-in user card. Top bar with page title, search
+    trigger (Ctrl+K hint), and a user menu with shortcuts to My
+    Characters and My Campaigns. Old `Header.tsx` and `pages.ts`
+    removed.
+  - `ToastProvider`: a single Snackbar mounted at the app root; pages
+    call `useToast().toast('Saved')` instead of wiring per-page
+    Snackbar state.
+  - `EntityBrowser` shell: one shared component owns the
+    list/filter/search/detail-drawer/edit-drawer/delete-confirm state
+    machine. Each entity page supplies `useList`, `mutations`,
+    `columns`, `DetailCard`, `Editor`, `defaultItem`, `getRowId`,
+    `getRowName`, plus optional `isEditable` / `isDeletable` /
+    `filterChips`. The detail view is a side Drawer (right on
+    desktop, bottom on mobile) with sticky header, Edit/Delete
+    buttons, and provenance chip. The edit view is the same Drawer,
+    populated from the entity's existing editor component.
+  - `GlobalSearch` (Ctrl/Cmd+K): fuzzy search across monsters, spells,
+    gear, characters, and campaigns, grouped by entity type with
+    keyboard navigation and quick navigation to the matching page.
+  - `ProvenanceChip`: coloured chip used in tables and detail headers.
+  - `States`: shared `LoadingState`, `ErrorState`, and `EmptyState`
+    used by every browser.
+  - PHB-style stat blocks:
+    `MonsterStatBlock`, `SpellCard`, `GearDetailCard`, and
+    `CharacterCard` are the new detail views. They render the PHB
+    stat-block layout (italic name + meta header, AC/HP/Speed
+    boxed, 3x2 monospace ability-score grid with computed mods,
+    sectioned body) with parchment-gold accents and a thin gold
+    rule between stat rows.
+  - Encounter flow: the generator now has a side-by-side preview
+    pane that lists each generated monster with count, CR, and a
+    running XP total (raw + adjusted by the encounter-multiplier
+    table). The combat tracker is a real initiative list: vertical
+    list sorted by initiative descending, current turn highlighted,
+    "Next turn" advances through the list and increments the round
+    counter, per-row HP with a slider, status condition chips,
+    reset button. SelectMonster is a redesigned search + add
+    picker.
+  - Mechanics: the bundled rules JSON is now framed as a TOC with a
+    sticky left rail of guide titles and a right-pane card for the
+    selected guide's content.
+  - Auth dialog: side-by-side Sign in / Sign up cards (no tabs);
+    gradient background panel on the left with a Sign in / Sign up
+    toggle.
+
+### Changed
+- All five entity pages (monsters, spells, gear, characters,
+  campaigns) refactored onto the shared `EntityBrowser` shell.
+  Each page's pre-refactor implementation of the list/detail/edit/
+  delete-confirm state machine (~250 lines) is replaced with a
+  ~30-line configuration block.
+- Encounter generator control flow: filters and party settings on
+  the left in a sticky Paper, generated-encounter preview on the
+  right with XP totals, and the tracker rendered below. The
+  "Generate" button now feeds the preview, which feeds the tracker
+  by way of the new "Add" picker in the tracker header.
+- `useTrackEncounter` exposes `currentIndex`, `nextTurn`, `round`,
+  `onToggleCondition`, and `reset`; combat state is no longer
+  implicit. The `identifiedMonster` returned from the hook is
+  always null — the tracker looks up the full Monster via the
+  cached `useMonsters` list.
+- All `+`-delimited search inputs replaced with whitespace-
+  delimited; matching is now "all words must appear" rather than
+  "any word may appear", which matches user expectations.
+- Auth: sign-in / sign-up flow unchanged on the wire but the dialog
+  no longer uses `Tabs` for the mode toggle.
+
+### Removed
+- `src/ts/Header.tsx` (replaced by `AppLayout.tsx`).
+- `src/ts/pages.ts` (page list lives in `AppLayout`).
+- Legacy card / column-descriptor / create-dialog files for monsters,
+  spells, and gear (`monster-card.tsx`, `spell-card.tsx`,
+  `monster-column-descriptor.tsx`, `spell-column-descriptor.tsx`,
+  `gear-column-descriptors.tsx`, `create-monster.tsx`,
+  `create-spell.tsx`, `create-gear.tsx`). The `EntityBrowser` shell
+  covers all of this behaviour, and the new `*StatBlock` /
+  `*Card` components are the detail views.
+- `src/ts/shared/page-iterator.tsx` (no remaining users; the new
+  drawers handle paging).
+
 - Project documentation: `ROADMAP.md`, `PROJECT_STATUS.md`, `AGENTS.md`,
   `CHANGELOG.md`, and a `docs/spec/` specification directory.
 - Cross-platform run scripts: `scripts/run-all.ps1` and `scripts/run-all.sh`.
