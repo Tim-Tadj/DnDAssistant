@@ -1,6 +1,7 @@
 import React, { FC } from 'react';
 import { Box, Divider, Stack, Typography, alpha, useTheme, Chip } from '@mui/material';
 import { Campaign } from '../types/Campaign';
+import LinkedText from './LinkedText';
 
 const CampaignDetailCard: FC<{ item: Campaign }> = ({ item }) => {
   const theme = useTheme();
@@ -83,12 +84,7 @@ const CampaignDetailCard: FC<{ item: Campaign }> = ({ item }) => {
           >
             Notes
           </Typography>
-          <Typography
-            variant="body1"
-            sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}
-          >
-            {item.notes}
-          </Typography>
+          <LinkedText text={item.notes} campaignId={item.id} />
         </>
       )}
     </Box>

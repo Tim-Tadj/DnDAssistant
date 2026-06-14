@@ -31,6 +31,7 @@ import { Add, Close, Delete, Edit, EventNote, Save } from '@mui/icons-material';
 import { CampaignSession, defaultCampaignSession } from '../types/CampaignSession';
 import { sessionsApi } from '../api/sessions';
 import { useToast } from './ToastProvider';
+import LinkedText from './LinkedText';
 
 type Props = {
   campaignId: string;
@@ -445,12 +446,10 @@ const SessionsLog: FC<Props> = ({ campaignId, canEdit }) => {
                     <Typography variant="overline" color="primary.main">
                       Summary
                     </Typography>
-                    <Typography
-                      variant="body1"
-                      sx={{ whiteSpace: 'pre-wrap', mt: 0.5 }}
-                    >
-                      {viewing.summary}
-                    </Typography>
+                    <LinkedText
+                      text={viewing.summary}
+                      campaignId={campaignId}
+                    />
                   </Box>
                 )}
                 {viewing.prep_notes && (
@@ -460,12 +459,10 @@ const SessionsLog: FC<Props> = ({ campaignId, canEdit }) => {
                       <Typography variant="overline" color="primary.main">
                         Prep notes
                       </Typography>
-                      <Typography
-                        variant="body1"
-                        sx={{ whiteSpace: 'pre-wrap', mt: 0.5 }}
-                      >
-                        {viewing.prep_notes}
-                      </Typography>
+                      <LinkedText
+                        text={viewing.prep_notes}
+                        campaignId={campaignId}
+                      />
                     </Box>
                   </>
                 )}
