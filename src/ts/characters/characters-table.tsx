@@ -31,6 +31,7 @@ import { EntityBrowser } from '../shared/EntityBrowser';
 import CharacterCard from '../shared/CharacterCard';
 import { useToast } from '../shared/ToastProvider';
 import { useAuth } from '../auth/AuthContext';
+import PartiesPanel from '../shared/PartiesPanel';
 
 const ABILITIES: Array<{ key: keyof Character; label: string }> = [
   { key: 'str', label: 'STR' },
@@ -266,6 +267,7 @@ const CharactersTable: FC = () => {
   const { user } = useAuth();
   const { items, loadError, reload } = useList<Character>(charactersApi.list);
   const [mineFilter, setMineFilter] = useState(false);
+  const [activePartyId, setActivePartyId] = useState<string | null>(null);
   if (!user) {
     return (
       <Box>
@@ -279,29 +281,35 @@ const CharactersTable: FC = () => {
     );
   }
   return (
-    <EntityBrowser<Character>
-      title="My Characters"
-      items={items}
-      loadError={loadError}
-      reload={reload}
-      mutations={{
-        create: charactersApi.create,
-        update: charactersApi.update,
-        remove: charactersApi.delete,
-      }}
-      columns={columns as GridColDef[]}
-      DetailCard={({ item }) => <CharacterCard item={item} />}
-      Editor={({ initial, onChange }) => {
-        const [races, setRaces] = useState<Race[]>([]);
-        const [classes, setClasses] = useState<DndClass[]>([]);
-        useEffect(() => {
-          Promise.all([referenceApi.listRaces(), referenceApi.listClasses()])
-            .then(([r, c]) => {
-              setRaces(r);
-              setClasses(c);
-            })
-            .catch(() => undefined);
-        }, []);
+    <Box>
+      <PartiesPanel
+        characters={items ?? []}
+        activePartyId={activePartyId}
+        onActivePartyChange={setActivePartyId}
+      />
+      <EntityBrowser<Character>
+        title="My Characters"
+        items={items}
+        loadError={loadError}
+        reload={reload}
+        mutations={{
+          create: charactersApi.create,
+          update: charactersApi.update,
+          remove: charactersApi.delete,
+        }}
+        columns={columns as GridColDef[]}
+        DetailCard={({ item }) => <CharacterCard item={item} />}
+        Editor={({ initial, onChange }) => {
+          const [races, setRaces] = useState<Race[]>([]);
+          const [classes, setClasses] = useState<DndClass[]>([]);
+          useEffect(() => {
+            Promise.all([referenceApi.listRaces(), referenceApi.listClasses()])
+              .then(([r, c]) => {
+                setRaces(r);
+                setClasses(c);
+              })
+              .catch(() => undefined);
+          }, []);
         return (
           <CharacterEditorForm
             initial={initial}
@@ -323,7 +331,8 @@ const CharactersTable: FC = () => {
       showMineFilter={!!user}
       mineFilter={mineFilter}
       onMineFilterChange={setMineFilter}
-    />
+      />
+    </Box>
   );
 };
 

@@ -4,7 +4,7 @@
  * running XP total. "Add to combat" sends the encounter to the tracker.
  */
 
-import React, { FC, useMemo, useState } from 'react';
+import React, { FC, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Autocomplete,
@@ -43,8 +43,10 @@ import { Monster } from '../types/Monster';
 import useGenerateEncounter from './use-generate-encounter';
 import EncounterTracker from './encounter-tracker';
 import { charactersApi } from '../api/characters';
+import { partiesApi } from '../api/parties';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../shared/ToastProvider';
+import { Party } from '../types/Party';
 
 const PARTY_LEVELS = Array.from({ length: 20 }, (_, i) => i + 1);
 const PARTY_SIZES = Array.from({ length: 10 }, (_, i) => i + 1);
@@ -74,14 +76,39 @@ const EncounterGenerator: FC = () => {
 
   const [partyHint, setPartyHint] = useState<string | null>(null);
   const [partyHintError, setPartyHintError] = useState<string | null>(null);
+  const [parties, setParties] = useState<Party[]>([]);
+  const [activePartyId, setActivePartyId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    partiesApi
+      .list()
+      .then((p) => setParties(p))
+      .catch(() => undefined);
+  }, [user]);
 
   const onUseMyParty = async () => {
     if (!user) return;
     try {
-      const chars = await charactersApi.list();
-      if (chars.length === 0) {
+      const party = activePartyId
+        ? parties.find((p) => p.id === activePartyId)
+        : null;
+      let chars = party
+        ? (await charactersApi.list()).filter((c) =>
+            party.member_ids.includes(c.id)
+          )
+        : await charactersApi.list();
+      // Fall back to all chars if a party has 0 members
+      if (chars.length === 0 && !party) {
         setPartyHintError(
           'You have no characters yet. Create one on the Characters page first.'
+        );
+        setPartyHint(null);
+        return;
+      }
+      if (chars.length === 0 && party) {
+        setPartyHintError(
+          `Party "${party.name}" has no members. Add some on the Characters page.`
         );
         setPartyHint(null);
         return;
@@ -92,9 +119,13 @@ const EncounterGenerator: FC = () => {
       );
       setPlayerLevel(avgLevel);
       setPartyHint(
-        `Party of ${chars.length} character${
-          chars.length === 1 ? '' : 's'
-        }, average level ${avgLevel}.`
+        party
+          ? `Party "${party.name}": ${chars.length} character${
+              chars.length === 1 ? '' : 's'
+            }, average level ${avgLevel}.`
+          : `All characters: ${chars.length} character${
+              chars.length === 1 ? '' : 's'
+            }, average level ${avgLevel}.`
       );
       setPartyHintError(null);
     } catch (e) {
@@ -202,8 +233,30 @@ const EncounterGenerator: FC = () => {
               size="small"
               renderInput={(p) => <TextField {...p} label="Difficulty" />}
             />
+            {user && parties.length > 0 && (
+              <Autocomplete
+                size="small"
+                options={parties}
+                getOptionLabel={(o) => o.name}
+                value={parties.find((p) => p.id === activePartyId) ?? null}
+                onChange={(_e, v) => setActivePartyId(v?.id ?? null)}
+                renderInput={(p) => (
+                  <TextField
+                    {...p}
+                    label="Party"
+                    helperText={activePartyId ? '' : 'No party selected — use all characters'}
+                  />
+                )}
+              />
+            )}
             {user && (
-              <Button size="small" variant="outlined" onClick={onUseMyParty} startIcon={<People />}>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={onUseMyParty}
+                startIcon={<People />}
+                disabled={parties.length > 0 && !activePartyId}
+              >
                 Use my party
               </Button>
             )}
