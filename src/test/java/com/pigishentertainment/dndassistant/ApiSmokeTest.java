@@ -49,6 +49,16 @@ class ApiSmokeTest {
 
   @BeforeEach
   void clean() {
+    // V12 / V13 / V14 tables first (depend on characters / campaigns /
+    // parties via FKs) so we don't trip ON DELETE CASCADE ordering.
+    jdbc.update("DELETE FROM campaign_characters");
+    jdbc.update("DELETE FROM campaign_parties");
+    jdbc.update("DELETE FROM campaign_sessions");
+    jdbc.update("DELETE FROM campaign_npcs");
+    jdbc.update("DELETE FROM encounter_saves");
+    jdbc.update("DELETE FROM character_state");
+    jdbc.update("DELETE FROM parties");
+    jdbc.update("DELETE FROM party_members");
     jdbc.update("DELETE FROM characters");
     jdbc.update("DELETE FROM campaigns");
     jdbc.update("DELETE FROM monsters WHERE provenance = 'homebrew'");
@@ -506,5 +516,200 @@ class ApiSmokeTest {
         HttpMethod.GET, new HttpEntity<>(auth(token)), Map.class);
     assertEquals(18, ((Number) sget2.getBody().get("current_hp")).intValue());
     assertEquals(List.of("Prone"), sget2.getBody().get("conditions"));
+  }
+
+  // ---- Phase 9: campaign_characters, campaign_parties, global NPCs ----
+
+  @Test
+  void campaignCharacterStatePerCampaign() {
+    String token = tokenFor("ccuser");
+
+    // Create a character (canonical row, level 1, hp_max 10).
+    Map<String, Object> cbody = new HashMap<>();
+    cbody.put("name", "PC");
+    cbody.put("race_id", 4);
+    cbody.put("class_id", 5);
+    cbody.put("level", 1);
+    cbody.put("alignment", "N");
+    cbody.put("background", "");
+    cbody.put("str", 14); cbody.put("dex", 12); cbody.put("con", 13);
+    cbody.put("int_", 10); cbody.put("wis", 11); cbody.put("cha", 10);
+    cbody.put("hp_max", 10); cbody.put("ac", 15); cbody.put("notes", "");
+    ResponseEntity<Map> ccreated = client().postForEntity(
+        url("/characters"), new HttpEntity<>(cbody, auth(token)), Map.class);
+    String charId = (String) ccreated.getBody().get("id");
+
+    // Create a campaign.
+    Map<String, Object> campaignBody = Map.of(
+        "name", "CC", "description", "", "setting", "",
+        "status", "active", "notes", "");
+    ResponseEntity<Map> campaignCreated = client().postForEntity(
+        url("/campaigns"), new HttpEntity<>(campaignBody, auth(token)), Map.class);
+    String campaignId = (String) campaignCreated.getBody().get("id");
+
+    // GET the per-campaign state — should auto-init with the
+    // canonical level and hp_max.
+    ResponseEntity<Map> get = client().exchange(
+        url("/campaigns/" + campaignId + "/characters/" + charId),
+        HttpMethod.GET, new HttpEntity<>(auth(token)), Map.class);
+    assertEquals(HttpStatus.OK, get.getStatusCode());
+    assertEquals(1, ((Number) get.getBody().get("level")).intValue());
+    assertEquals(10, ((Number) get.getBody().get("hp_max_override")).intValue());
+
+    // PUT — override to level 5, hp_max 44, add a condition.
+    Map<String, Object> put = new HashMap<>();
+    put.put("character_id", charId);
+    put.put("level", 5);
+    put.put("hp_max_override", 44);
+    put.put("ac_override", 17);
+    put.put("notes", "Takes the Sentinel subclass in this campaign.");
+    put.put("conditions", List.of("Blessed"));
+    put.put("death_save_successes", 0);
+    put.put("death_save_failures", 0);
+    put.put("hit_dice_used", 0);
+    put.put("last_long_rest", null);
+    put.put("last_short_rest", null);
+    ResponseEntity<Map> updated = client().exchange(
+        url("/campaigns/" + campaignId + "/characters/" + charId),
+        HttpMethod.PUT, new HttpEntity<>(put, auth(token)), Map.class);
+    assertEquals(HttpStatus.OK, updated.getStatusCode());
+    assertEquals(5, ((Number) updated.getBody().get("level")).intValue());
+    assertEquals(44, ((Number) updated.getBody().get("hp_max_override")).intValue());
+
+    // Re-GET round-trips
+    ResponseEntity<Map> get2 = client().exchange(
+        url("/campaigns/" + campaignId + "/characters/" + charId),
+        HttpMethod.GET, new HttpEntity<>(auth(token)), Map.class);
+    assertEquals(5, ((Number) get2.getBody().get("level")).intValue());
+    assertEquals(44, ((Number) get2.getBody().get("hp_max_override")).intValue());
+    assertEquals(17, ((Number) get2.getBody().get("ac_override")).intValue());
+    assertEquals(List.of("Blessed"), get2.getBody().get("conditions"));
+
+    // Canonical character row is NOT changed.
+    ResponseEntity<Map> charGet = client().exchange(
+        url("/characters/" + charId), HttpMethod.GET,
+        new HttpEntity<>(auth(token)), Map.class);
+    assertEquals(1, ((Number) charGet.getBody().get("level")).intValue());
+    assertEquals(10, ((Number) charGet.getBody().get("hp_max")).intValue());
+
+    // DELETE removes the per-campaign row only.
+    ResponseEntity<Void> del = client().exchange(
+        url("/campaigns/" + campaignId + "/characters/" + charId),
+        HttpMethod.DELETE, new HttpEntity<>(auth(token)), Void.class);
+    assertEquals(HttpStatus.OK, del.getStatusCode());
+    ResponseEntity<List> listed = client().exchange(
+        url("/campaigns/" + campaignId + "/characters"),
+        HttpMethod.GET, new HttpEntity<>(auth(token)), List.class);
+    assertEquals(0, ((List<?>) listed.getBody()).size());
+  }
+
+  @Test
+  void campaignPartyLinkAndUnlink() {
+    String token = tokenFor("pluser");
+
+    // Two parties.
+    Map<String, Object> p1 = Map.of("name", "Heroes", "description", "", "member_ids", List.of());
+    Map<String, Object> p2 = Map.of("name", "Villains", "description", "", "member_ids", List.of());
+    ResponseEntity<Map> party1 = client().postForEntity(
+        url("/parties"), new HttpEntity<>(p1, auth(token)), Map.class);
+    ResponseEntity<Map> party2 = client().postForEntity(
+        url("/parties"), new HttpEntity<>(p2, auth(token)), Map.class);
+    String party1Id = (String) party1.getBody().get("id");
+    String party2Id = (String) party2.getBody().get("id");
+
+    // One campaign.
+    Map<String, Object> cbody = Map.of(
+        "name", "PL", "description", "", "setting", "",
+        "status", "active", "notes", "");
+    ResponseEntity<Map> cc = client().postForEntity(
+        url("/campaigns"), new HttpEntity<>(cbody, auth(token)), Map.class);
+    String cid = (String) cc.getBody().get("id");
+
+    // Link both parties to the campaign.
+    Map<String, Object> link1 = Map.of("party_id", party1Id);
+    ResponseEntity<Map> l1 = client().postForEntity(
+        url("/campaigns/" + cid + "/parties"),
+        new HttpEntity<>(link1, auth(token)), Map.class);
+    assertEquals(HttpStatus.CREATED, l1.getStatusCode());
+
+    Map<String, Object> link2 = Map.of("party_id", party2Id);
+    ResponseEntity<Map> l2 = client().postForEntity(
+        url("/campaigns/" + cid + "/parties"),
+        new HttpEntity<>(link2, auth(token)), Map.class);
+    assertEquals(HttpStatus.CREATED, l2.getStatusCode());
+
+    // GET should return both.
+    ResponseEntity<List> listed = client().exchange(
+        url("/campaigns/" + cid + "/parties"),
+        HttpMethod.GET, new HttpEntity<>(auth(token)), List.class);
+    assertEquals(HttpStatus.OK, listed.getStatusCode());
+    assertEquals(2, ((List<?>) listed.getBody()).size());
+
+    // Unlink one.
+    ResponseEntity<Void> unlinked = client().exchange(
+        url("/campaigns/" + cid + "/parties/" + party1Id),
+        HttpMethod.DELETE, new HttpEntity<>(auth(token)), Void.class);
+    assertEquals(HttpStatus.OK, unlinked.getStatusCode());
+
+    ResponseEntity<List> listed2 = client().exchange(
+        url("/campaigns/" + cid + "/parties"),
+        HttpMethod.GET, new HttpEntity<>(auth(token)), List.class);
+    assertEquals(1, ((List<?>) listed2.getBody()).size());
+  }
+
+  @Test
+  void globalNpcCrudWithCampaignTags() {
+    String token = tokenFor("gnuser");
+
+    // One campaign (so we can tag the NPC against it).
+    Map<String, Object> cbody = Map.of(
+        "name", "GN", "description", "", "setting", "",
+        "status", "active", "notes", "");
+    ResponseEntity<Map> cc = client().postForEntity(
+        url("/campaigns"), new HttpEntity<>(cbody, auth(token)), Map.class);
+    String cid = (String) cc.getBody().get("id");
+
+    // Create a global NPC tagged with the campaign.
+    Map<String, Object> nbody = new HashMap<>();
+    nbody.put("name", "Brigand Captain");
+    nbody.put("role", "Antagonist");
+    nbody.put("race", "Human");
+    nbody.put("alignment", "LE");
+    nbody.put("description", "Leader of the road bandits.");
+    nbody.put("status", "alive");
+    nbody.put("location", "King's Road");
+    nbody.put("monster_id", null);
+    nbody.put("notes", "Captured in session 4.");
+    nbody.put("campaign_tags", List.of(cid));
+    nbody.put("campaign_id", cid);
+    ResponseEntity<Map> ncreated = client().postForEntity(
+        url("/npcs"), new HttpEntity<>(nbody, auth(token)), Map.class);
+    assertEquals(HttpStatus.CREATED, ncreated.getStatusCode());
+    String npcId = (String) ncreated.getBody().get("id");
+
+    // GET /npcs returns it.
+    ResponseEntity<List> listed = client().exchange(
+        url("/npcs"), HttpMethod.GET, new HttpEntity<>(auth(token)), List.class);
+    assertEquals(HttpStatus.OK, listed.getStatusCode());
+    assertTrue(((List<?>) listed.getBody()).size() >= 1);
+
+    // GET /npcs?campaign=cid filters to NPCs tagged with that campaign.
+    ResponseEntity<List> filtered = client().exchange(
+        url("/npcs?campaign=" + cid),
+        HttpMethod.GET, new HttpEntity<>(auth(token)), List.class);
+    assertEquals(HttpStatus.OK, filtered.getStatusCode());
+    assertEquals(1, ((List<?>) filtered.getBody()).size());
+
+    // Other user can't see it.
+    String otherToken = tokenFor("otherguy");
+    ResponseEntity<List> otherListed = client().exchange(
+        url("/npcs"), HttpMethod.GET, new HttpEntity<>(auth(otherToken)), List.class);
+    assertEquals(0, ((List<?>) otherListed.getBody()).size());
+
+    // DELETE
+    ResponseEntity<Void> del = client().exchange(
+        url("/npcs/" + npcId), HttpMethod.DELETE,
+        new HttpEntity<>(auth(token)), Void.class);
+    assertEquals(HttpStatus.NO_CONTENT, del.getStatusCode());
   }
 }

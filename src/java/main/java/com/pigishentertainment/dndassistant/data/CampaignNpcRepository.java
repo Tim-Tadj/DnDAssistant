@@ -67,11 +67,12 @@ public class CampaignNpcRepository {
   public List<CampaignNpc> findByOwnerAndCampaignTag(String ownerUserId, String campaignIdOrName) {
     MapSqlParameterSource p = new MapSqlParameterSource();
     p.addValue("uid", ownerUserId, Types.OTHER);
+    p.addValue("cid", campaignIdOrName, Types.OTHER);
     p.addValue("tag", "%" + campaignIdOrName + "%");
     return jdbc.query(
         "SELECT * FROM campaign_npcs"
             + " WHERE owner_user_id = :uid"
-            + " AND (campaign_id = CAST(:tag AS UUID) OR campaign_tags LIKE :tag)"
+            + " AND (campaign_id = :cid OR campaign_tags LIKE :tag)"
             + " ORDER BY lower(name)",
         p, rowMapper);
   }

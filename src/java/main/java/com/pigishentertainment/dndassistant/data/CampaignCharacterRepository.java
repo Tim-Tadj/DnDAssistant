@@ -138,8 +138,15 @@ public class CampaignCharacterRepository {
 
   public CampaignCharacter upsert(CampaignCharacter c) {
     if (c.getId() == null || c.getId().isBlank()) {
-      // No id provided: this is a fresh insert
-      return insert(c);
+      // No id provided: look up an existing row by (campaign, character)
+      // and update it. If none exists, insert.
+      Optional<CampaignCharacter> existing =
+          findByCampaignAndCharacter(c.getCampaign_id(), c.getCharacter_id());
+      if (existing.isPresent()) {
+        c.setId(existing.get().getId());
+      } else {
+        return insert(c);
+      }
     }
     String condsJson;
     try {
