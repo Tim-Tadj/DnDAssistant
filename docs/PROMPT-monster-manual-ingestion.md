@@ -10,7 +10,7 @@ D&D 5e Dungeon Master tool (React/TypeScript frontend + Java/Maven + PostgreSQL
 backend). Your job is to ingest the entire Monster Manual into the app. Work on
 the branch `DnDAssistant-MVP-Run` (this prompt originally referenced
 `feature/monster-manual-ingestion`, which has since been renamed to the
-MVP-run branch — see [AGENTS.md](../../AGENTS.md)). Do not push to `main`.
+MVP-run branch — see [AGENTS.md](../AGENTS.md)). Do not push to `main`.
 
 ## Step 0 — Understand the codebase first (read, in this order)
 

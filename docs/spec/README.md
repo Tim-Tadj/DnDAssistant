@@ -5,7 +5,7 @@ data model, the REST API contract, content ingestion, and per-feature behavior.
 
 Keep these documents in sync with the code. When you change behavior, update the
 relevant spec in the same change; when you change *plans*, update
-[../../ROADMAP.md](../../ROADMAP.md) and [../../PROJECT_STATUS.md](../../PROJECT_STATUS.md).
+[../ROADMAP.md](../ROADMAP.md) and [../PROJECT_STATUS.md](../PROJECT_STATUS.md).
 
 ## Index
 

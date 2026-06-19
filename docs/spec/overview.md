@@ -21,7 +21,7 @@
 
 The frontend and backend are **not connected**. The SPA reads bundled JSON from
 `src/res/`. The backend can build and start but its JDBC connection points at
-Adminer's port and its DDL is invalid (see [../../PROJECT_STATUS.md](../../PROJECT_STATUS.md)).
+Adminer's port and its DDL is invalid (see [../PROJECT_STATUS.md](../PROJECT_STATUS.md)).
 
 ## System, target state
 

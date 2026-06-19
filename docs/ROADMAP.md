@@ -5,8 +5,8 @@ Where DnDAssistant has been and where it goes next. Phases 0–6 are
 as of 2026-06-19). Phase 7 is the next round of polish.
 
 For current detailed status see [PROJECT_STATUS.md](PROJECT_STATUS.md);
-for architecture see [CLOUDFLARE-IMPLEMENTATION.md](CLOUDFLARE-IMPLEMENTATION.md);
-for the deploy workflow see [CLOUDFLARE-RUNBOOK.md](CLOUDFLARE-RUNBOOK.md).
+for architecture see [cloudflare/IMPLEMENTATION.md](cloudflare/IMPLEMENTATION.md);
+for the deploy workflow see [cloudflare/RUNBOOK.md](cloudflare/RUNBOOK.md).
 
 **Vision:** a live, multi-user web app where a Dungeon Master browses and
 creates D&D 5e content (monsters, spells, gear), persists it to a
@@ -98,7 +98,7 @@ Worker + D1 stack:
       sessions + npcs + campaign-npcs + campaign-characters +
       campaign-parties + encounter-saves + import + reference. Verified
       end-to-end via `wrangler dev` (see
-      [CLOUDFLARE-RUNBOOK.md](CLOUDFLARE-RUNBOOK.md)).
+      [cloudflare/RUNBOOK.md](cloudflare/RUNBOOK.md)).
 - [x] Cloudflare Pages deploy of the React SPA (SHA `Avandria.png`
       compressed to JPEG to fit the 25 MiB per-file limit).
 - [x] Idempotent seed pipeline (5 per-table SQL files, all `INSERT
@@ -130,7 +130,7 @@ What we'd add next, roughly in order:
 - [ ] **Custom domain + same-origin routing** — point a real
       domain at Pages, add a Worker route `yourdomain.com/api/v1/*`,
       set `REACT_APP_API_BASE=/api/v1`, drop the CORS allow-list.
-      See [CLOUDFLARE-IMPLEMENTATION.md](CLOUDFLARE-IMPLEMENTATION.md)
+      See [cloudflare/IMPLEMENTATION.md](cloudflare/IMPLEMENTATION.md)
       → "Production routing options".
 - [ ] **PHB ingestions** — spells + gear + (eventually) more. Blocked
       on having a curated corpus + normalizer.

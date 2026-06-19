@@ -1,7 +1,7 @@
 # D&D Assistant — Cloudflare Worker API
 
 TypeScript (Hono) backend, backed by Cloudflare D1. Serves `/api/v1/*`.
-See [`../CLOUDFLARE-IMPLEMENTATION.md`](../CLOUDFLARE-IMPLEMENTATION.md)
+See [`../docs/cloudflare/IMPLEMENTATION.md`](../docs/cloudflare/IMPLEMENTATION.md)
 for the architecture, wire contract, and ownership model.
 
 ## First-time setup

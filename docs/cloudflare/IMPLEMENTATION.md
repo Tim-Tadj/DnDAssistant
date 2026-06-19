@@ -4,7 +4,7 @@ The D&D Assistant API runs on **Cloudflare Workers** (Hono + TypeScript) and
 data lives in **Cloudflare D1** (SQLite). The React SPA ships from
 **Cloudflare Pages**. This document covers how it's wired up — for the
 deploy runbook (commands, pitfalls, gotchas), see
-[CLOUDFLARE-RUNBOOK.md](CLOUDFLARE-RUNBOOK.md).
+[RUNBOOK.md](RUNBOOK.md).
 
 ## Architecture
 
@@ -194,8 +194,8 @@ The Worker's config lives in [`worker/wrangler.toml`](worker/wrangler.toml):
 
 ## Deploy
 
-End-to-end deploy lives in [README.md](README.md) → "Deploy to production"
-and [CLOUDFLARE-RUNBOOK.md](CLOUDFLARE-RUNBOOK.md) → "How to redeploy".
+End-to-end deploy lives in [README.md](../../README.md) → "Deploy to production"
+and [RUNBOOK.md](RUNBOOK.md) → "How to redeploy".
 
 The single-command workflow:
 

@@ -10,10 +10,12 @@ interactive map.
 - **API:** **Cloudflare Worker** (Hono + TypeScript) → **Cloudflare D1** (SQLite).
 - **Auth:** stateless JWT (HS256); passwords hashed with PBKDF2 (WebCrypto).
 
-> New here? Read [AGENTS.md](AGENTS.md) for conventions and [docs/spec/](docs/spec/)
-> for design specs. See [CLOUDFLARE-IMPLEMENTATION.md](CLOUDFLARE-IMPLEMENTATION.md)
-> for the architecture and wire contract; [CLOUDFLARE-RUNBOOK.md](CLOUDFLARE-RUNBOOK.md)
-> for the deploy commands and known pitfalls.
+> New here? Read [docs/AGENTS.md](docs/AGENTS.md) for conventions and
+> [docs/spec/](docs/spec/) for design specs. See
+> [docs/cloudflare/IMPLEMENTATION.md](docs/cloudflare/IMPLEMENTATION.md) for the
+> architecture and wire contract;
+> [docs/cloudflare/RUNBOOK.md](docs/cloudflare/RUNBOOK.md) for the deploy
+> commands and known pitfalls.
 
 ## Architecture
 
@@ -154,7 +156,7 @@ The `Worker`, `D1`, and `JWT_SECRET` are persistent across deploys — re-runnin
 - **Same origin (no CORS):** put the API on the same domain as Pages via a
   custom domain + a Worker route `yourdomain.com/api/v1/*`, then set
   `REACT_APP_API_BASE=/api/v1`. See
-  [CLOUDFLARE-IMPLEMENTATION.md](CLOUDFLARE-IMPLEMENTATION.md) for the
+  [docs/cloudflare/IMPLEMENTATION.md](docs/cloudflare/IMPLEMENTATION.md) for the
   routing options.
 
 ## Configuration
@@ -185,7 +187,7 @@ curl -X POST http://127.0.0.1:8787/api/v1/import \
 shape (round-trippable). The bundled seed of the SRD data + the 409-monster
 Monster Manual runs via `npm run seed:local` / `npm run seed:remote` — see
 [worker/seed/README.md](worker/seed/README.md) and
-[CLOUDFLARE-IMPLEMENTATION.md](CLOUDFLARE-IMPLEMENTATION.md).
+[docs/cloudflare/IMPLEMENTATION.md](docs/cloudflare/IMPLEMENTATION.md).
 
 ## Project layout
 

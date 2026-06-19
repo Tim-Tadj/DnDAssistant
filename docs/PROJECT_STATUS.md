@@ -14,8 +14,8 @@ backend was ported to a Cloudflare Worker (Hono + TypeScript) + D1
 (SQLite) stack and went live on 2026-06-19. The Java backend was
 archived to branch `archive/spring-boot-backend` (preserves history);
 no further work is planned on it. See
-[CLOUDFLARE-IMPLEMENTATION.md](CLOUDFLARE-IMPLEMENTATION.md) for the
-architecture, [CLOUDFLARE-RUNBOOK.md](CLOUDFLARE-RUNBOOK.md) for the
+[cloudflare/IMPLEMENTATION.md](cloudflare/IMPLEMENTATION.md) for the
+architecture, [cloudflare/RUNBOOK.md](cloudflare/RUNBOOK.md) for the
 deploy workflow + lessons, and
 [CHANGELOG.md](CHANGELOG.md) for the migration log.
 
@@ -55,7 +55,7 @@ deploy workflow + lessons, and
 | Auth / multi-user | ✅ | PBKDF2 password hashing (WebCrypto), HS256 JWT (24h TTL) via `hono/jwt`, `attachUser` + `requireAuth` middleware. `wrangler secret put JWT_SECRET`. |
 | Ownership | ✅ | `owner_user_id` on spells/monsters/gear/characters/campaigns/sessions/npcs/encounters. SRD/derived read-only; homebrew visible only to owner (plus NULL-owner global homebrew from seeded custom_* corpora). |
 | Content import | ✅ | Generic upsert pipeline (spells/monsters/gear) by natural key. Per-item error isolation. Snapshot endpoint exports in the same shape for backups. |
-| Backend smoke tests | ✅ | 13 Spring Boot integration tests in `archive/spring-boot-backend/src/test/`. Worker-side equivalent: `wrangler dev` + `curl` smoke verified for every resource route during the migration (see CLOUDFLARE-RUNBOOK.md). Jest equivalents for Worker code: not yet written. |
+| Backend smoke tests | ✅ | 13 Spring Boot integration tests in `archive/spring-boot-backend/src/test/`. Worker-side equivalent: `wrangler dev` + `curl` smoke verified for every resource route during the migration (see [cloudflare/RUNBOOK.md](cloudflare/RUNBOOK.md)). Jest equivalents for Worker code: not yet written. |
 
 ## Live URLs (after first deploy)
 
@@ -81,7 +81,7 @@ deploy workflow + lessons, and
   the alias URL changes per branch / per worker. Bake
   `REACT_APP_API_BASE` into the build at deploy time
   (`cmd /c "set REACT_APP_API_BASE=...&& npm run build"`) so it matches
-  the live Worker. See CLOUDFLARE-RUNBOOK.md → "What broke" #7.
+  the live Worker. See [cloudflare/RUNBOOK.md](cloudflare/RUNBOOK.md) → "What broke" #7.
 - **Old TypeScript** was upgraded to `^4.9.5` (from `^3.4`) but is
   still one major version behind current. Works fine; tracked for a
   future bump.
