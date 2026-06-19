@@ -123,7 +123,7 @@ const SpellEditor: FC<{
               ...newSpell,
               components: getNewComponents({
                 materials_needed: [
-                  ...newSpell.components.materials_needed, event.target.value
+                  ...(newSpell.components.materials_needed ?? []), event.target.value
                 ]
               })
             })}

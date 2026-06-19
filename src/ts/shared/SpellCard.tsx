@@ -59,9 +59,9 @@ const SpellCard: FC<{ spell: Spell }> = ({ spell }) => {
               {spell.components.verbal && <Chip label="V" size="small" />}
               {spell.components.somatic && <Chip label="S" size="small" />}
               {spell.components.material && <Chip label="M" size="small" />}
-              {spell.components.materials_needed.length > 0 && (
+              {(spell.components.materials_needed ?? []).length > 0 && (
                 <Typography variant="body2" color="text.secondary">
-                  ({spell.components.materials_needed.join(', ')})
+                  ({(spell.components.materials_needed ?? []).join(', ')})
                 </Typography>
               )}
             </Stack>

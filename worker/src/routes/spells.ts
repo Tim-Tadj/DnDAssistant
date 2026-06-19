@@ -47,14 +47,33 @@ const joinCsv = (v: unknown): string =>
       ? v
       : '';
 
-function parseComponents(text: string | null): unknown {
-  if (!text) return { material: false, somatic: false, verbal: false, materials_needed: [], raw: '' };
+const DEFAULT_COMPONENTS = { material: false, somatic: false, verbal: false, materials_needed: [] as string[], raw: '' };
+
+function parseComponents(text: string | null): {
+  material: boolean;
+  somatic: boolean;
+  verbal: boolean;
+  materials_needed: string[];
+  raw: string;
+} {
+  if (!text) return { ...DEFAULT_COMPONENTS };
+  let v: unknown;
   try {
-    const v = JSON.parse(text);
-    return v && typeof v === 'object' ? v : { material: false, somatic: false, verbal: false, materials_needed: [], raw: text };
+    v = JSON.parse(text);
   } catch {
-    return { material: false, somatic: false, verbal: false, materials_needed: [], raw: text };
+    return { ...DEFAULT_COMPONENTS, raw: text };
   }
+  if (!v || typeof v !== 'object') return { ...DEFAULT_COMPONENTS, raw: text };
+  // Older seed data (pre-Phase-7) was written without a materials_needed
+  // array; normalise so the wire is always consistent.
+  const o = v as Record<string, unknown>;
+  return {
+    material: !!o.material,
+    somatic: !!o.somatic,
+    verbal: !!o.verbal,
+    materials_needed: Array.isArray(o.materials_needed) ? o.materials_needed : [],
+    raw: typeof o.raw === 'string' ? o.raw : text,
+  };
 }
 
 const serializeComponents = (v: unknown): string =>
