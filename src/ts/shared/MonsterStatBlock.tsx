@@ -34,12 +34,12 @@ const abilityMod = (score: string): string => {
 };
 
 const ABILITIES: Array<{ key: keyof Monster; label: string; mod: keyof Monster }> = [
-  { key: 'STR', label: 'STR', mod: 'STR_mod' },
-  { key: 'DEX', label: 'DEX', mod: 'DEX_mod' },
-  { key: 'CON', label: 'CON', mod: 'CON_mod' },
-  { key: 'INT', label: 'INT', mod: 'INT_mod' },
-  { key: 'WIS', label: 'WIS', mod: 'WIS_mod' },
-  { key: 'CHA', label: 'CHA', mod: 'CHA_mod' },
+  { key: 'str', label: 'STR', mod: 'str_mod' },
+  { key: 'dex', label: 'DEX', mod: 'dex_mod' },
+  { key: 'con', label: 'CON', mod: 'con_mod' },
+  { key: 'int', label: 'INT', mod: 'int_mod' },
+  { key: 'wis', label: 'WIS', mod: 'wis_mod' },
+  { key: 'cha', label: 'CHA', mod: 'cha_mod' },
 ];
 
 const Section: FC<{ title: string; theme: Theme; children: React.ReactNode }> = ({
@@ -241,9 +241,9 @@ const MonsterStatBlock: FC<{ monster: Monster; compact?: boolean }> = ({
 
       {/* Defense row */}
       <Stack direction="row" spacing={1} sx={{ my: 1.5 }}>
-        <StatBox label="Armor Class" value={monster.AC} accent />
-        <StatBox label="Hit Points" value={monster.HP} accent />
-        <StatBox label="Speed" value={monster.Speed} />
+        <StatBox label="Armor Class" value={monster.ac} accent />
+        <StatBox label="Hit Points" value={monster.hp} accent />
+        <StatBox label="Speed" value={monster.speed} />
       </Stack>
 
       <Divider sx={{ borderColor: theme.palette.divider }} />
@@ -280,15 +280,15 @@ const MonsterStatBlock: FC<{ monster: Monster; compact?: boolean }> = ({
 
       {/* Defenses / senses / CR */}
       {[
-        { label: 'Saving Throws', val: monster.Saving_Throws },
-        { label: 'Skills', val: monster.Skills },
-        { label: 'Damage Vulnerabilities', val: monster.Damage_Vulnerabilities },
-        { label: 'Damage Resistances', val: monster.Damage_Resistances },
-        { label: 'Damage Immunities', val: monster.Damage_Immunities },
-        { label: 'Condition Immunities', val: monster.Condition_Immunities },
-        { label: 'Senses', val: monster.Senses },
-        { label: 'Languages', val: monster.Languages },
-        { label: 'Challenge', val: monster.Challenge },
+        { label: 'Saving Throws', val: monster.saving_throws },
+        { label: 'Skills', val: monster.skills },
+        { label: 'Damage Vulnerabilities', val: monster.damage_vulnerabilities },
+        { label: 'Damage Resistances', val: monster.damage_resistances },
+        { label: 'Damage Immunities', val: monster.damage_immunities },
+        { label: 'Condition Immunities', val: monster.condition_immunities },
+        { label: 'Senses', val: monster.senses },
+        { label: 'Languages', val: monster.languages },
+        { label: 'Challenge', val: monster.challenge },
       ]
         .filter((row) => row.val && row.val.trim() && row.val !== '--')
         .map((row) => (
@@ -329,15 +329,15 @@ const MonsterStatBlock: FC<{ monster: Monster; compact?: boolean }> = ({
         />
       )}
 
-      {monster.Traits && <Section title="Traits" theme={theme}>{monster.Traits}</Section>}
-      {monster.Actions && <Section title="Actions" theme={theme}>{monster.Actions}</Section>}
-      {monster.Reactions && <Section title="Reactions" theme={theme}>{monster.Reactions}</Section>}
-      {monster.Legendary_Actions && (
-        <Section title="Legendary Actions" theme={theme}>{monster.Legendary_Actions}</Section>
+      {monster.traits && <Section title="Traits" theme={theme}>{monster.traits}</Section>}
+      {monster.actions && <Section title="Actions" theme={theme}>{monster.actions}</Section>}
+      {monster.reactions && <Section title="Reactions" theme={theme}>{monster.reactions}</Section>}
+      {monster.legendary_actions && (
+        <Section title="Legendary Actions" theme={theme}>{monster.legendary_actions}</Section>
       )}
-      {monster.Lair_Actions && <Section title="Lair Actions" theme={theme}>{monster.Lair_Actions}</Section>}
-      {monster.Regional_Effects && (
-        <Section title="Regional Effects" theme={theme}>{monster.Regional_Effects}</Section>
+      {monster.lair_actions && <Section title="Lair Actions" theme={theme}>{monster.lair_actions}</Section>}
+      {monster.regional_effects && (
+        <Section title="Regional Effects" theme={theme}>{monster.regional_effects}</Section>
       )}
     </Box>
   );

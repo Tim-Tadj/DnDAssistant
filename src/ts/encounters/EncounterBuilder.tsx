@@ -174,7 +174,7 @@ const EncounterBuilder: FC = () => {
   const totalXP = useMemo(
     () =>
       generated.reduce(
-        (acc, m) => acc + Number(m.Challenge?.split('(')[1]?.replace(/[^0-9.]/g, '') ?? 0),
+        (acc, m) => acc + Number(m.challenge?.split('(')[1]?.replace(/[^0-9.]/g, '') ?? 0),
         0,
       ),
     [generated],
@@ -416,10 +416,10 @@ const EncounterBuilder: FC = () => {
                     variant="body2"
                     sx={{ fontFamily: '"JetBrains Mono", monospace' }}
                   >
-                    CR {monster.Challenge}
+                    CR {monster.challenge}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    AC {monster.AC} · HP {monster.HP}
+                    AC {monster.ac} · HP {monster.hp}
                   </Typography>
                 </Stack>
               </Stack>

@@ -158,7 +158,7 @@ const GlobalSearch: FC<{
           kind: 'monster',
           id: String(m.id ?? m.name),
           label: m.name,
-          hint: `${m.meta ?? ''} · CR ${m.Challenge ?? '?'}`.trim(),
+          hint: `${m.meta ?? ''} · CR ${m.challenge ?? '?'}`.trim(),
           path: `monsters`,
         });
     }

@@ -20,14 +20,14 @@ export type RemainingMonster = {
 };
 
 const createRemainingMonster = (monster: Monster): RemainingMonster => {
-  const dex = parseInt(monster.DEX_mod?.replace(/([(+)])/g, '') ?? '0', 10);
+  const dex = parseInt(monster.dex_mod?.replace(/([(+)])/g, '') ?? '0', 10);
   const initiative = Math.floor(Math.random() * 20) + 1 + (isNaN(dex) ? 0 : dex);
   return {
     uuid: uuidv4(),
     name: monster.name,
-    maxHP: monster.HP,
-    hp: parseInt(monster.HP, 10) || 0,
-    ac: parseInt(monster.AC, 10) || 10,
+    maxHP: monster.hp,
+    hp: parseInt(monster.hp, 10) || 0,
+    ac: parseInt(monster.ac, 10) || 10,
     initiative,
     conditions: [],
     isPC: false,

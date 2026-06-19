@@ -10,7 +10,7 @@ import { Monster } from '../types/Monster';
 import useMonsters from './use-monsters';
 
 const getMonsterXP = (monster: Monster) => {
-  return Number(monster.Challenge.split('(')[1].replace(/[^0-9.]/g, ''));
+  return Number(monster.challenge.split('(')[1].replace(/[^0-9.]/g, ''));
 };
 
 type GenerateEncounterState = {

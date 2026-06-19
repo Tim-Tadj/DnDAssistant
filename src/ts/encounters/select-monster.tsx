@@ -136,7 +136,7 @@ const SelectMonster: FC<{
                           </Typography>
                         </Box>
                         <Chip
-                          label={m.Challenge}
+                          label={m.challenge}
                           size="small"
                           sx={{
                             fontFamily: '"JetBrains Mono", monospace',
@@ -184,7 +184,7 @@ const SelectMonster: FC<{
                             color="text.secondary"
                             noWrap
                           >
-                            CR {m.Challenge}
+                            CR {m.challenge}
                           </Typography>
                         </Box>
                         <IconButton
