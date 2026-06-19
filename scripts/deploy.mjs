@@ -130,12 +130,14 @@ const ensureD1 = async () => {
     info("A 'dnd-assistant' D1 already exists on this account. Looking it up…");
     const list = run('npx', ['wrangler', 'd1', 'list']);
     if (list.status === 0) {
-      // Each row in the table starts with the database id (uuid) followed
-      // by the name. Match the row whose name cell is exactly dnd-assistant.
+      // `wrangler d1 list` renders rows as:  <uuid>   <name>   <created_at> …
+      // The header row uses │ between cells; data rows use plain whitespace.
+      // Either way, match a line that contains a uuid followed (after some
+      // whitespace + either │ or space) by the name `dnd-assistant`.
+      // Note: JS \s doesn't match U+2502, so use [\s│] for the inner separator.
       const lines = (list.stdout ?? '').split(/\r?\n/);
       for (const line of lines) {
-        // Match: "<uuid> | dnd-assistant | ..." or "<uuid> │ dnd-assistant │ ..."
-        const lm = line.match(/^\s*([0-9a-f-]{36})\s*[│|]\s*dnd-assistant\b/i);
+        const lm = line.match(/([0-9a-f-]{36})\s+[\s│]\s*dnd-assistant\b/);
         if (lm) { id = lm[1]; break; }
       }
     }
