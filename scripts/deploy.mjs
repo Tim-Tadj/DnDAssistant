@@ -124,13 +124,30 @@ const ensureD1 = async () => {
   });
   process.stdout.write(res.stdout ?? '');
   process.stderr.write(res.stderr ?? '');
-  if (res.status !== 0) {
-    throw new Error('wrangler d1 create failed (the database may already exist)');
-  }
   const combined = (res.stdout ?? '') + (res.stderr ?? '');
-  const id = extractDatabaseId(combined);
+  let id = extractDatabaseId(combined);
+  if (!id && /already exists/i.test(combined)) {
+    info("A 'dnd-assistant' D1 already exists on this account. Looking it up…");
+    const list = run('npx', ['wrangler', 'd1', 'list']);
+    if (list.status === 0) {
+      // Each row in the table starts with the database id (uuid) followed
+      // by the name. Match the row whose name cell is exactly dnd-assistant.
+      const lines = (list.stdout ?? '').split(/\r?\n/);
+      for (const line of lines) {
+        // Match: "<uuid> | dnd-assistant | ..." or "<uuid> │ dnd-assistant │ ..."
+        const lm = line.match(/^\s*([0-9a-f-]{36})\s*[│|]\s*dnd-assistant\b/i);
+        if (lm) { id = lm[1]; break; }
+      }
+    }
+    if (id) ok(`Found existing D1 ${id} on this account.`);
+  }
   if (!id) {
-    err("Couldn't auto-parse database_id from wrangler output. Open wrangler.toml and replace the placeholder manually.");
+    if (res.status !== 0) {
+      err("'wrangler d1 create' failed and we couldn't locate the existing database either.");
+      err("Run `npx wrangler d1 list` manually and paste the id into worker/wrangler.toml.");
+    } else {
+      err("Couldn't auto-parse database_id from wrangler output. Open wrangler.toml and replace the placeholder manually.");
+    }
     process.exit(1);
   }
   const next = toml.replace(/database_id\s*=\s*"[^"]+"/, `database_id = "${id}"`);
