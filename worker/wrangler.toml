@@ -1,0 +1,20 @@
+name = "dnd-assistant-api"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+# --- D1 (SQLite) binding ---------------------------------------------------
+# Run `npm run db:create` once, then paste the printed database_id below.
+[[d1_databases]]
+binding = "DB"
+database_name = "dnd-assistant"
+database_id = "REPLACE_WITH_ID_FROM_db:create"
+migrations_dir = "migrations"
+
+# --- Non-secret vars -------------------------------------------------------
+# Comma-separated list of allowed CORS origins (the Pages site + local dev).
+[vars]
+FRONTEND_CORS_ORIGINS = "http://localhost:3000"
+
+# --- Secrets (NOT stored here) ---------------------------------------------
+# Local dev:  put JWT_SECRET in worker/.dev.vars   (see .dev.vars.example)
+# Production: run `wrangler secret put JWT_SECRET`

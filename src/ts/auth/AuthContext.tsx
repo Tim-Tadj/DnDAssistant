@@ -2,6 +2,7 @@
 // localStorage so a refresh keeps the user signed in.
 
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { apiBase } from '../api/api-client';
 
 export type AuthUser = {
   id: string;
@@ -41,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const login = useCallback(async (username: string, password: string) => {
-    const res = await fetch('http://localhost:8081/api/v1/auth/login', {
+    const res = await fetch(`${apiBase}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
@@ -64,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signup = useCallback(
     async (username: string, password: string, email?: string, displayName?: string) => {
-      const res = await fetch('http://localhost:8081/api/v1/auth/signup', {
+      const res = await fetch(`${apiBase}/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
