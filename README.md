@@ -78,7 +78,37 @@ Notes:
 ## Deploy to production
 
 End-to-end deploy of the D1-backed API (Cloudflare Worker) and the React SPA
-(Cloudflare Pages). All commands run from the repo root unless noted.
+(Cloudflare Pages).
+
+### One-shot deploy script (recommended for first-timers)
+
+From the repo root, run:
+
+```bash
+cd worker
+npm run deploy:prod
+```
+
+This walks you through every step and re-runs idempotently until the cloud
+state matches:
+
+1. **`wrangler login`** — opens a browser the first time; subsequent runs
+   detect the cached session and skip.
+2. **`wrangler d1 create dnd-assistant`** — creates the production D1 and
+   patches `worker/wrangler.toml` with the printed `database_id`.
+3. **`wrangler d1 migrations apply --remote`** — applies the schema.
+4. **`npm run seed:remote`** — loads 12 classes, 9 races, 396 spells,
+   152 gear, 409 monsters.
+5. **`wrangler secret put JWT_SECRET`** — generates one if you don't supply
+   one (and pipes it via stdin so it's not echoed on the command line).
+6. **`wrangler deploy`** — Worker live at
+   `https://dnd-assistant-api.<subdomain>.workers.dev`.
+7. **Post-deploy health check** (if `CLOUDFLARE_ACCOUNT_SUBDOMAIN` is set).
+
+Each step is idempotent: if you re-run the script after a partial deploy, it
+picks up where it left off.
+
+### Manual step-by-step (if you'd rather see what's happening)
 
 ### 0. Prerequisites
 
@@ -176,6 +206,7 @@ When you change the schema:
 ```bash
 cd worker
 npm run db:migrate:remote            # applies any new migrations/*.sql
+npm run seed:remote                  # safe to re-run; INSERTs are no-ops on existing rows
 npm run deploy                       # only needed if you also changed Worker code
 ```
 

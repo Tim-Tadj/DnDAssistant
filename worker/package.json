@@ -13,7 +13,8 @@
     "db:migrate:remote": "wrangler d1 migrations apply dnd-assistant --remote",
     "seed:generate": "node seed/generate.mjs",
     "seed:local": "node seed/generate.mjs && node seed/apply.mjs local",
-    "seed:remote": "node seed/generate.mjs && node seed/apply.mjs remote"
+    "seed:remote": "node seed/generate.mjs && node seed/apply.mjs remote",
+    "deploy:prod": "node ../scripts/deploy.mjs"
   },
   "dependencies": {
     "hono": "^4.6.14"
