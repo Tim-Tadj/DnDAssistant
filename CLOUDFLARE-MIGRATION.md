@@ -5,7 +5,7 @@
 and data in **Cloudflare D1** (SQLite). This replaces the Java/Spring Boot +
 PostgreSQL backend, which cannot run on a Worker (no JVM, no raw TCP to Postgres).
 
-**Started:** 2026-06-19 · **Last updated:** 2026-06-19 (campaigns + parties ported)
+**Started:** 2026-06-19 · **Last updated:** 2026-06-19 (Phase 6 complete — full API ported; README documents dev + prod)
 
 Legend: ✅ done · 🚧 in progress · ⛔ not started
 
@@ -83,8 +83,9 @@ Against a real local D1 via `wrangler dev`:
 - [x] Fixed hardcoded `localhost:8081` URLs in `src/ts/auth/AuthContext.tsx`
       to use `apiBase` from the api-client.
 
-### Phase 6 — Remaining resource routes 🚧
-Port each following the `monsters.ts` template. Status per resource:
+### Phase 6 — Remaining resource routes ✅
+All resource routes ported and verified end-to-end via `wrangler dev`. The full
+API surface (below) is now served by the Worker. Status per resource:
 
 | Resource | Route(s) | Status | Notes |
 | --- | --- | --- | --- |
@@ -96,13 +97,13 @@ Port each following the `monsters.ts` template. Status per resource:
 | Character state | `/api/v1/characters/{id}/state` | ✅ | GET auto-inits transient (current_hp=hp_max, not persisted); PUT upserts via ON CONFLICT; conditions[]↔JSON — verified |
 | Parties | `/api/v1/parties` CRUD + members | ✅ | `member_ids` via party_members join (position-ordered); members validated as owned characters — verified |
 | Campaigns | `/api/v1/campaigns` CRUD | ✅ | workflow fields; `archived` int↔bool, nullable dates, NULLS-LAST ordering — verified |
-| Campaign sessions | `/api/v1/campaigns/{id}/sessions` | ⛔ | |
-| Campaign NPCs | `/api/v1/npcs` (global) | ⛔ | V14 globalized; owner-scoped |
-| Campaign characters | `/api/v1/campaigns/{id}/characters` | ⛔ | per-campaign override layer |
-| Campaign parties | `/api/v1/campaigns/{id}/parties` | ⛔ | junction |
-| Encounter saves | `/api/v1/encounters` | ⛔ | |
-| Import | `POST /api/v1/import`, `GET /import/snapshot` | ⛔ | generic upsert pipeline |
-| Reference data | `/api/v1/reference/*` | ⛔ | check `ReferenceDataController` |
+| Campaign sessions | `/api/v1/campaigns/{id}/sessions` | ✅ | nested; auto session_number (MAX+1); attendees[]↔JSON — verified |
+| Campaign NPCs | `/api/v1/npcs` (global) + `/campaigns/{id}/npcs` (back-compat) | ✅ | V14 globalized, owner-scoped; `campaign_tags`[]↔JSON, monster_id FK→400; `?campaign=` tag filter — verified |
+| Campaign characters | `/api/v1/campaigns/{id}/characters` | ✅ | per-campaign override layer; GET auto-inits from canonical char, PUT upserts by (campaign,char) — verified |
+| Campaign parties | `/api/v1/campaigns/{id}/parties` | ✅ | junction (no `id` col → keyed by party_id); link/list/unlink, idempotent link — verified |
+| Encounter saves | `/api/v1/encounter-saves` + `/campaigns/{id}/encounters` | ✅ | owner-scoped; verified |
+| Import | `POST /api/v1/import`, `GET /api/v1/import/snapshot?kind=` | ✅ | generic upsert by natural key, per-item errors; snapshot is round-trippable — verified |
+| Reference data | (covered by `/classes` + `/races`) | ✅ | `ReferenceDataController` was only classes/races |
 
 ### Phase 7 — Seed data ⛔
 - [ ] Port the `*Seed.java` loaders: read `src/res/*.json` (SRD spells, gear,

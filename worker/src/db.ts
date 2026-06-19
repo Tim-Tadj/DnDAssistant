@@ -5,7 +5,7 @@
 export async function all<T = Record<string, unknown>>(
   db: D1Database,
   sql: string,
-  ...params: unknown[]
+  ...params: (unknown | undefined)[]
 ): Promise<T[]> {
   const { results } = await db
     .prepare(sql)
@@ -17,7 +17,7 @@ export async function all<T = Record<string, unknown>>(
 export async function first<T = Record<string, unknown>>(
   db: D1Database,
   sql: string,
-  ...params: unknown[]
+  ...params: (unknown | undefined)[]
 ): Promise<T | null> {
   const row = await db
     .prepare(sql)
@@ -29,7 +29,7 @@ export async function first<T = Record<string, unknown>>(
 export async function run(
   db: D1Database,
   sql: string,
-  ...params: unknown[]
+  ...params: (unknown | undefined)[]
 ): Promise<D1Result> {
   return db
     .prepare(sql)

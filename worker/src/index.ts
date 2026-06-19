@@ -15,7 +15,13 @@ import gear from './routes/gear';
 import characters from './routes/characters';
 import campaigns from './routes/campaigns';
 import parties from './routes/parties';
+import sessions from './routes/sessions';
+import { npcs, campaignNpcs } from './routes/npcs';
 import { classes, races } from './routes/reference';
+import campaignCharacters from './routes/campaign-characters';
+import campaignParties from './routes/campaign-parties';
+import { encounterSaves, campaignEncounterSaves } from './routes/encounter-saves';
+import importRoutes from './routes/import';
 
 const app = new Hono<AppBindings>();
 
@@ -48,8 +54,17 @@ app.route('/api/v1/races', races);
 app.route('/api/v1/characters', characters);
 app.route('/api/v1/campaigns', campaigns);
 app.route('/api/v1/parties', parties);
-// TODO (Phase 6): campaign sessions, npcs, campaign-characters/parties,
-// encounters, import. See CLOUDFLARE-MIGRATION.md.
+// Nested under /campaigns/:campaignId/...
+app.route('/api/v1/campaigns/:campaignId/sessions', sessions);
+app.route('/api/v1/campaigns/:campaignId/npcs', campaignNpcs);
+app.route('/api/v1/campaigns/:campaignId/characters', campaignCharacters);
+app.route('/api/v1/campaigns/:campaignId/parties', campaignParties);
+app.route('/api/v1/campaigns/:campaignId/encounters', campaignEncounterSaves);
+// Top-level per-user collections
+app.route('/api/v1/npcs', npcs);
+app.route('/api/v1/encounter-saves', encounterSaves);
+// Admin: bulk import + snapshot (open endpoint, mirrors the Java side).
+app.route('/api/v1/import', importRoutes);
 
 // Error shape matches src/ts/api/api-client.ts: {error:{code,message}}.
 app.onError((err, c) => {
