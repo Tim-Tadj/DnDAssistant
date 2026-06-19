@@ -1,8 +1,13 @@
 // Phase 5: client-side auth state. The token is persisted to
 // localStorage so a refresh keeps the user signed in.
+//
+// Talks to the backend via the shared api client (`api.post`) — the
+// client handles JSON encoding, the Authorization header (read from
+// localStorage), and {error:{code,message}} mapping. We just unwrap
+// the {token, user} response and lift it into state.
 
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { apiBase } from '../api/api-client';
+import { api, ApiError } from '../api/api-client';
 
 export type AuthUser = {
   id: string;
@@ -18,6 +23,8 @@ export type AuthState = {
   signup: (username: string, password: string, email?: string, displayName?: string) => Promise<AuthUser>;
   logout: () => void;
 };
+
+type AuthResponse = { token: string; user: AuthUser };
 
 const TOKEN_KEY = 'dndassistant.jwt';
 const USER_KEY = 'dndassistant.user';
@@ -42,55 +49,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const login = useCallback(async (username: string, password: string) => {
-    const res = await fetch(`${apiBase}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(text || res.statusText);
-    }
-    const data = await res.json();
+    const data = await api.post<AuthResponse>('/auth/login', { username, password });
     setToken(data.token);
-    const u: AuthUser = {
-      id: data.user.id,
-      username: data.user.username,
-      email: data.user.email,
-      display_name: data.user.display_name,
-    };
-    setUser(u);
-    return u;
+    setUser(data.user);
+    return data.user;
   }, []);
 
   const signup = useCallback(
     async (username: string, password: string, email?: string, displayName?: string) => {
-      const res = await fetch(`${apiBase}/auth/signup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username,
-          password,
-          email,
-          display_name: displayName ?? username,
-        }),
+      const data = await api.post<AuthResponse>('/auth/signup', {
+        username,
+        password,
+        email,
+        display_name: displayName ?? username,
       });
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || res.statusText);
-      }
-      const data = await res.json();
       setToken(data.token);
-      const u: AuthUser = {
-        id: data.user.id,
-        username: data.user.username,
-        email: data.user.email,
-        display_name: data.user.display_name,
-      };
-      setUser(u);
-      return u;
+      setUser(data.user);
+      return data.user;
     },
-    []
+    [],
   );
 
   const logout = useCallback(() => {
@@ -111,3 +88,7 @@ export function useAuth(): AuthState {
   if (!ctx) throw new Error('useAuth must be used within <AuthProvider>');
   return ctx;
 }
+
+// Re-export so any caller that catches the auth error gets the typed
+// ApiError (status / code / message) without an extra import.
+export { ApiError };
