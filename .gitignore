@@ -2,6 +2,13 @@ node_modules/
 build/
 target/
 
+# Java/Maven (the Spring Boot backend was archived to branch
+# archive/spring-boot-backend; if anyone re-runs `mvn` locally,
+# these keep the noise out of git status).
+.mvn/
+mvnw
+mvnw.cmd
+
 Monster Manual/
 public/monster-manual/
 postgres/.env

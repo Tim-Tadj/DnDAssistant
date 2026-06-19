@@ -12,7 +12,7 @@ interactive map.
 > **Migrating from the old stack.** This project originally ran a Java / Spring
 > Boot backend on PostgreSQL (still under [`src/java/`](src/java) as the reference
 > implementation). It is being ported to a Cloudflare Worker + D1. See
-> [CLOUDFLARE-MIGRATION.md](CLOUDFLARE-MIGRATION.md) for the live status of which
+> [CLOUDFLARE-IMPLEMENTATION.md](CLOUDFLARE-IMPLEMENTATION.md) for the architecture / wire contract
 > endpoints have moved over.
 
 > New here? Read [AGENTS.md](AGENTS.md) for conventions and [docs/spec/](docs/spec/)
@@ -217,7 +217,7 @@ npm run deploy                       # only needed if you also changed Worker co
   in `FRONTEND_CORS_ORIGINS` (`worker/wrangler.toml`).
 - **Same origin (no CORS):** put the API on the same domain as Pages via a
   custom domain + a Worker route `yourdomain.com/api/v1/*`, then set
-  `REACT_APP_API_BASE=/api/v1`. See [CLOUDFLARE-MIGRATION.md](CLOUDFLARE-MIGRATION.md)
+  `REACT_APP_API_BASE=/api/v1`. See [CLOUDFLARE-IMPLEMENTATION.md](CLOUDFLARE-IMPLEMENTATION.md)
   for the production-routing notes.
 
 ## Configuration
@@ -244,9 +244,9 @@ curl -X POST http://127.0.0.1:8787/api/v1/import \
 ```
 
 `GET /api/v1/import/snapshot?kind=monster` exports rows back out in the same shape
-(round-trippable). A bundled seed of the SRD data + the 409-monster Monster Manual
-is still being ported — tracked as Phase 7 in
-[CLOUDFLARE-MIGRATION.md](CLOUDFLARE-MIGRATION.md).
+(round-trippable). The bundled seed of the SRD data + the 409-monster Monster Manual
+runs via `npm run seed:remote` — see
+[CLOUDFLARE-IMPLEMENTATION.md](CLOUDFLARE-IMPLEMENTATION.md).
 
 ## Project layout
 

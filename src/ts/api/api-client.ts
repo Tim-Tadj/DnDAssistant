@@ -1,9 +1,10 @@
 // Centralised API client config + tiny fetch wrapper.
-// Phase 1: only spells use the API; monsters/gear still read bundled JSON.
+// All API calls go through here so the base URL + auth header +
+// error parsing are defined in exactly one place.
 
 const API_BASE: string =
   (process.env.REACT_APP_API_BASE as string | undefined) ??
-  'http://localhost:8081/api/v1';
+  'http://127.0.0.1:8787/api/v1';
 
 export type ApiErrorBody = { error: { code: string; message: string } };
 

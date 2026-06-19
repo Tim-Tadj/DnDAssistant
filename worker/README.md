@@ -1,8 +1,8 @@
 # D&D Assistant — Cloudflare Worker API
 
-TypeScript (Hono) port of the Spring Boot backend, backed by Cloudflare D1.
-Serves `/api/v1/*`. See [`../CLOUDFLARE-MIGRATION.md`](../CLOUDFLARE-MIGRATION.md)
-for the full migration plan and status.
+TypeScript (Hono) backend, backed by Cloudflare D1. Serves `/api/v1/*`.
+See [`../CLOUDFLARE-IMPLEMENTATION.md`](../CLOUDFLARE-IMPLEMENTATION.md)
+for the architecture, wire contract, and ownership model.
 
 ## First-time setup
 
