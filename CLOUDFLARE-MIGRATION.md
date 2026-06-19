@@ -5,7 +5,7 @@
 and data in **Cloudflare D1** (SQLite). This replaces the Java/Spring Boot +
 PostgreSQL backend, which cannot run on a Worker (no JVM, no raw TCP to Postgres).
 
-**Started:** 2026-06-19 · **Last updated:** 2026-06-19
+**Started:** 2026-06-19 · **Last updated:** 2026-06-19 (spells/gear/classes/races ported)
 
 Legend: ✅ done · 🚧 in progress · ⛔ not started
 
@@ -83,15 +83,15 @@ Against a real local D1 via `wrangler dev`:
 - [x] Fixed hardcoded `localhost:8081` URLs in `src/ts/auth/AuthContext.tsx`
       to use `apiBase` from the api-client.
 
-### Phase 6 — Remaining resource routes ⛔
+### Phase 6 — Remaining resource routes 🚧
 Port each following the `monsters.ts` template. Status per resource:
 
 | Resource | Route(s) | Status | Notes |
 | --- | --- | --- | --- |
-| Spells | `/api/v1/spells` CRUD | ⛔ | Same shape as monsters; `components` is JSON text |
-| Gear | `/api/v1/gear` CRUD + `?kind=` filter | ⛔ | `kind` ∈ weapon/armour/gear |
-| Classes | `/api/v1/classes` (read) | ⛔ | Reference data, public read |
-| Races | `/api/v1/races` (read) | ⛔ | Reference data, public read |
+| Spells | `/api/v1/spells` CRUD | ✅ | `range`↔`spell_range`, `ritual` bool↔int, `classes`/`tags` []↔CSV, `components` obj↔JSON — verified round-trip |
+| Gear | `/api/v1/gear` CRUD + `?kind=` filter | ✅ | PascalCase `Damage`/`AC`/etc., nullable fields omitted (NON_NULL), kind filter verified |
+| Classes | `/api/v1/classes` (read) | ✅ | Reference data, public read |
+| Races | `/api/v1/races` (read) | ✅ | Reference data, public read |
 | Characters | `/api/v1/characters` CRUD | ⛔ | UUID PK, owner-scoped, FK to race/class |
 | Character state | `/api/v1/characters/{id}/state` | ⛔ | Lazy-create on read, PUT upserts |
 | Parties | `/api/v1/parties` CRUD + members | ⛔ | party_members join |

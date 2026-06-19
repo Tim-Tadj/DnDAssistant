@@ -10,6 +10,9 @@ import { attachUser } from './middleware/auth';
 import health from './routes/health';
 import auth from './routes/auth';
 import monsters from './routes/monsters';
+import spells from './routes/spells';
+import gear from './routes/gear';
+import { classes, races } from './routes/reference';
 
 const app = new Hono<AppBindings>();
 
@@ -35,8 +38,13 @@ app.use('/api/v1/*', attachUser);
 app.route('/api/v1/health', health);
 app.route('/api/v1/auth', auth);
 app.route('/api/v1/monsters', monsters);
-// TODO (Phase 6): spells, gear, classes, races, characters, parties,
-// campaigns, sessions, npcs, encounters, import — see CLOUDFLARE-MIGRATION.md.
+app.route('/api/v1/spells', spells);
+app.route('/api/v1/gear', gear);
+app.route('/api/v1/classes', classes);
+app.route('/api/v1/races', races);
+// TODO (Phase 6): characters, character-state, parties, campaigns, sessions,
+// npcs, campaign-characters/parties, encounters, import.
+// See CLOUDFLARE-MIGRATION.md.
 
 // Error shape matches src/ts/api/api-client.ts: {error:{code,message}}.
 app.onError((err, c) => {
