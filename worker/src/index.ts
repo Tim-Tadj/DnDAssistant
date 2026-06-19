@@ -13,6 +13,8 @@ import monsters from './routes/monsters';
 import spells from './routes/spells';
 import gear from './routes/gear';
 import characters from './routes/characters';
+import campaigns from './routes/campaigns';
+import parties from './routes/parties';
 import { classes, races } from './routes/reference';
 
 const app = new Hono<AppBindings>();
@@ -44,9 +46,10 @@ app.route('/api/v1/gear', gear);
 app.route('/api/v1/classes', classes);
 app.route('/api/v1/races', races);
 app.route('/api/v1/characters', characters);
-// TODO (Phase 6): parties, campaigns, sessions, npcs,
-// campaign-characters/parties, encounters, import.
-// See CLOUDFLARE-MIGRATION.md.
+app.route('/api/v1/campaigns', campaigns);
+app.route('/api/v1/parties', parties);
+// TODO (Phase 6): campaign sessions, npcs, campaign-characters/parties,
+// encounters, import. See CLOUDFLARE-MIGRATION.md.
 
 // Error shape matches src/ts/api/api-client.ts: {error:{code,message}}.
 app.onError((err, c) => {
