@@ -2,3 +2,11 @@ node_modules/
 .wrangler/
 .dev.vars
 dist/
+
+# Generated seed SQL (re-emitted by `npm run seed:generate`).
+seed/seed-classes.sql
+seed/seed-races.sql
+seed/seed-spells.sql
+seed/seed-gear.sql
+seed/seed-monsters.sql
+seed/seed.sql

@@ -5,12 +5,15 @@
   "type": "module",
   "description": "Cloudflare Worker API (Hono + D1) for the D&D Assistant. Ports the Spring Boot backend.",
   "scripts": {
-    "dev": "wrangler dev --ip 127.0.0.1 --port 8787",
+    "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit",
     "db:create": "wrangler d1 create dnd-assistant",
     "db:migrate:local": "wrangler d1 migrations apply dnd-assistant --local",
-    "db:migrate:remote": "wrangler d1 migrations apply dnd-assistant --remote"
+    "db:migrate:remote": "wrangler d1 migrations apply dnd-assistant --remote",
+    "seed:generate": "node seed/generate.mjs",
+    "seed:local": "node seed/generate.mjs && node seed/apply.mjs local",
+    "seed:remote": "node seed/generate.mjs && node seed/apply.mjs remote"
   },
   "dependencies": {
     "hono": "^4.6.14"

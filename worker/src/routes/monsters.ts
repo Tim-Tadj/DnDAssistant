@@ -60,16 +60,14 @@ async function loadOwned(c: Context<AppBindings>, id: number) {
 
 monsters.get('/', async (c) => {
   const userId = c.get('userId');
+  // Visibility: SRD/derived + homebrew owned by caller + homebrew with no
+  // owner (global reference content, e.g. seeded custom_* corpora).
+  const where = userId
+    ? `provenance <> 'homebrew' OR owner_user_id = ? OR owner_user_id IS NULL`
+    : `provenance <> 'homebrew' OR owner_user_id IS NULL`;
   const rows = userId
-    ? await all(
-        c.env.DB,
-        `SELECT ${SELECT_COLS} FROM monsters WHERE provenance <> 'homebrew' OR owner_user_id = ? ORDER BY name`,
-        userId,
-      )
-    : await all(
-        c.env.DB,
-        `SELECT ${SELECT_COLS} FROM monsters WHERE provenance <> 'homebrew' ORDER BY name`,
-      );
+    ? await all(c.env.DB, `SELECT ${SELECT_COLS} FROM monsters WHERE ${where} ORDER BY name`, userId)
+    : await all(c.env.DB, `SELECT ${SELECT_COLS} FROM monsters WHERE ${where} ORDER BY name`);
   return c.json(rows);
 });
 

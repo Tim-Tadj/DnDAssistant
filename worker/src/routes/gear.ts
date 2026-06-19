@@ -101,30 +101,36 @@ function writeValues(body: Record<string, unknown>, name: string, kind: string) 
 gear.get('/', async (c) => {
   const userId = c.get('userId');
   const kind = c.req.query('kind');
+  // Visibility: SRD/derived rows + homebrew rows owned by the caller +
+  // homebrew rows with no owner (treated as global reference content, e.g.
+  // seeded custom_* corpora).
+  const homebrewVisible = userId
+    ? "provenance <> 'homebrew' OR owner_user_id = ? OR owner_user_id IS NULL"
+    : "provenance <> 'homebrew' OR owner_user_id IS NULL";
   let rows: GearRow[];
   if (kind) {
     rows = userId
       ? await all<GearRow>(
           c.env.DB,
-          "SELECT * FROM gear WHERE kind = ? AND (provenance <> 'homebrew' OR owner_user_id = ?) ORDER BY name",
+          `SELECT * FROM gear WHERE kind = ? AND (${homebrewVisible}) ORDER BY name`,
           kind,
           userId,
         )
       : await all<GearRow>(
           c.env.DB,
-          "SELECT * FROM gear WHERE kind = ? AND provenance <> 'homebrew' ORDER BY name",
+          `SELECT * FROM gear WHERE kind = ? AND (${homebrewVisible}) ORDER BY name`,
           kind,
         );
   } else {
     rows = userId
       ? await all<GearRow>(
           c.env.DB,
-          "SELECT * FROM gear WHERE provenance <> 'homebrew' OR owner_user_id = ? ORDER BY kind, name",
+          `SELECT * FROM gear WHERE (${homebrewVisible}) ORDER BY kind, name`,
           userId,
         )
       : await all<GearRow>(
           c.env.DB,
-          "SELECT * FROM gear WHERE provenance <> 'homebrew' ORDER BY kind, name",
+          `SELECT * FROM gear WHERE (${homebrewVisible}) ORDER BY kind, name`,
         );
   }
   return c.json(rows.map(toJson));

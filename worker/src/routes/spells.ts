@@ -128,15 +128,20 @@ function writeValues(body: Record<string, unknown>, name: string, level: string,
 
 spells.get('/', async (c) => {
   const userId = c.get('userId');
+  // Visibility: SRD/derived + homebrew owned by caller + homebrew with no
+  // owner (global reference content, e.g. seeded custom_* corpora).
+  const where = userId
+    ? `provenance <> 'homebrew' OR owner_user_id = ? OR owner_user_id IS NULL`
+    : `provenance <> 'homebrew' OR owner_user_id IS NULL`;
   const rows = userId
     ? await all<SpellRow>(
         c.env.DB,
-        "SELECT * FROM spells WHERE provenance <> 'homebrew' OR owner_user_id = ? ORDER BY level, name",
+        `SELECT * FROM spells WHERE ${where} ORDER BY level, name`,
         userId,
       )
     : await all<SpellRow>(
         c.env.DB,
-        "SELECT * FROM spells WHERE provenance <> 'homebrew' ORDER BY level, name",
+        `SELECT * FROM spells WHERE ${where} ORDER BY level, name`,
       );
   return c.json(rows.map(toJson));
 });

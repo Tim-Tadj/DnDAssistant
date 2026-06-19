@@ -105,11 +105,24 @@ API surface (below) is now served by the Worker. Status per resource:
 | Import | `POST /api/v1/import`, `GET /api/v1/import/snapshot?kind=` | ✅ | generic upsert by natural key, per-item errors; snapshot is round-trippable — verified |
 | Reference data | (covered by `/classes` + `/races`) | ✅ | `ReferenceDataController` was only classes/races |
 
-### Phase 7 — Seed data ⛔
-- [ ] Port the `*Seed.java` loaders: read `src/res/*.json` (SRD spells, gear,
-      reference data) + the 409-monster Monster Manual dataset into D1.
-- [ ] Decide seed mechanism: a `worker/seed/` script run via
-      `wrangler d1 execute --file`, or a one-off `/admin/seed` route.
+### Phase 7 — Seed data ✅
+- [x] Port the `*Seed.java` loaders: `worker/seed/generate.mjs` reads
+      `src/res/resources/*.json` (SRD spells, weapons/armour/gear, custom
+      gear) + the 409-monster Monster Manual dataset + the 12 classes + 9
+      races from `ReferenceDataSeed` and emits 5 per-table SQL files.
+- [x] Apply via `wrangler d1 execute --file=…` — wrapped in
+      `worker/seed/apply.mjs`, one short invocation per table so the whole
+      seed fits under a single wrangler timeout.
+- [x] Idempotency: every INSERT is `INSERT INTO … SELECT … WHERE NOT EXISTS`
+      against the natural key (NULL-owner-aware via `IS NULL`). Re-running
+      is a no-op; verified by counting rows before/after a second run.
+- [x] Visibility carve-out: the `provenance <> 'homebrew' OR owner_user_id = ?`
+      filter in `monsters`/`spells`/`gear` now also matches
+      `owner_user_id IS NULL` so seeded custom_* corpora (NULL owner) are
+      visible to every user, not just the seed user.
+- [x] `npm run seed:local` and `npm run seed:remote` wired in
+      `worker/package.json`. Counts after seed: 12 classes, 9 races, 396
+      spells, 152 gear, 409 monsters — verified via the API.
 
 ### Phase 8 — Deploy ⛔
 - [ ] `wrangler d1 create dnd-assistant`; paste `database_id` into `wrangler.toml`.
