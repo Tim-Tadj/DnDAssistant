@@ -22,9 +22,15 @@ export const forbidden = (m: string) => new HttpError(403, 'FORBIDDEN', m);
 export const notFound = (m: string) => new HttpError(404, 'NOT_FOUND', m);
 export const conflict = (m: string) => new HttpError(409, 'CONFLICT', m);
 
-/** Maps a raw D1/SQLite error to a friendly HttpError where we can. */
-export function mapDbError(e: unknown, onUnique: () => HttpError): never {
+/** Maps a raw D1/SQLite constraint error to a friendly HttpError where we can. */
+export function mapDbError(
+  e: unknown,
+  handlers: { unique?: () => HttpError; foreignKey?: () => HttpError },
+): never {
   const msg = e instanceof Error ? e.message : String(e);
-  if (msg.includes('UNIQUE constraint failed')) throw onUnique();
+  if (handlers.unique && msg.includes('UNIQUE constraint failed')) throw handlers.unique();
+  if (handlers.foreignKey && msg.includes('FOREIGN KEY constraint failed')) {
+    throw handlers.foreignKey();
+  }
   throw e;
 }

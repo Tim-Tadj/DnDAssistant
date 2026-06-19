@@ -5,7 +5,7 @@
 and data in **Cloudflare D1** (SQLite). This replaces the Java/Spring Boot +
 PostgreSQL backend, which cannot run on a Worker (no JVM, no raw TCP to Postgres).
 
-**Started:** 2026-06-19 · **Last updated:** 2026-06-19 (spells/gear/classes/races ported)
+**Started:** 2026-06-19 · **Last updated:** 2026-06-19 (characters + character-state ported)
 
 Legend: ✅ done · 🚧 in progress · ⛔ not started
 
@@ -92,8 +92,8 @@ Port each following the `monsters.ts` template. Status per resource:
 | Gear | `/api/v1/gear` CRUD + `?kind=` filter | ✅ | PascalCase `Damage`/`AC`/etc., nullable fields omitted (NON_NULL), kind filter verified |
 | Classes | `/api/v1/classes` (read) | ✅ | Reference data, public read |
 | Races | `/api/v1/races` (read) | ✅ | Reference data, public read |
-| Characters | `/api/v1/characters` CRUD | ⛔ | UUID PK, owner-scoped, FK to race/class |
-| Character state | `/api/v1/characters/{id}/state` | ⛔ | Lazy-create on read, PUT upserts |
+| Characters | `/api/v1/characters` CRUD | ✅ | UUID PK, owner-scoped, FK→400 on bad race/class; all routes require auth |
+| Character state | `/api/v1/characters/{id}/state` | ✅ | GET auto-inits transient (current_hp=hp_max, not persisted); PUT upserts via ON CONFLICT; conditions[]↔JSON — verified |
 | Parties | `/api/v1/parties` CRUD + members | ⛔ | party_members join |
 | Campaigns | `/api/v1/campaigns` CRUD | ⛔ | incl. workflow fields |
 | Campaign sessions | `/api/v1/campaigns/{id}/sessions` | ⛔ | |

@@ -12,6 +12,7 @@ import auth from './routes/auth';
 import monsters from './routes/monsters';
 import spells from './routes/spells';
 import gear from './routes/gear';
+import characters from './routes/characters';
 import { classes, races } from './routes/reference';
 
 const app = new Hono<AppBindings>();
@@ -42,8 +43,9 @@ app.route('/api/v1/spells', spells);
 app.route('/api/v1/gear', gear);
 app.route('/api/v1/classes', classes);
 app.route('/api/v1/races', races);
-// TODO (Phase 6): characters, character-state, parties, campaigns, sessions,
-// npcs, campaign-characters/parties, encounters, import.
+app.route('/api/v1/characters', characters);
+// TODO (Phase 6): parties, campaigns, sessions, npcs,
+// campaign-characters/parties, encounters, import.
 // See CLOUDFLARE-MIGRATION.md.
 
 // Error shape matches src/ts/api/api-client.ts: {error:{code,message}}.

@@ -165,9 +165,10 @@ spells.post('/', requireAuth, async (c) => {
       ...values,
     );
   } catch (e) {
-    mapDbError(e, () =>
-      conflict(`A spell named '${name}' with provenance 'homebrew' already exists`),
-    );
+    mapDbError(e, {
+      unique: () =>
+        conflict(`A spell named '${name}' with provenance 'homebrew' already exists`),
+    });
   }
   const row = await first<SpellRow>(c.env.DB, 'SELECT * FROM spells WHERE id = ?', res!.meta.last_row_id);
   return c.json(toJson(row!), 201);

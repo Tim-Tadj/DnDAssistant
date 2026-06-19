@@ -156,9 +156,10 @@ gear.post('/', requireAuth, async (c) => {
       ...values,
     );
   } catch (e) {
-    mapDbError(e, () =>
-      conflict(`A gear entry named '${name}' (kind=${kind}, provenance=homebrew) already exists`),
-    );
+    mapDbError(e, {
+      unique: () =>
+        conflict(`A gear entry named '${name}' (kind=${kind}, provenance=homebrew) already exists`),
+    });
   }
   const row = await first<GearRow>(c.env.DB, 'SELECT * FROM gear WHERE id = ?', res!.meta.last_row_id);
   return c.json(toJson(row!), 201);

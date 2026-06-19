@@ -98,9 +98,10 @@ monsters.post('/', requireAuth, async (c) => {
       ...values,
     );
   } catch (e) {
-    mapDbError(e, () =>
-      conflict(`A monster named '${name}' with provenance 'homebrew' already exists`),
-    );
+    mapDbError(e, {
+      unique: () =>
+        conflict(`A monster named '${name}' with provenance 'homebrew' already exists`),
+    });
   }
   const newId = res!.meta.last_row_id;
   const row = await first(c.env.DB, `SELECT ${SELECT_COLS} FROM monsters WHERE id = ?`, newId);
