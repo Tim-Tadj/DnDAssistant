@@ -7,13 +7,21 @@ compatibility_date = "2024-12-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "dnd-assistant"
-database_id = "REPLACE_WITH_ID_FROM_db:create"
+database_id = "829b6bed-e1f5-4189-9744-069524dceca0"
 migrations_dir = "migrations"
 
 # --- Non-secret vars -------------------------------------------------------
 # Comma-separated list of allowed CORS origins (the Pages site + local dev).
 [vars]
-FRONTEND_CORS_ORIGINS = "http://localhost:3000"
+# Comma-separated list of allowed CORS origins. Includes the Pages project
+# (set once you create it; the auto-generated subdomain is shown on the
+# first deploy). Add a custom domain here too if you wire one up.
+#
+# The Pages URL includes the git branch + project-hash prefix when you deploy
+# via `wrangler pages deploy`; the *alias URL* (without the hash) is the
+# stable one to use in `REACT_APP_API_BASE`. Wildcards aren't supported, so
+# add both forms if you want preview + alias deployments to work.
+FRONTEND_CORS_ORIGINS = "http://localhost:3000,https://dnd-assistant.pages.dev,https://dndassistant-mvp-run.dnd-assistant-1dx.pages.dev,https://*.dnd-assistant-1dx.pages.dev"
 
 # --- Secrets (NOT stored here) ---------------------------------------------
 # Local dev:  put JWT_SECRET in worker/.dev.vars   (see .dev.vars.example)

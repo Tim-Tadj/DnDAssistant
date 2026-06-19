@@ -41,7 +41,7 @@ import { useToast } from '../shared/ToastProvider';
 import { useAuth } from '../auth/AuthContext';
 import { useCampaignContext } from '../shared/CampaignContext';
 
-import MapOfAvandria from '../../res/talesOfAvandria/Avandria.png';
+import MapOfAvandria from '../../res/talesOfAvandria/Avandria.jpg';
 import MapProperties from '../../res/talesOfAvandria/Avandria.json';
 import AvandriaLore from '../../res/talesOfAvandria/AvandriaLore.json';
 import CampaignMap from '../campaigns/campaign-map';
