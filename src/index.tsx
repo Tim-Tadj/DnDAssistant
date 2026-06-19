@@ -1,5 +1,12 @@
 /**
- * Main application entry point
+ * Main application entry point.
+ *
+ * Provider order matters:
+ *   - ThemeProvider / CssBaseline / AuthProvider / CampaignProvider /
+ *     ToastProvider wrap everything (no router context needed).
+ *   - MonsterStatPaneProvider uses useNavigate, so it MUST live inside
+ *     the Router tree. AppRouter mounts <AppLayout> which now wraps
+ *     its <Outlet> children in MonsterStatPaneProvider.
  */
 
 import React from 'react';
@@ -9,7 +16,6 @@ import theme from './theme';
 import AppRouter from './ts/app-router';
 import { AuthProvider } from './ts/auth/AuthContext';
 import { CampaignProvider } from './ts/shared/CampaignContext';
-import { MonsterStatPaneProvider } from './ts/shared/MonsterStatPane';
 import { ToastProvider } from './ts/shared/ToastProvider';
 
 const rootElement = document.getElementById('root');
@@ -21,11 +27,9 @@ root.render(
     <AuthProvider>
       <CampaignProvider>
         <ToastProvider>
-          <MonsterStatPaneProvider>
-            <React.StrictMode>
-              <AppRouter />
-            </React.StrictMode>
-          </MonsterStatPaneProvider>
+          <React.StrictMode>
+            <AppRouter />
+          </React.StrictMode>
         </ToastProvider>
       </CampaignProvider>
     </AuthProvider>

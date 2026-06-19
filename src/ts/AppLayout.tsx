@@ -49,6 +49,7 @@ import { useAuth } from './auth/AuthContext';
 import AuthDialog from './auth/AuthDialog';
 import ContextBar from './shared/ContextBar';
 import GlobalSearch from './shared/GlobalSearch';
+import { MonsterStatPaneProvider } from './shared/MonsterStatPane';
 
 type NavItem = {
   label: string;
@@ -474,16 +475,18 @@ const AppLayout: FC = () => {
           </Toolbar>
         </AppBar>
         <ContextBar />
-        <Box
-          sx={{
-            flexGrow: 1,
-            p: { xs: 2, md: 3 },
-            backgroundColor: 'background.default',
-            minHeight: 0,
-          }}
-        >
-          <Outlet />
-        </Box>
+        <MonsterStatPaneProvider>
+          <Box
+            sx={{
+              flexGrow: 1,
+              p: { xs: 2, md: 3 },
+              backgroundColor: 'background.default',
+              minHeight: 0,
+            }}
+          >
+            <Outlet />
+          </Box>
+        </MonsterStatPaneProvider>
       </Box>
       <AuthDialog
         open={authOpen}
