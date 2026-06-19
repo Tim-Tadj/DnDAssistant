@@ -77,50 +77,117 @@ Notes:
 
 ## Deploy to production
 
-One-time setup (creates real, billable Cloudflare resources):
+End-to-end deploy of the D1-backed API (Cloudflare Worker) and the React SPA
+(Cloudflare Pages). All commands run from the repo root unless noted.
+
+### 0. Prerequisites
 
 ```bash
-cd worker
-npx wrangler login                   # authenticate this machine
-npm run db:create                    # creates the D1 db; copy the printed
-                                     # database_id into worker/wrangler.toml
-npm run db:migrate:remote            # apply the schema to the cloud D1
-npx wrangler secret put JWT_SECRET   # set a real 32+ byte production secret
+npx wrangler login                   # opens a browser to authenticate this machine
 ```
 
-Deploy the API:
+You need a Cloudflare account with Workers + Pages + D1 enabled (free tier is
+enough for this app).
+
+### 1. Create the production D1 database
 
 ```bash
 cd worker
+npm run db:create                    # creates the D1; prints database_id +
+                                     # binding hints. Paste the id into
+                                     # worker/wrangler.toml (the
+                                     # `database_id = "REPLACE_…"` line).
+```
+
+### 2. Apply the schema + seed the bundled content
+
+```bash
+cd worker
+npm run db:migrate:remote            # apply migrations/0001_initial.sql to the cloud D1
+npm run seed:remote                  # writes seed-*.sql from src/res JSON and
+                                     # applies them via wrangler d1 execute
+```
+
+After this, the production D1 has the same contents as a fresh local D1: 12
+classes, 9 races, 396 spells, 152 gear, 409 monsters (Monster Manual). See
+[worker/seed/README.md](worker/seed/README.md) for details and idempotency
+guarantees.
+
+### 3. Set the Worker secret + deploy the API
+
+```bash
+cd worker
+npx wrangler secret put JWT_SECRET   # prompts for a 32+ byte production secret
 npm run deploy                       # → https://dnd-assistant-api.<subdomain>.workers.dev
 ```
 
-Deploy the frontend to **Pages** — easiest via the dashboard (Workers & Pages →
-Create → Pages → connect this Git repo):
+`<subdomain>` is your Cloudflare Workers subdomain (visible in the dashboard
+URL after the first deploy). Copy the URL — the Pages frontend needs it.
 
-- **Build command:** `npm run build`
-- **Build output directory:** `build`
-- **Environment variable:** `REACT_APP_API_BASE` (see below)
+### 4. Update CORS allowed origins
 
-…or from the CLI:
+Edit [`worker/wrangler.toml`](worker/wrangler.toml) and add your Pages URL to
+`FRONTEND_CORS_ORIGINS` (comma-separated), then re-deploy:
+
+```bash
+cd worker
+npm run deploy
+```
+
+### 5. Deploy the frontend to **Pages**
+
+**Easiest — via the dashboard:**
+
+1. Cloudflare dashboard → **Workers & Pages** → **Create application** →
+   **Pages** → **Connect to Git**.
+2. Pick this repo.
+3. **Project name:** `dnd-assistant` (or anything you like).
+4. **Build command:** `npm run build`
+5. **Build output directory:** `build`
+6. **Environment variables** (Production):
+   - `REACT_APP_API_BASE` = `https://dnd-assistant-api.<subdomain>.workers.dev/api/v1`
+7. Save and deploy.
+
+The first build runs on the dashboard. Subsequent deploys happen automatically
+on every push to the connected branch.
+
+**Or from the CLI** (one-shot, no Git integration):
 
 ```bash
 npm run build
 npx wrangler pages deploy build --project-name=dnd-assistant
 ```
 
+### 6. Verify the deploy
+
+1. Visit the Pages URL — the SPA loads and talks to the Worker.
+2. Sign up, create a character — it should persist in D1.
+3. Tail the Worker logs if anything's off:
+
+```bash
+cd worker
+npx wrangler tail
+```
+
+### Schema changes after first deploy
+
+When you change the schema:
+
+```bash
+cd worker
+npm run db:migrate:remote            # applies any new migrations/*.sql
+npm run deploy                       # only needed if you also changed Worker code
+```
+
 ### Same-origin vs. CORS
 
-- **Separate Worker URL (simplest):** set `REACT_APP_API_BASE` to the full Worker
-  URL, e.g. `https://dnd-assistant-api.<subdomain>.workers.dev/api/v1`. The Worker
-  allows cross-origin requests from the origins in `FRONTEND_CORS_ORIGINS`
-  (`worker/wrangler.toml`) — add your Pages URL there.
-- **Same origin (no CORS):** put the API on the same domain as Pages via a custom
-  domain + a Worker route `yourdomain.com/api/v1/*`, then set
-  `REACT_APP_API_BASE=/api/v1`. See [CLOUDFLARE-MIGRATION.md](CLOUDFLARE-MIGRATION.md).
-
-When the schema changes, ship it with `npm run db:migrate:remote` before/with the
-deploy.
+- **Separate Worker URL (default, simplest):** `REACT_APP_API_BASE` is the full
+  Worker URL. The Worker allows cross-origin requests from the origins listed
+  in `FRONTEND_CORS_ORIGINS` (`worker/wrangler.toml`).
+- **Same origin (no CORS):** put the API on the same domain as Pages via a
+  custom domain + a Worker route `yourdomain.com/api/v1/*`, then set
+  `REACT_APP_API_BASE=/api/v1`. See [CLOUDFLARE-MIGRATION.md](CLOUDFLARE-MIGRATION.md)
+  for the production-routing notes.
 
 ## Configuration
 

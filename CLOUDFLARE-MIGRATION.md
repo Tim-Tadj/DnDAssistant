@@ -126,12 +126,36 @@ API surface (below) is now served by the Worker. Status per resource:
 
 ### Phase 8 — Deploy ⛔
 - [ ] `wrangler d1 create dnd-assistant`; paste `database_id` into `wrangler.toml`.
-- [ ] `wrangler d1 migrations apply dnd-assistant --remote`.
+- [ ] `wrangler d1 migrations apply dnd-assistant --remote` (or `npm run db:migrate:remote`).
+- [ ] `npm run seed:remote` — Phase 7 seeds the 12 classes, 9 races, 396 spells,
+      152 gear, 409 monsters into the cloud D1.
 - [ ] `wrangler secret put JWT_SECRET`.
-- [ ] `wrangler deploy` (the Worker).
+- [ ] `wrangler deploy` (the Worker) → live at `dnd-assistant-api.<subdomain>.workers.dev`.
+- [ ] Add the Pages URL to `FRONTEND_CORS_ORIGINS` in `worker/wrangler.toml`,
+      then `wrangler deploy` again so the Worker accepts Pages' origin.
 - [ ] Create the Pages project (connect GitHub repo): build `npm run build`,
-      output `build`, env `REACT_APP_API_BASE`.
+      output `build`, env `REACT_APP_API_BASE=<worker-url>/api/v1`.
 - [ ] Retire the `gh-pages` deploy + `homepage` field once Pages is live.
+
+**Step-by-step commands and dashboard walkthrough live in
+[README.md](README.md) → "Deploy to production".** Quick version:
+
+```bash
+npx wrangler login
+cd worker
+npm run db:create                   # paste database_id into wrangler.toml
+npm run db:migrate:remote
+npm run seed:remote
+npx wrangler secret put JWT_SECRET
+npm run deploy                      # Worker live
+# (edit wrangler.toml: FRONTEND_CORS_ORIGINS += <pages-url>)
+npm run deploy                      # re-deploy with CORS allow-list
+
+# Frontend: dashboard Pages → connect Git, or:
+cd ..
+npm run build
+npx wrangler pages deploy build --project-name=dnd-assistant
+```
 
 ### Phase 9 — Cleanup ⛔
 - [ ] Migrate `AuthContext.tsx` to use the shared `api` client (currently raw fetch).
