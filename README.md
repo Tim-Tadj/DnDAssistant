@@ -5,18 +5,15 @@ monsters, spells and gear; generate XP-balanced encounters and track combat live
 and manage a campaign world with characters, parties, sessions, NPCs and an
 interactive map.
 
-- **Frontend:** React + TypeScript (Material-UI), single-page app → **Cloudflare Pages**.
+- **Frontend:** React + TypeScript (Material-UI), single-page app on
+  **Cloudflare Pages**.
 - **API:** **Cloudflare Worker** (Hono + TypeScript) → **Cloudflare D1** (SQLite).
 - **Auth:** stateless JWT (HS256); passwords hashed with PBKDF2 (WebCrypto).
 
-> **Migrating from the old stack.** This project originally ran a Java / Spring
-> Boot backend on PostgreSQL (still under [`src/java/`](src/java) as the reference
-> implementation). It is being ported to a Cloudflare Worker + D1. See
-> [CLOUDFLARE-IMPLEMENTATION.md](CLOUDFLARE-IMPLEMENTATION.md) for the architecture / wire contract
-> endpoints have moved over.
-
 > New here? Read [AGENTS.md](AGENTS.md) for conventions and [docs/spec/](docs/spec/)
-> for design specs.
+> for design specs. See [CLOUDFLARE-IMPLEMENTATION.md](CLOUDFLARE-IMPLEMENTATION.md)
+> for the architecture and wire contract; [CLOUDFLARE-RUNBOOK.md](CLOUDFLARE-RUNBOOK.md)
+> for the deploy commands and known pitfalls.
 
 ## Architecture
 
@@ -35,10 +32,11 @@ dev and the deployed Worker in production.
 | Tool | Version | Used for |
 | --- | --- | --- |
 | [Node.js](https://nodejs.org/) + npm | LTS (18+) | Frontend **and** Worker |
-| [Wrangler](https://developers.cloudflare.com/workers/wrangler/) | 3.9x+ (run via `npx`, pinned in `worker/`) | Worker dev + deploy, D1 |
+| [Wrangler](https://developers.cloudflare.com/workers/wrangler/) | 4.x (pinned in `worker/`) | Worker dev + deploy, D1 |
 | A [Cloudflare account](https://dash.cloudflare.com/sign-up) | — | **Production deploy only** — local dev is fully offline |
 
-No Docker, Postgres, or JDK is needed for the Cloudflare stack.
+No Docker, Postgres, or JDK is needed. The Cloudflare stack runs end-to-end on
+two Node processes.
 
 ## Run locally (development)
 
@@ -52,6 +50,8 @@ cd worker
 npm install                          # first time only
 cp .dev.vars.example .dev.vars       # local JWT secret (any 32+ char string)
 npm run db:migrate:local             # create the local D1 and apply the schema
+npm run seed:local                   # seed 12 classes, 9 races, 396 spells,
+                                    # 152 gear, 409 monsters
 npm run dev                          # wrangler dev on 127.0.0.1:8787
 ```
 
@@ -71,9 +71,11 @@ curl http://127.0.0.1:8787/api/v1/health
 
 Notes:
 - `wrangler dev` keeps the local D1 under `worker/.wrangler/`. Delete that folder
-  and re-run `npm run db:migrate:local` to reset to an empty database.
-- Use `127.0.0.1`, not `localhost`, for the API — `localhost` can resolve to IPv6
-  and return nothing. The `npm run dev` script already binds `127.0.0.1`.
+  and re-run `npm run db:migrate:local && npm run seed:local` to reset to an
+  empty, freshly-seeded database.
+- Use `127.0.0.1`, not `localhost`, for the API — `localhost` can resolve to
+  IPv6 which `wrangler dev` doesn't bind. The `npm run dev` script binds
+  `127.0.0.1`.
 
 ## Deploy to production
 
@@ -106,119 +108,54 @@ state matches:
 7. **Post-deploy health check** (if `CLOUDFLARE_ACCOUNT_SUBDOMAIN` is set).
 
 Each step is idempotent: if you re-run the script after a partial deploy, it
-picks up where it left off.
+picks up where it left off. The Java/Spring Boot backend that previously
+lived at `src/java/` was archived to branch
+`archive/spring-boot-backend` so the migration history is preserved.
 
-### Manual step-by-step (if you'd rather see what's happening)
+### Manual step-by-step
 
-### 0. Prerequisites
+If you'd rather see what's happening at each step:
 
-```bash
-npx wrangler login                   # opens a browser to authenticate this machine
-```
+| Step | Command |
+| --- | --- |
+| Log in | `npx wrangler login` (one-time, browser) |
+| Create D1 | `cd worker && npm run db:create` — paste the printed `database_id` into `worker/wrangler.toml` |
+| Apply schema | `cd worker && npm run db:migrate:remote` |
+| Seed content | `cd worker && npm run seed:remote` |
+| Set secret | `cd worker && npx wrangler secret put JWT_SECRET` |
+| Deploy Worker | `cd worker && npm run deploy` → live at `https://dnd-assistant-api.<subdomain>.workers.dev` |
+| Add Pages URL to CORS | Edit `worker/wrangler.toml`'s `FRONTEND_CORS_ORIGINS` (add the Pages URL); then `npm run deploy` |
+| Build SPA | `npm run build` |
+| Deploy Pages | `cd worker && npx wrangler pages deploy ../build --project-name=dnd-assistant --commit-dirty=true` (or wire up Git integration in the dashboard) |
 
-You need a Cloudflare account with Workers + Pages + D1 enabled (free tier is
-enough for this app).
-
-### 1. Create the production D1 database
-
-```bash
-cd worker
-npm run db:create                    # creates the D1; prints database_id +
-                                     # binding hints. Paste the id into
-                                     # worker/wrangler.toml (the
-                                     # `database_id = "REPLACE_…"` line).
-```
-
-### 2. Apply the schema + seed the bundled content
-
-```bash
-cd worker
-npm run db:migrate:remote            # apply migrations/0001_initial.sql to the cloud D1
-npm run seed:remote                  # writes seed-*.sql from src/res JSON and
-                                     # applies them via wrangler d1 execute
-```
-
-After this, the production D1 has the same contents as a fresh local D1: 12
-classes, 9 races, 396 spells, 152 gear, 409 monsters (Monster Manual). See
-[worker/seed/README.md](worker/seed/README.md) for details and idempotency
-guarantees.
-
-### 3. Set the Worker secret + deploy the API
-
-```bash
-cd worker
-npx wrangler secret put JWT_SECRET   # prompts for a 32+ byte production secret
-npm run deploy                       # → https://dnd-assistant-api.<subdomain>.workers.dev
-```
-
-`<subdomain>` is your Cloudflare Workers subdomain (visible in the dashboard
-URL after the first deploy). Copy the URL — the Pages frontend needs it.
-
-### 4. Update CORS allowed origins
-
-Edit [`worker/wrangler.toml`](worker/wrangler.toml) and add your Pages URL to
-`FRONTEND_CORS_ORIGINS` (comma-separated), then re-deploy:
-
-```bash
-cd worker
-npm run deploy
-```
-
-### 5. Deploy the frontend to **Pages**
-
-**Easiest — via the dashboard:**
-
-1. Cloudflare dashboard → **Workers & Pages** → **Create application** →
-   **Pages** → **Connect to Git**.
-2. Pick this repo.
-3. **Project name:** `dnd-assistant` (or anything you like).
-4. **Build command:** `npm run build`
-5. **Build output directory:** `build`
-6. **Environment variables** (Production):
-   - `REACT_APP_API_BASE` = `https://dnd-assistant-api.<subdomain>.workers.dev/api/v1`
-7. Save and deploy.
-
-The first build runs on the dashboard. Subsequent deploys happen automatically
-on every push to the connected branch.
-
-**Or from the CLI** (one-shot, no Git integration):
-
-```bash
-npm run build
-npx wrangler pages deploy build --project-name=dnd-assistant
-```
-
-### 6. Verify the deploy
+### Verify the deploy
 
 1. Visit the Pages URL — the SPA loads and talks to the Worker.
 2. Sign up, create a character — it should persist in D1.
-3. Tail the Worker logs if anything's off:
-
-```bash
-cd worker
-npx wrangler tail
-```
+3. Tail the Worker logs if anything's off: `cd worker && npx wrangler tail`.
 
 ### Schema changes after first deploy
 
-When you change the schema:
-
 ```bash
 cd worker
-npm run db:migrate:remote            # applies any new migrations/*.sql
-npm run seed:remote                  # safe to re-run; INSERTs are no-ops on existing rows
-npm run deploy                       # only needed if you also changed Worker code
+npm run db:migrate:remote   # applies any new migrations/*.sql
+npm run seed:remote         # safe to re-run; INSERTs are no-ops on existing rows
+npm run deploy              # only needed if you also changed Worker code
 ```
+
+The `Worker`, `D1`, and `JWT_SECRET` are persistent across deploys — re-running
+`deploy:prod` only adds/changes data and code; nothing is dropped.
 
 ### Same-origin vs. CORS
 
-- **Separate Worker URL (default, simplest):** `REACT_APP_API_BASE` is the full
-  Worker URL. The Worker allows cross-origin requests from the origins listed
-  in `FRONTEND_CORS_ORIGINS` (`worker/wrangler.toml`).
+- **Separate Worker URL (default, simplest):** `REACT_APP_API_BASE` is the
+  full Worker URL. The Worker allows cross-origin requests from the origins
+  listed in `FRONTEND_CORS_ORIGINS` (`worker/wrangler.toml`).
 - **Same origin (no CORS):** put the API on the same domain as Pages via a
   custom domain + a Worker route `yourdomain.com/api/v1/*`, then set
-  `REACT_APP_API_BASE=/api/v1`. See [CLOUDFLARE-IMPLEMENTATION.md](CLOUDFLARE-IMPLEMENTATION.md)
-  for the production-routing notes.
+  `REACT_APP_API_BASE=/api/v1`. See
+  [CLOUDFLARE-IMPLEMENTATION.md](CLOUDFLARE-IMPLEMENTATION.md) for the
+  routing options.
 
 ## Configuration
 
@@ -226,16 +163,17 @@ The frontend's API base is build-time config (Create React App `.env*` files):
 
 | File | Used by | Value |
 | --- | --- | --- |
-| [`.env.development`](.env.development) | `npm start` | `http://localhost:8787/api/v1` (local Worker) |
-| [`.env.production`](.env.production) | `npm run build` | `/api/v1`, or your full Worker URL |
+| [`.env.development`](.env.development) | `npm start` | `http://127.0.0.1:8787/api/v1` (local Worker) |
+| [`.env.production`](.env.production) | `npm run build` | `/api/v1` (same-origin) or your full Worker URL |
 
 The Worker's config lives in [`worker/wrangler.toml`](worker/wrangler.toml):
-`FRONTEND_CORS_ORIGINS` (var) and the `DB` D1 binding; `JWT_SECRET` is a secret
-(`.dev.vars` locally, `wrangler secret put` in prod).
+`FRONTEND_CORS_ORIGINS` (var) and the `DB` D1 binding; `JWT_SECRET` is a
+secret (`.dev.vars` locally, `wrangler secret put` in prod).
 
 ## Seeding content
 
-D1 starts empty. Load SRD content / homebrew through the bulk import endpoint:
+D1 starts empty. Load SRD content + bundled homebrew through the bulk import
+endpoint:
 
 ```bash
 curl -X POST http://127.0.0.1:8787/api/v1/import \
@@ -243,39 +181,49 @@ curl -X POST http://127.0.0.1:8787/api/v1/import \
   -d '{"kind":"spell","provenance":"srd","items":[ ... ]}'
 ```
 
-`GET /api/v1/import/snapshot?kind=monster` exports rows back out in the same shape
-(round-trippable). The bundled seed of the SRD data + the 409-monster Monster Manual
-runs via `npm run seed:remote` — see
+`GET /api/v1/import/snapshot?kind=monster` exports rows back out in the same
+shape (round-trippable). The bundled seed of the SRD data + the 409-monster
+Monster Manual runs via `npm run seed:local` / `npm run seed:remote` — see
+[worker/seed/README.md](worker/seed/README.md) and
 [CLOUDFLARE-IMPLEMENTATION.md](CLOUDFLARE-IMPLEMENTATION.md).
 
 ## Project layout
 
 ```
-src/ts/        React + TypeScript frontend (features under monsters/, spells/, gear/, ...)
+src/ts/        React + TypeScript frontend
+                 shared/      reusable components (EntityBrowser, ContextBar, …)
+                 api/        api-client (the only place that calls the API)
+                 auth/       AuthContext (uses the api client)
+                 monsters/   spells/   gear/   encounters/   characters/
+                 campaigns/  mechanics/  types/
 worker/        Cloudflare Worker API (Hono + D1)
-  src/routes/  one file per resource (monsters, spells, gear, characters, campaigns, ...)
-  migrations/  D1 (SQLite) schema
-src/res/       Bundled JSON data (SRD content, rules, campaign world)
-src/java/      Legacy Java/Spring Boot backend (reference during the migration)
+                 src/        index.ts, types.ts, db.ts, auth/, lib/, routes/
+                 migrations/ 0001_initial.sql (consolidated schema)
+                 seed/       generate.mjs + apply.mjs (per-table SQL)
+src/res/       Bundled JSON data
+                 resources/  SRD + Monster Manual + custom corpora
+                 rules/      Game rules (mechanics, combat, conditions, …)
+                 talesOfAvandria/  Example campaign world
 docs/spec/     Design specifications
+scripts/       Cross-platform helper scripts (deploy.mjs + run-all.sh)
 ```
 
 ## Resources
 
 Maps are generated through [Azgaar's Fantasy Map Generator](https://azgaar.github.io/Fantasy-Map-Generator/).
-Markers on the interactive map are generated via simple locational metadata in the
-`Avandria.json` file which is read at runtime. The locations of these markers are
-the relevant pixel coordinates of the generated map where city images are generated
-through [Watabou's City Generator](https://watabou.github.io/city-generator/) which
-uses the `outskirts.json` and `charred.json` styles respectively loaded through the
-*Color Scheme* menu. Other settings applied through the *Style* menu include
-*Misc -> Show trees & Show Alleys*; *Elements -> Districts -> Legend*; and
-*Graphics -> Thin Lines & Tint Districts & Weathered roofs*.
+Markers on the interactive map are generated via simple locational metadata
+in the `Avandria.json` file which is read at runtime. The locations of these
+markers are the relevant pixel coordinates of the generated map where city
+images are generated through
+[Watabou's City Generator](https://watabou.github.io/city-generator/) which
+uses the `outskirts.json` and `charred.json` styles respectively loaded
+through the *Color Scheme* menu. Other settings applied through the *Style*
+menu include *Misc -> Show trees & Show Alleys*; *Elements -> Districts ->
+Legend*; and *Graphics -> Thin Lines & Tint Districts & Weathered roofs*.
 
-Other Dungeons & Dragons resources are adapted from publicly available data and
-re-used as the data structure for defining new resources.
+Other Dungeons & Dragons resources are adapted from publicly available data
+and re-used as the data structure for defining new resources.
 
 ## License
 
 ISC. See package metadata. Authors: Lachlan Charteris, Lachlan Crews.
-</content>
