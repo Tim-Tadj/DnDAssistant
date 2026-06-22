@@ -159,6 +159,62 @@ git-branch + project-hash prefix).
 `wrangler deploy`. Verified: `Access-Control-Allow-Origin` echoes
 the Pages origin on `/health`.
 
+### 9. `/api/v1/import` was open to the entire internet
+
+Caught during a security review on 2026-06-22. The import endpoint
+was ported verbatim from the Java backend and the original comment
+admitted it: *"Open endpoint, matching the Java side (auth lands in
+a later phase)."* The "later phase" never came.
+
+What it let an anonymous caller do:
+
+```bash
+# Overwrite the SRD Tarrasque with anything
+curl -X POST https://dnd-assistant-api.ttimtadj.workers.dev/api/v1/import \
+  -H 'Content-Type: application/json' \
+  -d '{"kind":"monster","provenance":"srd","owner_user_id":null,
+       "items":[{"name":"Tarrasque","hp":1,"challenge":"0"}]}'
+
+# Dump every user's homebrew via snapshot
+curl https://dnd-assistant-api.ttimtadj.workers.dev/api/v1/import/snapshot?kind=spell
+
+# Impersonate any user for homebrew attribution
+curl -X POST .../api/v1/import \
+  -d '{"kind":"spell","provenance":"homebrew","owner_user_id":"<their-uuid>",
+       "items":[...]}'
+```
+
+CORS didn't help (it's a browser-only defense; `curl` ignores it). D1
+itself was never directly accessible, but the Worker is the only gate
+and the gate was missing for this route.
+
+**Fix:**
+- `worker/src/routes/import.ts`: added `importRoutes.use('*', requireAuth)`
+  at the top.
+- POST: added `userHomebrewContext()` that forces `provenance='homebrew'`
+  and `owner_user_id=c.get('userId')`. Rejects requests that try to claim
+  `srd`/`derived` provenance or impersonate another user.
+- GET snapshot: now requires auth and uses the same visibility predicate
+  as the regular list endpoints (`provenance <> 'homebrew' OR owner_user_id = ? OR owner_user_id IS NULL`),
+  so each user only sees their own homebrew + global SRD/derived.
+- `worker/src/index.ts`: updated the comment from "open endpoint" to
+  "auth-gated".
+
+The seed pipeline (`worker/seed/apply.mjs`) was unaffected — it writes
+via `wrangler d1 execute --file=...` and never touches the HTTP layer.
+The frontend does not call `/api/v1/import` at all, so this is a
+defence-in-depth fix; nothing user-facing changed.
+
+**Verify after deploy:**
+```bash
+# Should now be 401 (no Authorization header)
+curl -X POST https://dnd-assistant-api.ttimtadj.workers.dev/api/v1/import \
+  -d '{"kind":"monster","provenance":"srd","items":[]}'
+
+# Should still work (caller is logged in, but provenance must be homebrew)
+# Even with a valid token, trying to write srd/derived should 400.
+```
+
 ## How to redeploy (idempotent)
 
 ```bash

@@ -63,7 +63,8 @@ app.route('/api/v1/campaigns/:campaignId/encounters', campaignEncounterSaves);
 // Top-level per-user collections
 app.route('/api/v1/npcs', npcs);
 app.route('/api/v1/encounter-saves', encounterSaves);
-// Admin: bulk import + snapshot (open endpoint, mirrors the Java side).
+// Auth-gated bulk import + snapshot (was open in the Java port — see
+// docs/cloudflare/RUNBOOK.md "What broke" #9 for the security fix).
 app.route('/api/v1/import', importRoutes);
 
 // Error shape matches src/ts/api/api-client.ts: {error:{code,message}}.

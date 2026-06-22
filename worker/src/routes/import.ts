@@ -3,9 +3,14 @@
 //   GET  /api/v1/import/snapshot  export DB rows in the exact shape the
 //                                 importer accepts (round-trippable)
 //
-// Open endpoint, matching the Java side (auth lands in a later phase). Each
-// item is processed in isolation — a single bad row is recorded in the
-// per-item `errors` array and never aborts the batch.
+// AUTH-GATED (was open in the Java port — fixed 2026-06-22 after a
+// security review of /api/v1/*). Both endpoints now require a valid JWT.
+// User-driven calls are forced to provenance='homebrew' with the caller's
+// userId as owner_user_id; only seed scripts (which write via
+// `wrangler d1 execute --file=...` and never touch this HTTP endpoint)
+// can land srd/derived rows. Each item is processed in isolation — a
+// single bad row is recorded in the per-item `errors` array and never
+// aborts the batch.
 //
 // Natural keys:
 //   spells:    (name, provenance, owner_user_id)
@@ -20,9 +25,38 @@ import { Hono } from 'hono';
 import type { Context } from 'hono';
 import type { AppBindings } from '../types';
 import { all, first, run } from '../db';
-import { badRequest } from '../lib/errors';
+import { badRequest, unauthorized } from '../lib/errors';
+import { requireAuth } from '../middleware/auth';
 
 const importRoutes = new Hono<AppBindings>();
+
+// Auth gate: every endpoint below requires a valid JWT. Previously this
+// route was open, which let any internet caller overwrite the global SRD
+// tables or impersonate any user. The frontend does not currently call
+// these endpoints — seed scripts write directly via `wrangler d1 execute`
+// and bypass this HTTP layer entirely.
+importRoutes.use('*', requireAuth);
+
+// Force homebrew provenance + caller's userId for user-driven calls.
+// Only seed-time writes should ever produce provenance='srd' or 'derived',
+// and those happen out-of-band via `wrangler d1 execute --file=...`.
+// We do this in the handler, not in the middleware, because snapshot needs
+// to read with the user's view of visibility (their own homebrew + global SRD).
+function userHomebrewContext(
+  c: Context<AppBindings>,
+  claimedProvenance: unknown,
+  claimedOwner: unknown,
+): { provenance: 'homebrew'; ownerUserId: string } {
+  const userId = c.get('userId');
+  if (!userId) throw unauthorized(); // requireAuth should have caught this, but be explicit
+  if (claimedProvenance !== undefined && claimedProvenance !== 'homebrew') {
+    throw badRequest("Request 'provenance' must be 'homebrew' on this endpoint");
+  }
+  if (claimedOwner !== undefined && claimedOwner !== null && claimedOwner !== userId) {
+    throw badRequest("'owner_user_id' must be omitted, null, or match the authenticated user");
+  }
+  return { provenance: 'homebrew', ownerUserId: userId };
+}
 
 const KINDS = ['spell', 'monster', 'gear'] as const;
 const PROVENANCES = ['srd', 'derived', 'homebrew'] as const;
@@ -281,14 +315,14 @@ async function findByNaturalKey(
 importRoutes.post('/', async (c) => {
   const body = (await c.req.json().catch(() => null)) as Record<string, unknown> | null;
   const kind = body?.kind as string | undefined;
-  const provenance = body?.provenance as string | undefined;
-  const ownerUserId = typeof body?.owner_user_id === 'string' ? body.owner_user_id : null;
+  const { provenance, ownerUserId } = userHomebrewContext(
+    c,
+    body?.provenance,
+    body?.owner_user_id,
+  );
 
   if (!KINDS.includes(kind as Kind)) {
     throw badRequest("Request 'kind' must be one of: spell, monster, gear");
-  }
-  if (!PROVENANCES.includes(provenance as Provenance)) {
-    throw badRequest("Request 'provenance' must be one of: srd, derived, homebrew");
   }
 
   const items = Array.isArray(body?.items) ? (body!.items as unknown[]) : [];
@@ -305,10 +339,10 @@ importRoutes.post('/', async (c) => {
     try {
       const r =
         kind === 'spell'
-          ? await upsertSpell(c, item, provenance as Provenance, ownerUserId)
+          ? await upsertSpell(c, item, provenance, ownerUserId)
           : kind === 'monster'
-            ? await upsertMonster(c, item, provenance as Provenance, ownerUserId)
-            : await upsertGear(c, item, provenance as Provenance, ownerUserId);
+            ? await upsertMonster(c, item, provenance, ownerUserId)
+            : await upsertGear(c, item, provenance, ownerUserId);
       if (r.created) result.imported++;
       else result.updated++;
     } catch (e) {
@@ -326,43 +360,38 @@ importRoutes.post('/', async (c) => {
 importRoutes.get('/snapshot', async (c) => {
   const kind = c.req.query('kind');
   const provenance = c.req.query('provenance');
+  const userId = c.get('userId');
+  if (!userId) throw unauthorized();
+
   if (!KINDS.includes(kind as Kind)) {
     throw badRequest("Query param 'kind' must be one of: spell, monster, gear");
   }
+  // 'provenance' is now informational only — the visibility predicate
+  // below is the source of truth. We don't reject non-homebrew values
+  // because 'srd' and 'derived' are global; they're included in the
+  // snapshot for export round-tripping but still visible to any caller.
   if (provenance && !PROVENANCES.includes(provenance as Provenance)) {
     throw badRequest("Query param 'provenance' must be one of: srd, derived, homebrew");
   }
 
-  let items: unknown[] = [];
-  if (kind === 'spell') {
-    const rows = provenance
-      ? await all<Record<string, unknown>>(
-          c.env.DB,
-          'SELECT * FROM spells WHERE provenance = ? ORDER BY name',
-          provenance,
-        )
-      : await all<Record<string, unknown>>(c.env.DB, 'SELECT * FROM spells ORDER BY name');
-    items = rows.map(spellToExport);
-  } else if (kind === 'monster') {
-    const rows = provenance
-      ? await all<Record<string, unknown>>(
-          c.env.DB,
-          'SELECT * FROM monsters WHERE provenance = ? ORDER BY name',
-          provenance,
-        )
-      : await all<Record<string, unknown>>(c.env.DB, 'SELECT * FROM monsters ORDER BY name');
-    items = rows.map(monsterToExport);
-  } else {
-    const rows = provenance
-      ? await all<Record<string, unknown>>(
-          c.env.DB,
-          'SELECT * FROM gear WHERE provenance = ? ORDER BY name',
-          provenance,
-        )
-      : await all<Record<string, unknown>>(c.env.DB, 'SELECT * FROM gear ORDER BY name');
-    items = rows.map(gearToExport);
-  }
-  return c.json({ kind, provenance: provenance ?? null, items });
+  // Visibility predicate mirrors monsters/spells/gear list endpoints:
+  //   - everything that isn't homebrew (srd, derived) is global
+  //   - homebrew rows are visible only to their owner + global (NULL owner)
+  const homebrewClause = `provenance <> 'homebrew' OR owner_user_id = ? OR owner_user_id IS NULL`;
+  const itemsTable = kind === 'gear' ? 'gear' : kind === 'spell' ? 'spells' : 'monsters';
+  const toExport =
+    kind === 'spell'
+      ? spellToExport
+      : kind === 'monster'
+        ? monsterToExport
+        : gearToExport;
+
+  const rows = await all<Record<string, unknown>>(
+    c.env.DB,
+    `SELECT * FROM ${itemsTable} WHERE ${homebrewClause} ORDER BY name`,
+    userId,
+  );
+  return c.json({ kind, provenance: provenance ?? null, items: rows.map(toExport) });
 });
 
 // Snapshot serializers — strip internal id/timestamps so the result is
