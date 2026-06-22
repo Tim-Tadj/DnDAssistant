@@ -107,6 +107,72 @@ docs/                  Living project docs
 | Typecheck | `npx tsc --noEmit` (root) and `cd worker && npx tsc --noEmit` |
 | Worker logs (tail) | `cd worker && npx wrangler tail` |
 
+## Deploying
+
+Two deploys: the **Worker** (API) and **Pages** (SPA). Both use `wrangler`,
+which reads the cached OAuth token from your terminal — no API token needed
+once `wrangler login` has been run at least once. The full story (every
+deploy-time bug, in order) is in [docs/cloudflare/RUNBOOK.md](cloudflare/RUNBOOK.md);
+this section is just the copy-paste.
+
+### Daily: frontend-only change (most common)
+
+The build embeds the API URL, so `REACT_APP_API_BASE` must be set. Use
+PowerShell-native env (avoids the `cmd /c "set X=Y&&…"` trailing-space bug
+documented in RUNBOOK.md → "What broke" #7).
+
+```powershell
+# From repo root
+$env:REACT_APP_API_BASE = "https://dnd-assistant-api.ttimtadj.workers.dev/api/v1"
+npm run build
+cd worker
+npx wrangler pages deploy ../build --project-name=dnd-assistant --commit-dirty=true
+```
+
+The Pages project name is **`dnd-assistant`** (the alias URL
+`dndassistant-mvp-run.dnd-assistant-1dx.pages.dev` includes a git-branch
++ project-hash suffix — that's the *deployed* URL, not the project name).
+Don't pass `--project-name=dndassistant-mvp-run`; wrangler will ask you to
+create it.
+
+### Worker code change
+
+```powershell
+cd worker
+npm run deploy            # wrangler deploy, picks up wrangler.toml
+```
+
+That's it if only Worker code changed. Schema/content changes need a
+migrate + seed first (see the table above for `db:migrate:remote` and
+`seed:remote`).
+
+### First-time / full stack / after schema or seed changes
+
+Idempotent end-to-end — walks D1 → migrations → seed → JWT secret → Worker
+deploy, picks up where the previous run bailed.
+
+```powershell
+cd worker
+npm run deploy:prod
+```
+
+### Verify it's live
+
+```powershell
+cd worker
+npx wrangler tail                       # live request stream
+# or in another terminal:
+curl https://dnd-assistant-api.ttimtadj.workers.dev/api/v1/health
+```
+
+### Pre-deploy checklist
+
+- [ ] `npx tsc --noEmit` clean at repo root
+- [ ] `cd worker && npx tsc --noEmit` clean
+- [ ] `git status` shows only the files you meant to change
+- [ ] Committed (Pages deploys with `--commit-dirty=true`, but the source
+      should still be in git before you ship)
+
 ## Conventions
 
 **Naming**
