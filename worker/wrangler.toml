@@ -26,3 +26,22 @@ FRONTEND_CORS_ORIGINS = "http://localhost:3000,https://dnd-assistant.pages.dev,h
 # --- Secrets (NOT stored here) ---------------------------------------------
 # Local dev:  put JWT_SECRET in worker/.dev.vars   (see .dev.vars.example)
 # Production: run `wrangler secret put JWT_SECRET`
+
+# --- Observability ---------------------------------------------------------
+# Required for `wrangler tail` to stream live request logs (IP, UA, path).
+# Logs are visible in the Cloudflare dashboard for 3 days on Free / 30 on Paid.
+# invocation_logs = true emits the per-request log line from console.log()
+# in the worker middleware (see src/index.ts).
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+persist = true
+invocation_logs = true
+
+[observability.traces]
+enabled = false
+head_sampling_rate = 1

@@ -2,9 +2,10 @@
 // All API calls go through here so the base URL + auth header +
 // error parsing are defined in exactly one place.
 
-const API_BASE: string =
+const API_BASE: string = (
   (process.env.REACT_APP_API_BASE as string | undefined) ??
-  'http://127.0.0.1:8787/api/v1';
+  'http://127.0.0.1:8787/api/v1'
+).trim();
 
 export type ApiErrorBody = { error: { code: string; message: string } };
 
@@ -51,6 +52,17 @@ async function request<T>(
       }
     } catch {
       // body wasn't JSON; keep the status text
+    }
+    // 401 from anywhere except the auth endpoints themselves means the
+    // stored JWT is no longer valid (expired, revoked, or tampered).
+    // Tell AuthContext to clear its state so the UI stops pretending
+    // we're logged in.
+    if (res.status === 401 && !path.startsWith('/auth/')) {
+      try {
+        window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+      } catch {
+        // SSR or non-browser env — nothing to do.
+      }
     }
     throw new ApiError(res.status, code, message);
   }

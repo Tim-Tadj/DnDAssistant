@@ -102,6 +102,22 @@ const AppLayout: FC = () => {
     return () => window.removeEventListener('keydown', onKey);
   }, [searchOpen]);
 
+  // When the API rejects us with a 401, AuthContext clears state.
+  // Surface that here so the user lands on home + login dialog instead
+  // of staring at an empty /characters or /campaign page. Only fires
+  // for 401-driven logouts — explicit user logout via the menu is
+  // unchanged.
+  useEffect(() => {
+    const onUnauth = () => {
+      setAuthMode('login');
+      setAuthOpen(true);
+      // Hash-router safe: go back to the home/mechanics page.
+      navigate('/');
+    };
+    window.addEventListener('auth:unauthorized', onUnauth);
+    return () => window.removeEventListener('auth:unauthorized', onUnauth);
+  }, [navigate]);
+
   const activePath = location.pathname.replace(/^#?\/?/, '').split('/')[0] ?? '';
   const railWidth = isCompact ? RAIL_COLLAPSED : RAIL_WIDTH;
 
