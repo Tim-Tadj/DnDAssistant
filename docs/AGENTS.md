@@ -65,6 +65,7 @@ worker/                Cloudflare Worker API
     types.ts           Env bindings (DB, JWT_SECRET, FRONTEND_CORS_ORIGINS)
   migrations/
     0001_initial.sql   Consolidated D1 schema (all 16 tables, indexes, FKs)
+    0002_encounter_records.sql  Prepared vs played encounters (status, session, outcome, log)
   seed/
     generate.mjs       Reads src/res/resources/*.json → per-table SQL
     apply.mjs          wrangler d1 execute --file=… once per table
@@ -239,6 +240,10 @@ isolation — no schema migration required.
 
 ## Gotchas / known issues
 
+- **New migrations must be applied to remote D1 before deploying the
+  Worker** that uses them (`cd worker && npm run db:migrate:remote`).
+  `0002_encounter_records.sql` adds columns the encounter-saves route
+  reads and writes; without it, saving an encounter fails.
 - **`REACT_APP_API_BASE` doesn't propagate to `react-scripts build` from
   PowerShell's `$env:`** — use `cmd /c "set REACT_APP_API_BASE=…&& npm run
   build"` to force it through. See

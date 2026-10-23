@@ -90,6 +90,29 @@ Legend: ✅ done · 🚧 in progress · ⛔ not started · ❓ waiting on a deci
   box, nothing clipped, no console errors. Not covered: the campaign
   create form (only shown with no active campaign).
 
+## Phase G — encounter records, campaign hub, search
+
+- ✅ G1. Prepared vs played encounters (migration 0002: `status`,
+  `session_id`, `source_id`, `outcome`, `rounds`, `log_json`,
+  `combatants_json`). `EncounterSavesView` is shared by the Library and
+  the campaign's Encounters tab (replaces `EncounterHistory`).
+- ✅ G2. Practice (test-run) vs live mode in the Run tab; End & record
+  dialog with session picker / new session, outcome, XP, casualties,
+  log. `EncounterProvider` moved to the app root.
+- ✅ G3. Sessions list their encounters and XP.
+- ✅ G4. Campaign overview tiles; party cards redesigned.
+- ✅ G5. Global search: NPCs + encounters, field matching, preview pane,
+  `?open=<id>` deep links (`shared/useOpenParam`).
+- Verified (local stack): overview tiles, Encounters tab, Test run from
+  the campaign tab → Run tab in practice with party, fight survives a
+  trip to Spells, switch to Live, 5 damage downs the Pixie, End & record
+  summary (50 XP, 12 each, Pixie defeated, 7 standing), Record & end →
+  Library shows "played 1×" + the played card (Session 1, 1 round, log
+  3), Sessions tab lists it, search "giant frog" → Enter opens the
+  monster drawer, encounter hit → campaign tab with it highlighted.
+  Test record and session deleted afterwards. Not covered: phone width,
+  editing a played record, the search preview on narrow screens.
+
 ## Verified in the browser (2026-10-23, local stack)
 
 Party auto-sync (4 × L4 → 1,000 XP Medium) · Generate → all ticked ·
@@ -110,8 +133,6 @@ Not covered: phone-width layout, keyboard-only use.
 - `ENCOUNTER_MULTIPLIERS` bands differ from the DMG (3–6 monsters should
   be ×2). The generator also stops under budget, so "Medium" often rates
   as Easy — worth a "fill to budget" pass.
-- Campaign party cards show "4 ?" class breakdown for characters whose
-  `class_id` doesn't resolve.
 
 ## Decisions log
 

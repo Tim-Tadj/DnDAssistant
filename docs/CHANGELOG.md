@@ -15,6 +15,45 @@ start a fresh `[Unreleased]` section.
 ## [Unreleased]
 
 ### Added
+- **Encounters: prepare, test, run, record.** Encounters a DM builds
+  ahead of time are saved as *prepared* (no fake played date). From the
+  Library or a campaign's Encounters tab, **Run** starts one live and
+  **Test run** starts a practice run that records nothing. A live fight
+  ends with **End & record**: outcome, rounds, the session it happened
+  in (or a new one), XP earned from defeated monsters, who fell, notes
+  and the combat log (damage, heals, downs, conditions, rounds,
+  joins/removals) are saved as a *played* record. Prepared and played
+  encounters are listed separately; prepared ones show how often
+  they've been played. Each session in the Sessions log lists the
+  encounters played in it and the XP earned. The running fight now
+  lives at the app root, so it survives visiting other pages.
+  Migration `0002_encounter_records.sql` adds the columns; the worker
+  gains `PUT /encounter-saves/:id`.
+- **Global search (Ctrl/Cmd+K) previews and deep-links.** Searches
+  NPCs and saved encounters as well, and matches more than names
+  (type, school, class, setting, location, monsters in an encounter,
+  notes). On wide screens the highlighted hit is previewed beside the
+  list (stat block, spell, item, character, campaign, NPC, encounter
+  with its log). Opening a hit goes to its page with it open (the
+  drawer, the NPC card, the highlighted encounter), switching the
+  active campaign first when needed. Encounter hits can be run or
+  test-run from the preview; monster hits can join a running fight.
+  Lists are cached and refreshed in the background.
+- **Campaign overview at a glance.** Tiles for parties, sessions,
+  encounters (prepared / played) and NPCs that jump to their tab, plus
+  "Prepare an encounter" and "Log a session". The hub tab is in the URL
+  (`#/campaign?tab=sessions`).
+
+### Changed
+- **Campaign party cards** are a responsive grid showing each member
+  (level, class, HP, AC), a compact party composition, and Set as
+  active / Members / Unlink actions. Unresolved classes show as
+  "Unknown class" instead of "?". Classes and races are fetched once
+  per page load (`shared/useReference`).
+
+### Fixed
+- Session dates no longer show the previous day west of UTC.
+
 - **UX overhaul (see `docs/ux-review/`).** Encounters are a clear
   Build → Run → Library flow with big primary buttons that move you to the
   next step. Builder groups have checkboxes for "Reroll selected" /

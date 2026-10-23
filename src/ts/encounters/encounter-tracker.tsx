@@ -9,6 +9,9 @@
  *   everyone caught in a fireball
  * - Per-row typed damage / heal
  * - Add monsters via the multi-select SelectMonster picker
+ *
+ * The combat state itself (`tracker`) lives in EncounterContext so it
+ * survives navigation; this component is the view and controls.
  */
 
 import React, { FC, ReactNode, useEffect, useMemo, useState } from 'react';
@@ -45,6 +48,7 @@ import {
   PinDrop,
   Shield,
   StopCircle,
+  TaskAlt,
 } from '@mui/icons-material';
 import { Monster } from '../types/Monster';
 import { Character } from '../types/Character';
@@ -52,7 +56,7 @@ import MonsterStatBlock from '../shared/MonsterStatBlock';
 import { useMonsterStatPane } from '../shared/MonsterStatPane';
 import { useConfirm } from '../shared/useConfirm';
 import SelectMonster from './select-monster';
-import useTrackEncounter, { maxHpOf, RemainingMonster } from './use-track-encounter';
+import { maxHpOf, RemainingMonster, Tracker } from './use-track-encounter';
 import useMonsters from './use-monsters';
 
 const CONDITION_LIST = [
@@ -75,31 +79,33 @@ const CONDITION_LIST = [
 const mono = { fontFamily: '"JetBrains Mono", monospace' };
 
 const EncounterTracker: FC<{
-  monstersInCombat: Monster[];
+  tracker: Tracker;
   party?: Character[];
   title?: ReactNode;
   active?: boolean;
-  autoAddParty?: boolean;
-  groupInitiative?: boolean;
   confirmDestructive?: boolean;
+  onAddMonsters: (m: Monster[]) => void;
+  /** Live fights: end and record what happened. */
+  onRecord?: () => void;
+  /** End without recording (asks first). */
   onEnd?: () => void;
+  endLabel?: string;
 }> = ({
-  monstersInCombat,
+  tracker,
   party,
   title,
   active = true,
-  autoAddParty,
-  groupInitiative,
   confirmDestructive = true,
+  onAddMonsters,
+  onRecord,
   onEnd,
+  endLabel = 'End without recording',
 }) => {
   const { monsters } = useMonsters();
   const statPane = useMonsterStatPane();
   const { confirm, dialog } = useConfirm();
-  const tracker = useTrackEncounter(monstersInCombat, party, { autoAddParty, groupInitiative });
   const {
     remainingMonsters,
-    onAddMonsters,
     removeMany,
     applyHpDelta,
     addCondition,
@@ -194,9 +200,9 @@ const EncounterTracker: FC<{
     if (
       confirmDestructive &&
       !(await confirm({
-        title: 'End this encounter?',
-        body: 'The tracker is cleared. Save it to the library first from the Build tab if you want to run it again.',
-        confirmLabel: 'End encounter',
+        title: `${endLabel}?`,
+        body: 'The tracker is cleared and nothing is recorded.',
+        confirmLabel: 'End',
         destructive: true,
       }))
     )
@@ -237,6 +243,11 @@ const EncounterTracker: FC<{
           <IconButton size="small" aria-label="more actions" onClick={(e) => setMoreAnchor(e.currentTarget)}>
             <MoreVert />
           </IconButton>
+          {onRecord && (
+            <Button variant="outlined" startIcon={<TaskAlt />} onClick={onRecord} disabled={count === 0}>
+              End &amp; record
+            </Button>
+          )}
           <Button
             variant="contained"
             size="large"
@@ -261,7 +272,7 @@ const EncounterTracker: FC<{
             <ListItemIcon>
               <StopCircle fontSize="small" color="error" />
             </ListItemIcon>
-            <ListItemText primary="End encounter" />
+            <ListItemText primary={endLabel} />
           </MenuItem>
         )}
       </Menu>

@@ -6,10 +6,11 @@
 //   - characters in this campaign (with per-campaign state)
 //   - sessions log
 //   - NPCs roster
-//   - encounter history
+//   - encounters: prepared ahead of time, and the record of what was played
 //   - linked-entity notes
 
 import React, { FC, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -22,7 +23,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { Map as MapIcon, AutoStories, Edit, Group, Person, History, People, Save } from '@mui/icons-material';
+import { Map as MapIcon, AutoStories, Casino, Edit, Group, Person, History, People, Save } from '@mui/icons-material';
 import { campaignsApi } from '../api/campaigns';
 import { useToast } from './ToastProvider';
 import { Campaign } from '../types/Campaign';
@@ -31,8 +32,28 @@ import CampaignPartiesPanel from './CampaignPartiesPanel';
 import CampaignCharacters from './CampaignCharacters';
 import SessionsLog from './SessionsLog';
 import NpcsRoster from './NpcsRoster';
-import EncounterHistory from './EncounterHistory';
+import EncounterSavesView from '../encounters/EncounterSavesView';
+import CampaignAtAGlance from './CampaignAtAGlance';
 import LinkedText from './LinkedText';
+
+export const HUB_TABS = ['overview', 'parties', 'characters', 'sessions', 'npcs', 'encounters'] as const;
+export type HubTab = typeof HUB_TABS[number];
+
+// The open tab lives in the URL (`#/campaign?tab=sessions`) so search
+// results and other pages can link straight to it.
+function useHubTab(): [HubTab, (t: HubTab) => void] {
+  const [params, setParams] = useSearchParams();
+  const raw = params.get('tab') as HubTab | null;
+  const tab = raw && HUB_TABS.includes(raw) ? raw : 'overview';
+  const setTab = (t: HubTab) =>
+    setParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('tab', t);
+      next.delete('open');
+      return next;
+    });
+  return [tab, setTab];
+}
 
 type Props = {
   campaign: Campaign;
@@ -41,7 +62,9 @@ type Props = {
 };
 
 const CampaignHub: FC<Props> = ({ campaign, onChanged, canEdit = true }) => {
-  const [tab, setTab] = useState<string>('overview');
+  const [tab, setTab] = useHubTab();
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
   const campaignId = campaign.id ?? '';
   const { toast } = useToast();
   const [notesDraft, setNotesDraft] = useState<string | null>(null);
@@ -108,6 +131,7 @@ const CampaignHub: FC<Props> = ({ campaign, onChanged, canEdit = true }) => {
         <Box sx={{ p: 2 }}>
           {tab === 'overview' && (
             <Stack spacing={2}>
+              <CampaignAtAGlance campaignId={campaignId} onOpenTab={setTab} />
               {notesDraft !== null ? (
                 <Box>
                   <TextField
@@ -168,7 +192,18 @@ const CampaignHub: FC<Props> = ({ campaign, onChanged, canEdit = true }) => {
           {tab === 'characters' && <CampaignCharacters campaignId={campaignId} canEdit={canEdit} />}
           {tab === 'sessions' && <SessionsLog campaignId={campaignId} canEdit={canEdit} />}
           {tab === 'npcs' && <NpcsRoster campaignId={campaignId} canEdit={canEdit} />}
-          {tab === 'encounters' && <EncounterHistory campaignId={campaignId} canEdit={canEdit} />}
+          {tab === 'encounters' && (
+            <EncounterSavesView
+              campaignId={campaignId}
+              canEdit={canEdit}
+              highlightId={params.get('open')}
+              emptyAction={
+                <Button variant="contained" size="small" startIcon={<Casino />} onClick={() => navigate('/encounter?tab=build')}>
+                  Prepare an encounter
+                </Button>
+              }
+            />
+          )}
         </Box>
       </Paper>
     </Stack>

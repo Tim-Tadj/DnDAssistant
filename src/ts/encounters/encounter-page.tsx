@@ -5,22 +5,22 @@
 //   - Library: saved encounters for the active campaign. "Run" loads a
 //     save straight into the tracker.
 //
-// Build and Run share state via EncounterContext and stay mounted
-// while hidden, so peeking at the Builder mid-fight doesn't wipe HP,
-// conditions or initiative. The active tab lives in the URL
-// (see encounter-tab.ts).
+// Build and Run share state via EncounterContext, which lives at the
+// app root, so peeking at the Builder (or another page) mid-fight
+// doesn't wipe HP, conditions or initiative. The active tab lives in
+// the URL (see encounter-tab.ts).
 
 import React, { FC } from 'react';
 import { Alert, Badge, Box, Paper, Tab, Tabs } from '@mui/material';
 import { Casino, History as HistoryIcon, PlayArrow } from '@mui/icons-material';
-import { EncounterProvider, useEncounter } from './EncounterContext';
+import { useEncounter } from './EncounterContext';
 import EncounterLibrary from './EncounterLibrary';
 import EncounterBuilder from './EncounterBuilder';
 import EncounterLive from './EncounterLive';
 import { useAuth } from '../auth/AuthContext';
 import { useEncounterTab } from './encounter-tab';
 
-const EncounterPageInner: FC = () => {
+const EncounterPage: FC = () => {
   const { user } = useAuth();
   const { monstersInCombat } = useEncounter();
   const [tab, setTab] = useEncounterTab(monstersInCombat.length > 0 ? 'run' : 'build');
@@ -59,19 +59,11 @@ const EncounterPageInner: FC = () => {
         <Box sx={{ display: tab === 'build' ? 'block' : 'none' }}>
           <EncounterBuilder />
         </Box>
-        <Box sx={{ display: tab === 'run' ? 'block' : 'none' }}>
-          <EncounterLive active={tab === 'run'} />
-        </Box>
+        {tab === 'run' && <EncounterLive />}
         {tab === 'library' && <EncounterLibrary />}
       </Box>
     </Paper>
   );
 };
-
-const EncounterPage: FC = () => (
-  <EncounterProvider>
-    <EncounterPageInner />
-  </EncounterProvider>
-);
 
 export default EncounterPage;

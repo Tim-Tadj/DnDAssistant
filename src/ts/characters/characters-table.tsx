@@ -21,7 +21,8 @@ import {
   Race,
   defaultCharacter,
 } from '../types/Character';
-import { charactersApi, referenceApi } from '../api/characters';
+import { charactersApi } from '../api/characters';
+import { useClasses, useRaces } from '../shared/useReference';
 import { useList } from '../shared/useList';
 import { EntityBrowser } from '../shared/EntityBrowser';
 import CharacterDetailPanel from '../shared/CharacterDetailPanel';
@@ -166,19 +167,8 @@ const CharactersTable: FC = () => {
   const { items, loadError, reload } = useList<Character>(charactersApi.list);
   // Same active party as the switcher in the top bar.
   const { activePartyId, setActivePartyId } = useCampaignContext();
-  const [races, setRaces] = useState<Race[]>([]);
-  const [classes, setClasses] = useState<DndClass[]>([]);
-
-  useEffect(() => {
-    if (!user) return;
-    if (races.length > 0 && classes.length > 0) return;
-    Promise.all([referenceApi.listRaces(), referenceApi.listClasses()])
-      .then(([r, c]) => {
-        setRaces(r);
-        setClasses(c);
-      })
-      .catch(() => undefined);
-  }, [user, races.length, classes.length]);
+  const races = useRaces(!!user);
+  const classes = useClasses(!!user);
 
   if (!user) {
     return (

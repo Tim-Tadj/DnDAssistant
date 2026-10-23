@@ -57,6 +57,7 @@ import FormDialog, { errorMessage, requireName } from './FormDialog';
 import ProvenanceChip from './ProvenanceChip';
 import { ErrorState, EmptyState, LoadingState } from './States';
 import { useToast } from './ToastProvider';
+import { useOpenParam } from './useOpenParam';
 
 export type EntityMutations<T> = {
   create: (item: T) => Promise<T>;
@@ -173,6 +174,9 @@ export function EntityBrowser<T extends { id?: string | number; provenance?: str
   };
 
   const closeDrawer = () => setDrawerItem(null);
+
+  // `?open=<id>` (from global search) opens that row's drawer.
+  useOpenParam(items, getRowId, setDrawerItem);
 
   const startEdit = (row: T) => setEditor({ draft: { ...row }, id: row.id });
 

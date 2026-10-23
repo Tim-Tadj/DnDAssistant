@@ -41,6 +41,7 @@ import { npcsApi } from '../api/npcs';
 import { monstersApi } from '../api/monsters';
 import { useToast } from './ToastProvider';
 import FormDialog, { requireName } from './FormDialog';
+import { useOpenParam } from './useOpenParam';
 import { Monster } from '../types/Monster';
 import MonsterStatBlock from './MonsterStatBlock';
 
@@ -205,6 +206,8 @@ const NpcsRoster: FC<Props> = ({ campaignId, canEdit }) => {
     setEditorOpen(true);
   };
   const onView = (n: CampaignNpc) => setViewing(n);
+  // `?open=<id>` (from global search) opens that NPC.
+  useOpenParam(npcs, (n) => n.id, setViewing);
 
   const onSave = async () => {
     if (!draft) return;

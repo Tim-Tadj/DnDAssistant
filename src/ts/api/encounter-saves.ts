@@ -8,5 +8,6 @@ export const encounterSavesApi = {
   listForCampaign: (campaignId: string) =>
     api.get<EncounterSave[]>(`/campaigns/${campaignId}/encounters`),
   create: (s: EncounterSave) => api.post<EncounterSave>('/encounter-saves', s),
+  update: (id: string, s: Partial<EncounterSave>) => api.put<EncounterSave>(`/encounter-saves/${id}`, s),
   remove: (id: string) => api.delete<void>(`/encounter-saves/${id}`),
 };

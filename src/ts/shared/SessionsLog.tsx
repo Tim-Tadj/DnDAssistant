@@ -5,9 +5,14 @@
  * session' button. Each card shows session number, title, date,
  * attendees, and a summary. The full prep notes and summary are
  * shown in the detail dialog. Edit/delete per row.
+ *
+ * Encounters recorded against a session (End & record in the
+ * tracker) show on its card and in its detail dialog, with the XP
+ * the party earned.
  */
 
-import React, { FC, useEffect, useState } from 'react';
+import React, { FC, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -27,9 +32,11 @@ import {
   useTheme,
   alpha,
 } from '@mui/material';
-import { Add, Close, Delete, Edit, EventNote } from '@mui/icons-material';
+import { Add, Close, Delete, Edit, EventNote, SportsMartialArts } from '@mui/icons-material';
 import { CampaignSession, defaultCampaignSession } from '../types/CampaignSession';
 import { sessionsApi } from '../api/sessions';
+import { encounterSavesApi } from '../api/encounter-saves';
+import { EncounterSave, isPlayed } from '../types/EncounterSave';
 import { useToast } from './ToastProvider';
 import FormDialog from './FormDialog';
 import LinkedText from './LinkedText';
@@ -39,14 +46,48 @@ type Props = {
   canEdit: boolean;
 };
 
+// Dates are YYYY-MM-DD; parse as local midnight so they don't shift a
+// day west of UTC.
 const formatDate = (d: string | null): string => {
   if (!d) return '—';
-  try {
-    return new Date(d).toLocaleDateString();
-  } catch {
-    return d;
-  }
+  const date = new Date(`${d}T00:00:00`);
+  return isNaN(date.getTime()) ? d : date.toLocaleDateString();
 };
+
+const OUTCOME_COLORS: Record<string, 'success' | 'error' | 'warning' | 'info' | 'default'> = {
+  Victory: 'success',
+  Defeat: 'error',
+  Fled: 'warning',
+  Negotiated: 'info',
+};
+
+const xpOf = (encounters: EncounterSave[]) => encounters.reduce((acc, e) => acc + (e.total_xp || 0), 0);
+
+// The encounters played in one session, as compact chips.
+const SessionEncounters: FC<{ encounters: EncounterSave[]; onOpen: (e: EncounterSave) => void }> = ({
+  encounters,
+  onOpen,
+}) => (
+  <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mt: 0.5 }}>
+    <SportsMartialArts sx={{ fontSize: 16, color: 'text.secondary' }} />
+    {encounters.map((e) => (
+      <Chip
+        key={e.id}
+        size="small"
+        variant="outlined"
+        color={e.outcome ? OUTCOME_COLORS[e.outcome] ?? 'default' : 'default'}
+        label={e.outcome ? `${e.name} · ${e.outcome}` : e.name}
+        onClick={(ev) => {
+          ev.stopPropagation();
+          onOpen(e);
+        }}
+      />
+    ))}
+    <Typography variant="caption" color="text.secondary" sx={{ fontFamily: '"JetBrains Mono", monospace' }}>
+      {xpOf(encounters).toLocaleString()} XP
+    </Typography>
+  </Stack>
+);
 
 const SessionEditor: FC<{
   initial: CampaignSession;
@@ -129,8 +170,10 @@ const SessionEditor: FC<{
 
 const SessionsLog: FC<Props> = ({ campaignId, canEdit }) => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [sessions, setSessions] = useState<CampaignSession[]>([]);
+  const [encounters, setEncounters] = useState<EncounterSave[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorInitial, setEditorInitial] = useState<CampaignSession | null>(null);
@@ -142,8 +185,12 @@ const SessionsLog: FC<Props> = ({ campaignId, canEdit }) => {
   const reload = async () => {
     setLoadError(null);
     try {
-      const data = await sessionsApi.list(campaignId);
+      const [data, saves] = await Promise.all([
+        sessionsApi.list(campaignId),
+        encounterSavesApi.listForCampaign(campaignId).catch(() => [] as EncounterSave[]),
+      ]);
       setSessions(data);
+      setEncounters(saves);
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : String(e));
     }
@@ -154,6 +201,18 @@ const SessionsLog: FC<Props> = ({ campaignId, canEdit }) => {
   }, [campaignId]);
 
   const nextNumber = (sessions[0]?.session_number ?? 0) + 1;
+
+  const bySession = useMemo(() => {
+    const m = new Map<string, EncounterSave[]>();
+    for (const e of encounters) {
+      if (!isPlayed(e) || !e.session_id) continue;
+      m.set(e.session_id, [...(m.get(e.session_id) ?? []), e]);
+    }
+    return m;
+  }, [encounters]);
+  const encountersOf = (s: CampaignSession) => (s.id ? bySession.get(s.id) ?? [] : []);
+  const openEncounter = (e: EncounterSave) =>
+    navigate(`/campaign?tab=encounters${e.id ? `&open=${encodeURIComponent(e.id)}` : ''}`);
 
   const onCreate = () => {
     setEditorInitial(null);
@@ -301,6 +360,9 @@ const SessionsLog: FC<Props> = ({ campaignId, canEdit }) => {
                         {s.summary}
                       </Typography>
                     )}
+                    {encountersOf(s).length > 0 && (
+                      <SessionEncounters encounters={encountersOf(s)} onOpen={openEncounter} />
+                    )}
                   </Stack>
                   {canEdit && (
                     <Stack direction="row" spacing={0.5}>
@@ -381,6 +443,41 @@ const SessionsLog: FC<Props> = ({ campaignId, canEdit }) => {
                     </Stack>
                   )}
                 </Stack>
+                {encountersOf(viewing).length > 0 && (
+                  <Box>
+                    <Typography variant="overline" color="primary.main">
+                      Encounters
+                    </Typography>
+                    <Stack spacing={0.75}>
+                      {encountersOf(viewing).map((e) => (
+                        <Stack key={e.id} direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {e.name}
+                          </Typography>
+                          {e.outcome && (
+                            <Chip size="small" label={e.outcome} color={OUTCOME_COLORS[e.outcome] ?? 'default'} />
+                          )}
+                          <Typography variant="caption" color="text.secondary">
+                            {e.rounds ? `${e.rounds} round${e.rounds === 1 ? '' : 's'} · ` : ''}
+                            {(e.total_xp || 0).toLocaleString()} XP
+                          </Typography>
+                          <Button
+                            size="small"
+                            onClick={() => {
+                              setViewing(null);
+                              openEncounter(e);
+                            }}
+                          >
+                            Details
+                          </Button>
+                        </Stack>
+                      ))}
+                      <Typography variant="caption" color="text.secondary">
+                        Total: {xpOf(encountersOf(viewing)).toLocaleString()} XP earned this session
+                      </Typography>
+                    </Stack>
+                  </Box>
+                )}
                 {viewing.summary && (
                   <Box>
                     <Typography variant="overline" color="primary.main">

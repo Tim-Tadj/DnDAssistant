@@ -5,8 +5,9 @@
 // also be removed, resized, or added by hand. "Run encounter" hands
 // the list to the tracker (EncounterContext) and switches to Run.
 //
-// "Save to library" persists the list to the active campaign's
-// library (encounter_saves with campaign_id set).
+// "Test run" starts it in practice mode (nothing is recorded) so the
+// DM can try it out ahead of time. "Save to library" keeps it as a
+// prepared encounter for the active campaign (status `planned`).
 
 import React, { FC, useEffect, useMemo, useState } from 'react';
 import {
@@ -16,10 +17,6 @@ import {
   Checkbox,
   Chip,
   Collapse,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Divider,
   IconButton,
   Paper,
@@ -44,6 +41,7 @@ import {
   ExpandMore,
   Remove,
   Save,
+  Science,
   Sync,
 } from '@mui/icons-material';
 import { Monster } from '../types/Monster';
@@ -62,6 +60,8 @@ import { useMonsterStatPane } from '../shared/MonsterStatPane';
 import { MONSTER_TYPES, ALIGNMENTS, SIZES, DIFFICULTIES } from '../constants';
 import SelectMonster from './select-monster';
 import { useEncounterTab } from './encounter-tab';
+import { EncounterMode } from './EncounterContext';
+import FormDialog from '../shared/FormDialog';
 
 const PARTY_LEVELS = Array.from({ length: 20 }, (_, i) => i + 1);
 const PARTY_SIZES = Array.from({ length: 10 }, (_, i) => i + 1);
@@ -177,7 +177,8 @@ const EncounterBuilder: FC = () => {
     setSelected(new Set());
   };
 
-  const onRun = async () => {
+  const onRun = async (mode: EncounterMode) => {
+    const meta = { name: '', difficulty: rating ?? difficulty };
     if (enc.monstersInCombat.length > 0) {
       const choice = await confirm({
         title: 'An encounter is already running',
@@ -189,9 +190,9 @@ const EncounterBuilder: FC = () => {
       });
       if (!choice) return;
       if (choice === 'append') enc.addMonsters(generated);
-      else enc.setMonsters(generated);
+      else enc.start(generated, { meta, mode });
     } else {
-      enc.setMonsters(generated);
+      enc.start(generated, { meta, mode });
     }
     setTab('run');
   };
@@ -200,33 +201,25 @@ const EncounterBuilder: FC = () => {
   const [saveOpen, setSaveOpen] = useState(false);
   const [saveName, setSaveName] = useState('');
   const [saveNotes, setSaveNotes] = useState('');
-  const [saving, setSaving] = useState(false);
 
   const onSaveEncounter = async () => {
     if (!user || !activeCampaign || generated.length === 0) return;
-    setSaving(true);
-    try {
-      const { refs, totalXp } = collapseMonstersToRefs(generated);
-      const save: EncounterSave = {
-        campaign_id: activeCampaign.id,
-        name: saveName || `Encounter ${new Date().toLocaleDateString()}`,
-        monsters: refs,
-        party_snapshot_ids: [],
-        difficulty,
-        total_xp: totalXp,
-        played_on: new Date().toISOString().slice(0, 10),
-        notes: saveNotes,
-      };
-      await encounterSavesApi.create(save);
-      toast('Encounter saved to library', 'success');
-      setSaveOpen(false);
-      setSaveName('');
-      setSaveNotes('');
-    } catch (e) {
-      toast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setSaving(false);
-    }
+    const { refs, totalXp } = collapseMonstersToRefs(generated);
+    const save: EncounterSave = {
+      campaign_id: activeCampaign.id,
+      name: saveName.trim() || `Encounter ${new Date().toLocaleDateString()}`,
+      monsters: refs,
+      party_snapshot_ids: [],
+      difficulty: rating ?? difficulty,
+      total_xp: totalXp,
+      played_on: null,
+      notes: saveNotes,
+      status: 'planned',
+    };
+    await encounterSavesApi.create(save);
+    toast('Saved to the library as a prepared encounter', 'success');
+    setSaveName('');
+    setSaveNotes('');
   };
 
   const advancedCount =
@@ -562,7 +555,12 @@ const EncounterBuilder: FC = () => {
                   </Button>
                 </span>
               </Tooltip>
-              <Button variant="contained" size="large" endIcon={<ArrowForward />} onClick={onRun}>
+              <Tooltip title="Try it out ahead of time. Nothing is recorded." arrow>
+                <Button variant="outlined" startIcon={<Science />} onClick={() => onRun('practice')}>
+                  Test run
+                </Button>
+              </Tooltip>
+              <Button variant="contained" size="large" endIcon={<ArrowForward />} onClick={() => onRun('live')}>
                 Run encounter
               </Button>
             </Stack>
@@ -570,40 +568,36 @@ const EncounterBuilder: FC = () => {
         )}
       </Paper>
 
-      <Dialog open={saveOpen} onClose={() => !saving && setSaveOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Save encounter to {activeCampaign?.name ?? 'campaign'}</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2}>
-            <TextField
-              label="Encounter name"
-              value={saveName}
-              onChange={(e) => setSaveName(e.target.value)}
-              fullWidth
-              autoFocus
-              InputLabelProps={{ shrink: true }}
-              placeholder="e.g. Ambush at Iron Keep"
-            />
-            <TextField
-              label="Notes"
-              value={saveNotes}
-              onChange={(e) => setSaveNotes(e.target.value)}
-              fullWidth
-              multiline
-              rows={3}
-              InputLabelProps={{ shrink: true }}
-              placeholder="What happened, who's TPK'd, etc."
-            />
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setSaveOpen(false)} disabled={saving}>
-            Cancel
-          </Button>
-          <Button variant="contained" onClick={onSaveEncounter} disabled={saving} startIcon={<Save />}>
-            {saving ? 'Saving…' : 'Save'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <FormDialog
+        open={saveOpen}
+        title="Save prepared encounter"
+        subtitle={`To ${activeCampaign?.name ?? 'campaign'}'s library. Run it, or test-run it, any time.`}
+        onClose={() => setSaveOpen(false)}
+        onSave={onSaveEncounter}
+        maxWidth="sm"
+      >
+        <Stack spacing={2}>
+          <TextField
+            label="Encounter name"
+            value={saveName}
+            onChange={(e) => setSaveName(e.target.value)}
+            fullWidth
+            autoFocus
+            InputLabelProps={{ shrink: true }}
+            placeholder="e.g. Ambush at Iron Keep"
+          />
+          <TextField
+            label="Prep notes"
+            value={saveNotes}
+            onChange={(e) => setSaveNotes(e.target.value)}
+            fullWidth
+            multiline
+            rows={3}
+            InputLabelProps={{ shrink: true }}
+            placeholder="Terrain, tactics, when to trigger it, treasure"
+          />
+        </Stack>
+      </FormDialog>
     </Stack>
   );
 };

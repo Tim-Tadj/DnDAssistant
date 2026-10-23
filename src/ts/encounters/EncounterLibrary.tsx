@@ -1,312 +1,64 @@
-// The Library tab. Shows the saved encounters for the active
-// campaign and lets the DM "Run" any of them: the saved MonsterRef
-// list is hydrated back into full Monster objects, written to
-// EncounterContext, and the page switches to the Run tab.
+// The Library tab: the active campaign's prepared encounters (run them
+// or test-run them) and the record of what was played. With no active
+// campaign (or with `?scope=all`, which search uses for saves outside a
+// campaign) it lists all of the user's saves.
 
-import React, { FC, useEffect, useMemo, useState } from 'react';
-import {
-  Alert,
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Chip,
-  CircularProgress,
-  IconButton,
-  Stack,
-  Tooltip,
-  Typography,
-} from '@mui/material';
-import {
-  Casino,
-  Delete,
-  History as HistoryIcon,
-  PlayArrow,
-} from '@mui/icons-material';
-import { EncounterSave } from '../types/EncounterSave';
-import { encounterSavesApi } from '../api/encounter-saves';
-import { useEncounter } from './EncounterContext';
+import React, { FC } from 'react';
+import { Alert, Button, Stack, Typography } from '@mui/material';
+import { Casino } from '@mui/icons-material';
+import { useSearchParams } from 'react-router-dom';
 import { useCampaignContext } from '../shared/CampaignContext';
 import { useAuth } from '../auth/AuthContext';
-import { useToast } from '../shared/ToastProvider';
-import { hydrateEncounterSave } from '../api/hydrate-encounter';
-import { useSettings } from '../shared/SettingsContext';
-import { useConfirm } from '../shared/useConfirm';
 import { useEncounterTab } from './encounter-tab';
+import EncounterSavesView from './EncounterSavesView';
 
 const EncounterLibrary: FC = () => {
   const { user } = useAuth();
-  const { toast } = useToast();
   const { activeCampaign } = useCampaignContext();
-  const enc = useEncounter();
-  const { settings } = useSettings();
   const [, setTab] = useEncounterTab();
-  const { confirm, dialog } = useConfirm();
-
-  const [saves, setSaves] = useState<EncounterSave[] | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [reRunId, setReRunId] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState<string | null>(null);
-
-  const reload = async () => {
-    if (!user) return;
-    setLoadError(null);
-    try {
-      const data = activeCampaign
-        ? await encounterSavesApi.listForCampaign(activeCampaign.id ?? '')
-        : await encounterSavesApi.list();
-      setSaves(data);
-    } catch (e) {
-      setLoadError(e instanceof Error ? e.message : String(e));
-    }
-  };
-
-  useEffect(() => {
-    void reload();
-  }, [user, activeCampaign]);
-
-  const onReRun = async (s: EncounterSave) => {
-    if (!s.id) return;
-    if (enc.monstersInCombat.length > 0 && settings.confirmDestructive) {
-      const ok = await confirm({
-        title: 'Replace the running encounter?',
-        body: `"${s.name}" will replace the fight that's currently in the tracker.`,
-        confirmLabel: 'Replace',
-      });
-      if (!ok) return;
-    }
-    setReRunId(s.id);
-    try {
-      const monsters = await hydrateEncounterSave(s);
-      enc.loadFromSave(s.id, s.name, monsters);
-      setTab('run');
-    } catch (e) {
-      toast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setReRunId(null);
-    }
-  };
-
-  const onDelete = async (s: EncounterSave) => {
-    if (!s.id) return;
-    if (settings.confirmDestructive) {
-      const ok = await confirm({ title: `Delete "${s.name}"?`, confirmLabel: 'Delete', destructive: true });
-      if (!ok) return;
-    }
-    setDeleting(s.id);
-    try {
-      await encounterSavesApi.remove(s.id);
-      toast('Encounter deleted', 'success');
-      await reload();
-    } catch (e) {
-      toast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setDeleting(null);
-    }
-  };
-
-  const grouped = useMemo(() => {
-    if (!saves) return null;
-    // Group by whether the save is attached to the active campaign.
-    const forActive: EncounterSave[] = [];
-    const personal: EncounterSave[] = [];
-    for (const s of saves) {
-      if (s.campaign_id && activeCampaign && s.campaign_id === activeCampaign.id) {
-        forActive.push(s);
-      } else if (!s.campaign_id) {
-        personal.push(s);
-      } else {
-        // Belongs to a different campaign; show under "other"
-        forActive.push(s);
-      }
-    }
-    return { forActive, personal };
-  }, [saves, activeCampaign]);
+  const [params, setParams] = useSearchParams();
+  const showAll = !activeCampaign || params.get('scope') === 'all';
 
   if (!user) {
-    return <Alert severity="info">Sign in to save and re-run encounters.</Alert>;
-  }
-
-  if (saves === null) {
-    return (
-      <Stack alignItems="center" sx={{ py: 4 }}>
-        <CircularProgress />
-      </Stack>
-    );
-  }
-
-  if (loadError) {
-    return <Alert severity="error">{loadError}</Alert>;
-  }
-
-  if (!grouped || (grouped.forActive.length === 0 && grouped.personal.length === 0)) {
-    return (
-      <Box sx={{ textAlign: 'center', py: 4 }}>
-        <HistoryIcon sx={{ fontSize: 48, opacity: 0.4 }} />
-        <Typography variant="h6" sx={{ mt: 1 }}>
-          No saved encounters yet
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Build an encounter and click <strong>Save to library</strong> to keep it here.
-        </Typography>
-        <Button variant="contained" startIcon={<Casino />} onClick={() => setTab('build')}>
-          Build an encounter
-        </Button>
-      </Box>
-    );
+    return <Alert severity="info">Sign in to save, run and record encounters.</Alert>;
   }
 
   return (
-    <Stack spacing={3}>
-      {dialog}
-      {activeCampaign && grouped.forActive.length > 0 && (
-        <Box>
-          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-            <Typography variant="overline" color="text.secondary">
-              For active campaign: {activeCampaign.name}
-            </Typography>
-          </Stack>
-          <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
-            {grouped.forActive.map((s) => (
-              <SaveCard
-                key={s.id}
-                save={s}
-                reRunning={reRunId === s.id}
-                deleting={deleting === s.id}
-                onReRun={() => onReRun(s)}
-                onDelete={() => onDelete(s)}
-              />
-            ))}
-          </Stack>
-        </Box>
-      )}
-      {grouped.personal.length > 0 && (
-        <Box>
-          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-            <Typography variant="overline" color="text.secondary">
-              Personal scratch (not attached to a campaign)
-            </Typography>
-          </Stack>
-          <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
-            {grouped.personal.map((s) => (
-              <SaveCard
-                key={s.id}
-                save={s}
-                reRunning={reRunId === s.id}
-                deleting={deleting === s.id}
-                onReRun={() => onReRun(s)}
-                onDelete={() => onDelete(s)}
-              />
-            ))}
-          </Stack>
-        </Box>
-      )}
-    </Stack>
-  );
-};
-
-const SaveCard: FC<{
-  save: EncounterSave;
-  reRunning: boolean;
-  deleting: boolean;
-  onReRun: () => void;
-  onDelete: () => void;
-}> = ({ save, reRunning, deleting, onReRun, onDelete }) => {
-  return (
-    <Card variant="outlined" sx={{ width: 320, position: 'relative' }}>
-      <CardContent sx={{ pb: 1 }}>
-        <Stack direction="row" alignItems="center" spacing={1}>
-          <HistoryIcon fontSize="small" color="primary" />
-          <Typography variant="h6" noWrap sx={{ flexGrow: 1 }}>
-            {save.name}
-          </Typography>
-        </Stack>
-        <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap sx={{ mt: 0.5, mb: 1 }}>
-          {(save.monsters ?? []).slice(0, 6).map((m) => (
-            <Chip
-              key={`${m.id}-${m.name}`}
-              label={`${m.count}× ${m.name}`}
-              size="small"
-              variant="outlined"
-              sx={{ fontSize: '0.7rem' }}
-            />
-          ))}
-          {(save.monsters?.length ?? 0) > 6 && (
-            <Chip
-              label={`+${(save.monsters?.length ?? 0) - 6}`}
-              size="small"
-              variant="outlined"
-              sx={{ fontSize: '0.7rem' }}
-            />
-          )}
-        </Stack>
-        <Stack direction="row" spacing={1} sx={{ mt: 0.5 }}>
-          <Typography variant="caption" color="text.secondary">
-            {(save.monsters ?? []).reduce((acc, m) => acc + m.count, 0)} combatants
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            ·
-          </Typography>
-          <Typography
-            variant="caption"
-            sx={{ fontFamily: '"JetBrains Mono", monospace' }}
-            color="text.secondary"
+    <>
+      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+        <Typography variant="body2" color="text.secondary">
+          {!showAll && activeCampaign
+            ? `Encounters for ${activeCampaign.name}.`
+            : activeCampaign
+              ? 'All your encounters, in every campaign.'
+              : 'All your encounters. Pick a campaign at the top to focus on one.'}
+        </Typography>
+        {activeCampaign && showAll && (
+          <Button
+            size="small"
+            onClick={() =>
+              setParams((prev) => {
+                const next = new URLSearchParams(prev);
+                next.delete('scope');
+                next.delete('open');
+                return next;
+              })
+            }
           >
-            {save.total_xp} XP
-          </Typography>
-          {save.difficulty && (
-            <Chip
-              label={save.difficulty}
-              size="small"
-              sx={{ height: 18, fontSize: '0.65rem' }}
-            />
-          )}
-        </Stack>
-        {save.played_on && (
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-            Played: {save.played_on}
-          </Typography>
+            Only {activeCampaign.name}
+          </Button>
         )}
-        {save.notes && (
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{
-              mt: 1,
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-            }}
-          >
-            {save.notes}
-          </Typography>
-        )}
-      </CardContent>
-      <Stack direction="row" justifyContent="space-between" sx={{ px: 1, pb: 1 }}>
-        <Button
-          size="small"
-          variant="contained"
-          startIcon={reRunning ? <CircularProgress size={12} /> : <PlayArrow />}
-          onClick={onReRun}
-          disabled={reRunning || deleting}
-        >
-          {reRunning ? 'Loading…' : 'Run'}
-        </Button>
-        <Tooltip title="Delete" arrow>
-          <span>
-            <IconButton
-              size="small"
-              color="error"
-              onClick={onDelete}
-              disabled={reRunning || deleting}
-            >
-              <Delete fontSize="small" />
-            </IconButton>
-          </span>
-        </Tooltip>
       </Stack>
-    </Card>
+      <EncounterSavesView
+        campaignId={showAll ? null : activeCampaign?.id ?? null}
+        highlightId={params.get('open')}
+        emptyAction={
+          <Button variant="contained" size="small" startIcon={<Casino />} onClick={() => setTab('build')}>
+            Build an encounter
+          </Button>
+        }
+      />
+    </>
   );
 };
 

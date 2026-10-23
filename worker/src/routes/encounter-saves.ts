@@ -1,6 +1,12 @@
-// Ports EncounterSaveController. Snapshot of a generated encounter — list of
+// Ports EncounterSaveController. Snapshot of an encounter — list of
 // monster refs (id/name/count/xp_each), a party snapshot (character ids),
 // difficulty, total XP, played-on date, and notes.
+//
+// `status` splits prep from history (migration 0002):
+//   - planned: prepared ahead of time, reusable, can be test-run.
+//   - played:  the record of a fight: outcome, rounds, combat log,
+//              final combatant state, the session it happened in and
+//              the planned encounter it was run from (source_id).
 //
 // Two exports, both require auth and are owner-scoped:
 //   - personal  (`encounterSaves`):      /api/v1/encounter-saves
@@ -9,6 +15,7 @@
 // Personal endpoints:
 //   GET    /              list the caller's saves (campaign_id may be null)
 //   POST   /              create a new save
+//   PUT    /:id           update a save (must be owner)
 //   DELETE /:id           delete a save (must be owner)
 //
 // Campaign-scoped endpoint:
@@ -33,9 +40,18 @@ type Row = {
   total_xp: number;
   played_on: string | null;
   notes: string;
+  status: string;
+  session_id: string | null;
+  source_id: string | null;
+  outcome: string;
+  rounds: number;
+  log_json: string;
+  combatants_json: string;
   created_at: string;
   updated_at: string;
 };
+
+const STATUSES = ['planned', 'played'] as const;
 
 function parseJsonArray<T = unknown>(text: string | null): T[] {
   if (!text) return [];
@@ -59,11 +75,19 @@ function toJson(row: Row) {
     total_xp: row.total_xp,
     played_on: row.played_on,
     notes: row.notes,
+    status: row.status,
+    session_id: row.session_id,
+    source_id: row.source_id,
+    outcome: row.outcome,
+    rounds: row.rounds,
+    log: parseJsonArray(row.log_json),
+    combatants: parseJsonArray(row.combatants_json),
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
-  if (out.campaign_id == null) delete out.campaign_id;
-  if (out.played_on == null) delete out.played_on;
+  for (const k of ['campaign_id', 'played_on', 'session_id', 'source_id']) {
+    if (out[k] == null) delete out[k];
+  }
   return out;
 }
 
@@ -107,34 +131,89 @@ encounterSaves.get('/', async (c) => {
   return c.json(rows.map(toJson));
 });
 
-encounterSaves.post('/', async (c) => {
-  const body = (await c.req.json().catch(() => null)) as Record<string, unknown> | null;
-  if (!body) throw badRequest('body is required');
+// Validates a create/update body against the caller's data and returns
+// the column values, in COLUMNS order.
+const COLUMNS = [
+  'campaign_id', 'name', 'monsters_json', 'party_snapshot_json', 'difficulty',
+  'total_xp', 'played_on', 'notes', 'status', 'session_id', 'source_id',
+  'outcome', 'rounds', 'log_json', 'combatants_json',
+] as const;
 
-  // If a campaign is attached, the caller must own it.
+async function columnValues(c: Context<AppBindings>, body: Record<string, unknown>) {
+  // If a campaign is attached, the caller must own it, and a session
+  // must belong to that campaign.
   const campaignId = campaignIdOrNull(body.campaign_id);
   if (campaignId) await ownedCampaign(c, campaignId);
-
-  const id = crypto.randomUUID();
-  await run(
-    c.env.DB,
-    `INSERT INTO encounter_saves
-       (id, owner_user_id, campaign_id, name, monsters_json, party_snapshot_json,
-        difficulty, total_xp, played_on, notes)
-     VALUES (?,?,?,?,?,?,?,?,?,?)`,
-    id,
-    c.get('userId'),
+  const sessionId = campaignIdOrNull(body.session_id);
+  if (sessionId) {
+    const s = await first<{ campaign_id: string }>(
+      c.env.DB,
+      'SELECT campaign_id FROM campaign_sessions WHERE id = ?',
+      sessionId,
+    );
+    if (!s || s.campaign_id !== campaignId) {
+      throw badRequest('session_id must be a session of the same campaign');
+    }
+  }
+  const status = String(body.status ?? 'planned');
+  if (!STATUSES.includes(status as typeof STATUSES[number])) {
+    throw badRequest(`status must be one of ${STATUSES.join(', ')}`);
+  }
+  return [
     campaignId,
     String(body.name ?? ''),
     jsonArray(body.monsters),
     jsonArray(body.party_snapshot_ids),
     String(body.difficulty ?? ''),
     intOr(body.total_xp, 0),
-    dateOrNull(body.played_on),
+    // Only a played encounter has a played-on date.
+    status === 'played' ? dateOrNull(body.played_on) : null,
     String(body.notes ?? ''),
+    status,
+    sessionId,
+    campaignIdOrNull(body.source_id),
+    String(body.outcome ?? ''),
+    Math.max(0, intOr(body.rounds, 0)),
+    jsonArray(body.log),
+    jsonArray(body.combatants),
+  ];
+}
+
+encounterSaves.post('/', async (c) => {
+  const body = (await c.req.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!body) throw badRequest('body is required');
+  const values = await columnValues(c, body);
+  const id = crypto.randomUUID();
+  await run(
+    c.env.DB,
+    `INSERT INTO encounter_saves (id, owner_user_id, ${COLUMNS.join(', ')})
+     VALUES (?, ?, ${COLUMNS.map(() => '?').join(', ')})`,
+    id,
+    c.get('userId'),
+    ...values,
   );
   const row = await first<Row>(c.env.DB, 'SELECT * FROM encounter_saves WHERE id = ?', id);
   return c.json(toJson(row!), 201);
+});
+
+encounterSaves.put('/:id', async (c) => {
+  const id = c.req.param('id');
+  const existing = await loadOwned(c, id);
+  const body = (await c.req.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!body) throw badRequest('body is required');
+  // Fields left out of the body keep their current value.
+  const merged = { ...toJson(existing), ...body };
+  const values = await columnValues(c, merged);
+  await run(
+    c.env.DB,
+    `UPDATE encounter_saves
+     SET ${COLUMNS.map((k) => `${k} = ?`).join(', ')}, updated_at = CURRENT_TIMESTAMP
+     WHERE id = ?`,
+    ...values,
+    id,
+  );
+  const row = await first<Row>(c.env.DB, 'SELECT * FROM encounter_saves WHERE id = ?', id);
+  return c.json(toJson(row!));
 });
 
 encounterSaves.delete('/:id', async (c) => {
