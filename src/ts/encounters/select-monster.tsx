@@ -1,24 +1,29 @@
 /**
- * SelectMonster - opens a dialog with a searchable monster picker.
+ * SelectMonster - opens a dialog with a searchable, multi-select
+ * monster picker.
+ *
+ * Tick as many monsters as you like (or "Select all shown" after a
+ * search, then untick the ones you don't want), set a quantity for
+ * each, and add them all in one go.
  *
  * Uses the monsters API directly (not the entity browser) so this stays
  * decoupled from the monster-table page.
  */
 
-import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { FC, useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Button,
-  Card,
-  CardContent,
+  ButtonProps,
+  Checkbox,
   Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   IconButton,
   InputAdornment,
-  List,
   ListItemButton,
   Paper,
   Stack,
@@ -30,14 +35,41 @@ import { monstersApi } from '../api/monsters';
 import { Monster } from '../types/Monster';
 import { useToast } from '../shared/ToastProvider';
 
-const PAGE_SIZE = 12;
+const SHOWN_LIMIT = 200;
+
+const keyOf = (m: Monster) => `${m.id ?? ''}-${m.name}`;
+
+const QtyStepper: FC<{ qty: number; onChange: (n: number) => void }> = ({ qty, onChange }) => (
+  <Stack
+    direction="row"
+    alignItems="center"
+    onClick={(e) => e.stopPropagation()}
+    sx={{ border: 1, borderColor: 'divider', borderRadius: 1 }}
+  >
+    <IconButton size="small" aria-label="fewer" onClick={() => onChange(qty - 1)}>
+      <Remove sx={{ fontSize: 16 }} />
+    </IconButton>
+    <Typography
+      variant="body2"
+      sx={{ minWidth: 20, textAlign: 'center', fontFamily: '"JetBrains Mono", monospace' }}
+    >
+      {qty}
+    </Typography>
+    <IconButton size="small" aria-label="more" onClick={() => onChange(qty + 1)}>
+      <Add sx={{ fontSize: 16 }} />
+    </IconButton>
+  </Stack>
+);
 
 const SelectMonster: FC<{
   onSelectMonster: (monsters: Monster[]) => void;
-}> = ({ onSelectMonster }) => {
+  buttonLabel?: string;
+  actionLabel?: string;
+  buttonProps?: ButtonProps;
+}> = ({ onSelectMonster, buttonLabel = 'Add monsters', actionLabel = 'to combat', buttonProps }) => {
   const [open, setOpen] = useState(false);
   const [all, setAll] = useState<Monster[]>([]);
-  const [picked, setPicked] = useState<Monster[]>([]);
+  const [picked, setPicked] = useState<Map<string, { monster: Monster; qty: number }>>(new Map());
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -55,52 +87,65 @@ const SelectMonster: FC<{
   const filtered = useMemo(() => {
     if (!search.trim()) return all;
     const q = search.toLowerCase();
-    return all.filter((m) => m.name.toLowerCase().includes(q));
+    return all.filter((m) => m.name.toLowerCase().includes(q) || m.meta?.toLowerCase().includes(q));
   }, [all, search]);
+  const shown = filtered.slice(0, SHOWN_LIMIT);
 
-  const onPick = (m: Monster) => {
-    setPicked((prev) => [...prev, m]);
-  };
+  const shownPicked = shown.filter((m) => picked.has(keyOf(m))).length;
+  const allShownPicked = shown.length > 0 && shownPicked === shown.length;
+  const totalQty = Array.from(picked.values()).reduce((n, p) => n + p.qty, 0);
 
-  const onUnpick = (i: number) => {
-    setPicked((prev) => prev.filter((_, idx) => idx !== i));
+  const setQty = (m: Monster, qty: number) =>
+    setPicked((prev) => {
+      const next = new Map(prev);
+      if (qty <= 0) next.delete(keyOf(m));
+      else next.set(keyOf(m), { monster: m, qty });
+      return next;
+    });
+
+  const toggle = (m: Monster) => setQty(m, picked.has(keyOf(m)) ? 0 : 1);
+
+  const toggleAllShown = () =>
+    setPicked((prev) => {
+      const next = new Map(prev);
+      if (allShownPicked) shown.forEach((m) => next.delete(keyOf(m)));
+      else shown.forEach((m) => !next.has(keyOf(m)) && next.set(keyOf(m), { monster: m, qty: 1 }));
+      return next;
+    });
+
+  const close = () => {
+    setOpen(false);
+    setSearch('');
   };
 
   const onSubmit = () => {
-    onSelectMonster(picked);
-    setPicked([]);
-    setOpen(false);
-    toast(`${picked.length} combatant${picked.length === 1 ? '' : 's'} added`, 'success');
+    const monsters = Array.from(picked.values()).flatMap(({ monster, qty }) =>
+      Array.from({ length: qty }, () => monster),
+    );
+    onSelectMonster(monsters);
+    setPicked(new Map());
+    close();
+    toast(`${monsters.length} monster${monsters.length === 1 ? '' : 's'} added`, 'success');
   };
 
   return (
     <>
-      <Button
-        size="small"
-        variant="outlined"
-        startIcon={<Add />}
-        onClick={() => setOpen(true)}
-      >
-        Add
+      <Button size="small" variant="outlined" startIcon={<Add />} onClick={() => setOpen(true)} {...buttonProps}>
+        {buttonLabel}
       </Button>
-      <Dialog
-        open={open}
-        onClose={() => setOpen(false)}
-        maxWidth="lg"
-        fullWidth
-        PaperProps={{ sx: { minHeight: 540 } }}
-      >
-        <DialogTitle>Add combatants</DialogTitle>
+      <Dialog open={open} onClose={close} maxWidth="lg" fullWidth PaperProps={{ sx: { minHeight: 540 } }}>
+        <DialogTitle>Add monsters</DialogTitle>
         <DialogContent>
-          <Stack direction="row" spacing={2} sx={{ minHeight: 440 }}>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ minHeight: 440 }}>
             {/* Picker */}
             <Paper sx={{ flex: 1, p: 1.5, overflow: 'hidden' }}>
               <TextField
                 fullWidth
+                autoFocus
                 size="small"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search monsters…"
+                placeholder="Search by name or type (e.g. goblin, undead)…"
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
@@ -108,55 +153,83 @@ const SelectMonster: FC<{
                     </InputAdornment>
                   ),
                 }}
-                sx={{ mb: 1.5 }}
               />
+              <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ my: 0.5, pl: 1 }}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      size="small"
+                      checked={allShownPicked}
+                      indeterminate={shownPicked > 0 && !allShownPicked}
+                      onChange={toggleAllShown}
+                      disabled={shown.length === 0}
+                    />
+                  }
+                  label={
+                    <Typography variant="body2">
+                      {allShownPicked ? 'Deselect' : 'Select'} all {shown.length} shown
+                    </Typography>
+                  }
+                />
+                {filtered.length > SHOWN_LIMIT && (
+                  <Typography variant="caption" color="text.secondary">
+                    Showing first {SHOWN_LIMIT} of {filtered.length} — refine your search
+                  </Typography>
+                )}
+              </Stack>
               {loading ? (
                 <Box sx={{ p: 2, textAlign: 'center' }}>
                   <Typography color="text.secondary">Loading…</Typography>
                 </Box>
               ) : (
-                <Box sx={{ maxHeight: 380, overflowY: 'auto' }}>
-                  <Stack spacing={0.5}>
-                    {filtered.slice(0, 200).map((m) => (
-                      <ListItemButton
-                        key={`${m.id}-${m.name}`}
-                        onClick={() => onPick(m)}
-                        sx={{ borderRadius: 1 }}
-                      >
-                        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                          <Typography variant="body2" fontWeight={500} noWrap>
-                            {m.name}
-                          </Typography>
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            noWrap
-                          >
-                            {m.meta}
-                          </Typography>
-                        </Box>
-                        <Chip
-                          label={m.challenge}
-                          size="small"
-                          sx={{
-                            fontFamily: '"JetBrains Mono", monospace',
-                            ml: 1,
-                          }}
-                        />
-                      </ListItemButton>
-                    ))}
+                <Box sx={{ maxHeight: 360, overflowY: 'auto' }}>
+                  <Stack spacing={0.25}>
+                    {shown.map((m) => {
+                      const p = picked.get(keyOf(m));
+                      return (
+                        <ListItemButton
+                          key={keyOf(m)}
+                          onClick={() => toggle(m)}
+                          selected={Boolean(p)}
+                          sx={{ borderRadius: 1, py: 0.5, pl: 0.5 }}
+                        >
+                          <Checkbox size="small" checked={Boolean(p)} tabIndex={-1} disableRipple />
+                          <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                            <Typography variant="body2" fontWeight={500} noWrap>
+                              {m.name}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" noWrap component="div">
+                              {m.meta}
+                            </Typography>
+                          </Box>
+                          {p && <QtyStepper qty={p.qty} onChange={(n) => setQty(m, n)} />}
+                          <Chip
+                            label={`CR ${m.challenge}`}
+                            size="small"
+                            sx={{ fontFamily: '"JetBrains Mono", monospace', ml: 1 }}
+                          />
+                        </ListItemButton>
+                      );
+                    })}
                   </Stack>
                 </Box>
               )}
             </Paper>
 
             {/* Selected */}
-            <Paper sx={{ width: 280, p: 1.5 }}>
-              <Typography variant="overline" color="text.secondary">
-                Selected ({picked.length})
-              </Typography>
+            <Paper sx={{ width: { xs: '100%', md: 300 }, p: 1.5 }}>
+              <Stack direction="row" alignItems="center" justifyContent="space-between">
+                <Typography variant="overline" color="text.secondary">
+                  Selected ({totalQty})
+                </Typography>
+                {picked.size > 0 && (
+                  <Button size="small" color="inherit" onClick={() => setPicked(new Map())}>
+                    Clear
+                  </Button>
+                )}
+              </Stack>
               <Box sx={{ maxHeight: 380, overflowY: 'auto', mt: 1 }}>
-                {picked.length === 0 ? (
+                {picked.size === 0 ? (
                   <Box
                     sx={{
                       p: 2,
@@ -167,52 +240,37 @@ const SelectMonster: FC<{
                       color: 'text.secondary',
                     }}
                   >
-                    <Typography variant="body2">
-                      Click a monster on the left to add it.
-                    </Typography>
+                    <Typography variant="body2">Tick monsters on the left, or select all after a search.</Typography>
                   </Box>
                 ) : (
-                  <List dense>
-                    {picked.map((m, i) => (
-                      <ListItemButton key={`${m.id}-${i}`} sx={{ borderRadius: 1 }}>
+                  <Stack spacing={0.5}>
+                    {Array.from(picked.values()).map(({ monster, qty }) => (
+                      <Stack key={keyOf(monster)} direction="row" alignItems="center" spacing={1}>
                         <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                           <Typography variant="body2" noWrap>
-                            {m.name}
+                            {monster.name}
                           </Typography>
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            noWrap
-                          >
-                            CR {m.challenge}
+                          <Typography variant="caption" color="text.secondary" noWrap component="div">
+                            CR {monster.challenge}
                           </Typography>
                         </Box>
-                        <IconButton
-                          size="small"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onUnpick(i);
-                          }}
-                        >
-                          <Remove fontSize="small" />
+                        <QtyStepper qty={qty} onChange={(n) => setQty(monster, n)} />
+                        <IconButton size="small" aria-label="remove" onClick={() => setQty(monster, 0)}>
+                          <Close fontSize="small" />
                         </IconButton>
-                      </ListItemButton>
+                      </Stack>
                     ))}
-                  </List>
+                  </Stack>
                 )}
               </Box>
             </Paper>
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpen(false)}>Cancel</Button>
-          <Button
-            variant="contained"
-            onClick={onSubmit}
-            disabled={picked.length === 0}
-            startIcon={<Add />}
-          >
-            Add {picked.length > 0 ? `${picked.length} ` : ''}to combat
+          <Button onClick={close}>Cancel</Button>
+          <Button variant="contained" size="large" onClick={onSubmit} disabled={totalQty === 0} startIcon={<Add />}>
+            Add {totalQty > 0 ? `${totalQty} ` : ''}
+            {actionLabel}
           </Button>
         </DialogActions>
       </Dialog>

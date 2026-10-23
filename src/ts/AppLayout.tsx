@@ -38,9 +38,11 @@ import {
   Casino,
   Logout,
   Map as MapIcon,
+  Menu as MenuIcon,
   Person,
   PersonAdd,
   Search as SearchIcon,
+  Settings as SettingsIcon,
   Shield,
   ShoppingCart,
 } from '@mui/icons-material';
@@ -50,6 +52,8 @@ import AuthDialog from './auth/AuthDialog';
 import ContextBar from './shared/ContextBar';
 import GlobalSearch from './shared/GlobalSearch';
 import { MonsterStatPaneProvider } from './shared/MonsterStatPane';
+import SettingsDialog from './shared/SettingsDialog';
+import { useSettings } from './shared/SettingsContext';
 
 type NavItem = {
   label: string;
@@ -68,6 +72,10 @@ const NAV: NavItem[] = [
   { label: 'Campaigns', icon: <MapIcon />, path: 'campaign' },
 ];
 
+// Pages that don't use the active campaign/party; the switcher is
+// hidden on them unless the user turns it on in Settings.
+const REFERENCE_PATHS = ['', 'monsters', 'spells', 'gear'];
+
 const RAIL_WIDTH = 240;
 const RAIL_COLLAPSED = 68;
 
@@ -76,6 +84,7 @@ const AppLayout: FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
+  const { settings, openDialog: openSettings } = useSettings();
 
   const isCompact = useMediaQuery(theme.breakpoints.down('md'));
   const [railOpen, setRailOpen] = useState(false);
@@ -120,6 +129,8 @@ const AppLayout: FC = () => {
 
   const activePath = location.pathname.replace(/^#?\/?/, '').split('/')[0] ?? '';
   const railWidth = isCompact ? RAIL_COLLAPSED : RAIL_WIDTH;
+  const showContext =
+    settings.contextOnReferencePages || !REFERENCE_PATHS.includes(activePath);
 
   const railContent = (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -333,7 +344,7 @@ const AppLayout: FC = () => {
                 size="small"
                 aria-label="open navigation"
               >
-                <Shield />
+                <MenuIcon />
               </IconButton>
             )}
             <Stack spacing={-0.5} sx={{ minWidth: 0 }}>
@@ -348,6 +359,11 @@ const AppLayout: FC = () => {
                 {title}
               </Typography>
             </Stack>
+            {showContext && (
+              <Box sx={{ ml: { xs: 1, md: 2 }, minWidth: 0 }}>
+                <ContextBar />
+              </Box>
+            )}
             <Box sx={{ flexGrow: 1 }} />
             <Tooltip title="Search (Ctrl+K)" arrow>
               <Box
@@ -367,7 +383,7 @@ const AppLayout: FC = () => {
                   border: `1px solid ${theme.palette.divider}`,
                   backgroundColor: alpha(theme.palette.primary.main, 0.04),
                   cursor: 'pointer',
-                  minWidth: 200,
+                  minWidth: { xs: 0, md: 200 },
                   '&:hover': {
                     borderColor: alpha(theme.palette.primary.main, 0.5),
                     backgroundColor: alpha(theme.palette.primary.main, 0.08),
@@ -375,14 +391,23 @@ const AppLayout: FC = () => {
                 }}
               >
                 <SearchIcon fontSize="small" sx={{ opacity: 0.6 }} />
-                <Typography variant="body2" color="text.secondary" sx={{ flexGrow: 1 }}>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ flexGrow: 1, display: { xs: 'none', md: 'block' } }}
+                >
                   Search…
                 </Typography>
-                <Stack direction="row" spacing={0.5}>
+                <Stack direction="row" spacing={0.5} sx={{ display: { xs: 'none', md: 'flex' } }}>
                   <Chip label="Ctrl" size="small" sx={{ height: 18, fontSize: '0.65rem' }} />
                   <Chip label="K" size="small" sx={{ height: 18, fontSize: '0.65rem' }} />
                 </Stack>
               </Box>
+            </Tooltip>
+            <Tooltip title="Settings" arrow>
+              <IconButton onClick={openSettings} size="small" aria-label="settings">
+                <SettingsIcon />
+              </IconButton>
             </Tooltip>
             {user ? (
               <>
@@ -447,6 +472,17 @@ const AppLayout: FC = () => {
                     </ListItemIcon>
                     My Campaigns
                   </MenuItem>
+                  <MenuItem
+                    onClick={() => {
+                      setUserMenuAnchor(null);
+                      openSettings();
+                    }}
+                  >
+                    <ListItemIcon>
+                      <SettingsIcon fontSize="small" />
+                    </ListItemIcon>
+                    Settings
+                  </MenuItem>
                   <Divider />
                   <MenuItem
                     onClick={() => {
@@ -490,7 +526,6 @@ const AppLayout: FC = () => {
             )}
           </Toolbar>
         </AppBar>
-        <ContextBar />
         <MonsterStatPaneProvider>
           <Box
             sx={{
@@ -509,6 +544,7 @@ const AppLayout: FC = () => {
         onClose={() => setAuthOpen(false)}
         defaultMode={authMode}
       />
+      <SettingsDialog />
       <GlobalSearch
         open={searchOpen}
         onClose={() => setSearchOpen(false)}

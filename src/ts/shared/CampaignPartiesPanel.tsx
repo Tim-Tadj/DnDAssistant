@@ -1,15 +1,13 @@
 // Phase 9: parties linked to this campaign. Renders the
 // campaign_parties junction as a row of cards, with link/unlink
-// controls.
+// controls. Several parties can be linked in one go.
 
 import React, { FC, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
-  Autocomplete,
   Box,
   Button,
   Card,
-  CardActionArea,
   CardContent,
   Chip,
   Dialog,
@@ -18,19 +16,12 @@ import {
   DialogTitle,
   IconButton,
   Stack,
-  TextField,
   Typography,
   alpha,
   useTheme,
 } from '@mui/material';
-import {
-  Add,
-  Close,
-  Group,
-  GroupAdd,
-  LinkOff,
-  People,
-} from '@mui/icons-material';
+import { Group, GroupAdd, LinkOff, People } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import { Party } from '../types/Party';
 import { Character } from '../types/Character';
 import { campaignPartiesApi } from '../api/campaign-parties';
@@ -38,6 +29,7 @@ import { charactersApi } from '../api/characters';
 import { partiesApi } from '../api/parties';
 import { useToast } from './ToastProvider';
 import PartyComposition from './PartyComposition';
+import { MultiPickDialog } from './MultiPick';
 
 type Props = {
   campaignId: string;
@@ -50,21 +42,23 @@ const CampaignPartiesPanel: FC<Props> = ({ campaignId, canEdit }) => {
   const [linked, setLinked] = useState<Party[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [allCharacters, setAllCharacters] = useState<Character[]>([]);
+  const [allParties, setAllParties] = useState<Party[]>([]);
   const [adding, setAdding] = useState(false);
-  const [pickParty, setPickParty] = useState<Party | null>(null);
-  const [saving, setSaving] = useState(false);
+  const navigate = useNavigate();
   const [confirmUnlink, setConfirmUnlink] = useState<Party | null>(null);
   const [unlinking, setUnlinking] = useState(false);
 
   const reload = async () => {
     setLoadError(null);
     try {
-      const [parties, chars] = await Promise.all([
+      const [parties, chars, mine] = await Promise.all([
         campaignPartiesApi.list(campaignId),
         charactersApi.list(),
+        partiesApi.list(),
       ]);
       setLinked(parties);
       setAllCharacters(chars);
+      setAllParties(mine);
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : String(e));
     }
@@ -74,19 +68,20 @@ const CampaignPartiesPanel: FC<Props> = ({ campaignId, canEdit }) => {
     void reload();
   }, [campaignId]);
 
-  const onLink = async () => {
-    if (!pickParty || !pickParty.id) return;
-    setSaving(true);
+  const linkable = useMemo(
+    () => allParties.filter((p) => p.id && !linked.some((l) => l.id === p.id)),
+    [allParties, linked],
+  );
+
+  const onLink = async (picked: Party[]) => {
     try {
-      await campaignPartiesApi.link(campaignId, pickParty.id);
-      toast(`Linked ${pickParty.name}`, 'success');
+      await Promise.all(picked.map((p) => campaignPartiesApi.link(campaignId, p.id as string)));
+      toast(picked.length === 1 ? `Linked ${picked[0].name}` : `Linked ${picked.length} parties`, 'success');
       setAdding(false);
-      setPickParty(null);
-      await reload();
     } catch (e) {
       toast(e instanceof Error ? e.message : String(e), 'error');
     } finally {
-      setSaving(false);
+      await reload();
     }
   };
 
@@ -129,7 +124,7 @@ const CampaignPartiesPanel: FC<Props> = ({ campaignId, canEdit }) => {
             startIcon={<GroupAdd />}
             onClick={() => setAdding(true)}
           >
-            Link party
+            Link parties
           </Button>
         )}
       </Stack>
@@ -147,10 +142,19 @@ const CampaignPartiesPanel: FC<Props> = ({ campaignId, canEdit }) => {
             backgroundColor: alpha(theme.palette.primary.main, 0.04),
           }}
         >
-          <Typography variant="body2" color="text.secondary">
-            No parties linked yet. Parties are created on the Characters page
-            and can be linked to multiple campaigns.
+          <Typography variant="body2" color="text.secondary" sx={{ mb: canEdit ? 1.5 : 0 }}>
+            No parties linked yet. A party can be linked to several campaigns.
           </Typography>
+          {canEdit &&
+            (linkable.length > 0 ? (
+              <Button variant="contained" startIcon={<GroupAdd />} onClick={() => setAdding(true)}>
+                Link parties
+              </Button>
+            ) : (
+              <Button variant="outlined" startIcon={<GroupAdd />} onClick={() => navigate('/characters')}>
+                Create a party
+              </Button>
+            ))}
         </Card>
       ) : (
         <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
@@ -191,30 +195,19 @@ const CampaignPartiesPanel: FC<Props> = ({ campaignId, canEdit }) => {
         </Stack>
       )}
 
-      {/* Link dialog — reuses the user's global party list as the option source */}
-      <Dialog open={adding} onClose={() => !saving && setAdding(false)} fullWidth maxWidth="xs">
-        <DialogTitle>Link a party</DialogTitle>
-        <DialogContent>
-          <LinkPartyPicker
-            onPick={(p) => setPickParty(p)}
-            excludeIds={linked.map((p) => p.id).filter(Boolean) as string[]}
-            initial={pickParty}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setAdding(false)} disabled={saving}>
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={onLink}
-            disabled={saving || !pickParty}
-          >
-            {saving ? 'Linking…' : 'Link'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <MultiPickDialog
+        open={adding}
+        title="Link parties to this campaign"
+        actionLabel="Link"
+        actionIcon={<GroupAdd />}
+        items={linkable}
+        getKey={(p) => p.id as string}
+        getLabel={(p) => p.name}
+        getSecondary={(p) => `${p.member_ids?.length ?? 0} characters`}
+        emptyText="No unlinked parties. Create one on the Characters page."
+        onClose={() => setAdding(false)}
+        onConfirm={onLink}
+      />
 
       <Dialog
         open={confirmUnlink !== null}
@@ -240,44 +233,6 @@ const CampaignPartiesPanel: FC<Props> = ({ campaignId, canEdit }) => {
         </DialogActions>
       </Dialog>
     </Box>
-  );
-};
-
-// We re-fetch the global party list from the API in the picker so
-// the user can see parties they've created on the Characters page
-// without leaving this dialog.
-const LinkPartyPicker: FC<{
-  onPick: (p: Party | null) => void;
-  excludeIds: string[];
-  initial: Party | null;
-}> = ({ onPick, excludeIds, initial }) => {
-  const [all, setAll] = useState<Party[]>([]);
-  useEffect(() => {
-    partiesApi.list().then(setAll).catch(() => undefined);
-  }, []);
-  const options = useMemo(
-    () => all.filter((p) => p.id && !excludeIds.includes(p.id)),
-    [all, excludeIds],
-  );
-  return (
-    <Autocomplete
-      options={options}
-      getOptionLabel={(o) => o.name}
-      value={initial}
-      onChange={(_e, v) => onPick(v)}
-      renderInput={(p) => (
-        <TextField
-          {...p}
-          autoFocus
-          label="Party"
-          helperText={
-            options.length === 0
-              ? 'No unlinked parties — create one on the Characters page'
-              : 'Pick from your parties'
-          }
-        />
-      )}
-    />
   );
 };
 

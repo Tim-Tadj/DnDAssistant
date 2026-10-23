@@ -32,6 +32,7 @@ import CharacterDetailPanel from '../shared/CharacterDetailPanel';
 import { useToast } from '../shared/ToastProvider';
 import { useAuth } from '../auth/AuthContext';
 import PartiesPanel from '../shared/PartiesPanel';
+import { useCampaignContext } from '../shared/CampaignContext';
 import PartyComposition from '../shared/PartyComposition';
 
 const ABILITIES: Array<{ key: keyof Character; label: string }> = [
@@ -278,8 +279,8 @@ const columns: GridColDef<Character>[] = [
 const CharactersTable: FC = () => {
   const { user } = useAuth();
   const { items, loadError, reload } = useList<Character>(charactersApi.list);
-  const [mineFilter, setMineFilter] = useState(false);
-  const [activePartyId, setActivePartyId] = useState<string | null>(null);
+  // Same active party as the switcher in the top bar.
+  const { activePartyId, setActivePartyId } = useCampaignContext();
   const [races, setRaces] = useState<Race[]>([]);
   const [classes, setClasses] = useState<DndClass[]>([]);
 
@@ -358,9 +359,6 @@ const CharactersTable: FC = () => {
       searchHint="Search characters by name…"
       emptyTitle="No characters yet"
       emptyDescription="Create your first character to get started."
-      showMineFilter={!!user}
-      mineFilter={mineFilter}
-      onMineFilterChange={setMineFilter}
       />
     </Box>
   );

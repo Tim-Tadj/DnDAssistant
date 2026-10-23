@@ -1,8 +1,7 @@
-// Phase 9: the Library tab. Shows the saved encounters for the
-// active campaign and lets the DM "Re-run" any of them (which
-// hydrates the saved MonsterRef list back into full Monster
-// objects and writes them to EncounterContext, so the Live tab
-// can pick them up).
+// The Library tab. Shows the saved encounters for the active
+// campaign and lets the DM "Run" any of them: the saved MonsterRef
+// list is hydrated back into full Monster objects, written to
+// EncounterContext, and the page switches to the Run tab.
 
 import React, { FC, useEffect, useMemo, useState } from 'react';
 import {
@@ -14,12 +13,12 @@ import {
   Chip,
   CircularProgress,
   IconButton,
-  Paper,
   Stack,
   Tooltip,
   Typography,
 } from '@mui/material';
 import {
+  Casino,
   Delete,
   History as HistoryIcon,
   PlayArrow,
@@ -31,12 +30,18 @@ import { useCampaignContext } from '../shared/CampaignContext';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../shared/ToastProvider';
 import { hydrateEncounterSave } from '../api/hydrate-encounter';
+import { useSettings } from '../shared/SettingsContext';
+import { useConfirm } from '../shared/useConfirm';
+import { useEncounterTab } from './encounter-tab';
 
 const EncounterLibrary: FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { activeCampaign } = useCampaignContext();
   const enc = useEncounter();
+  const { settings } = useSettings();
+  const [, setTab] = useEncounterTab();
+  const { confirm, dialog } = useConfirm();
 
   const [saves, setSaves] = useState<EncounterSave[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -62,11 +67,19 @@ const EncounterLibrary: FC = () => {
 
   const onReRun = async (s: EncounterSave) => {
     if (!s.id) return;
+    if (enc.monstersInCombat.length > 0 && settings.confirmDestructive) {
+      const ok = await confirm({
+        title: 'Replace the running encounter?',
+        body: `"${s.name}" will replace the fight that's currently in the tracker.`,
+        confirmLabel: 'Replace',
+      });
+      if (!ok) return;
+    }
     setReRunId(s.id);
     try {
       const monsters = await hydrateEncounterSave(s);
       enc.loadFromSave(s.id, s.name, monsters);
-      toast(`Loaded "${s.name}" — switch to the Live tab to run it`, 'success');
+      setTab('run');
     } catch (e) {
       toast(e instanceof Error ? e.message : String(e), 'error');
     } finally {
@@ -76,6 +89,10 @@ const EncounterLibrary: FC = () => {
 
   const onDelete = async (s: EncounterSave) => {
     if (!s.id) return;
+    if (settings.confirmDestructive) {
+      const ok = await confirm({ title: `Delete "${s.name}"?`, confirmLabel: 'Delete', destructive: true });
+      if (!ok) return;
+    }
     setDeleting(s.id);
     try {
       await encounterSavesApi.remove(s.id);
@@ -129,16 +146,19 @@ const EncounterLibrary: FC = () => {
         <Typography variant="h6" sx={{ mt: 1 }}>
           No saved encounters yet
         </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Generate one in the <strong>Builder</strong> tab and click
-          <strong> Save to library</strong>.
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Build an encounter and click <strong>Save to library</strong> to keep it here.
         </Typography>
+        <Button variant="contained" startIcon={<Casino />} onClick={() => setTab('build')}>
+          Build an encounter
+        </Button>
       </Box>
     );
   }
 
   return (
     <Stack spacing={3}>
+      {dialog}
       {activeCampaign && grouped.forActive.length > 0 && (
         <Box>
           <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
@@ -271,7 +291,7 @@ const SaveCard: FC<{
           onClick={onReRun}
           disabled={reRunning || deleting}
         >
-          {reRunning ? 'Loading…' : 'Re-run'}
+          {reRunning ? 'Loading…' : 'Run'}
         </Button>
         <Tooltip title="Delete" arrow>
           <span>

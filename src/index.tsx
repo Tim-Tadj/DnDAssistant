@@ -17,6 +17,7 @@ import AppRouter from './ts/app-router';
 import { AuthProvider } from './ts/auth/AuthContext';
 import { CampaignProvider } from './ts/shared/CampaignContext';
 import { ToastProvider } from './ts/shared/ToastProvider';
+import { SettingsProvider } from './ts/shared/SettingsContext';
 
 const rootElement = document.getElementById('root');
 const root = ReactDOM.createRoot(rootElement!);
@@ -26,11 +27,13 @@ root.render(
     <CssBaseline />
     <AuthProvider>
       <CampaignProvider>
-        <ToastProvider>
-          <React.StrictMode>
-            <AppRouter />
-          </React.StrictMode>
-        </ToastProvider>
+        <SettingsProvider>
+          <ToastProvider>
+            <React.StrictMode>
+              <AppRouter />
+            </React.StrictMode>
+          </ToastProvider>
+        </SettingsProvider>
       </CampaignProvider>
     </AuthProvider>
   </ThemeProvider>

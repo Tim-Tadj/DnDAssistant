@@ -9,7 +9,6 @@
 import React, { FC, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
-  Autocomplete,
   Box,
   Button,
   Card,
@@ -32,6 +31,8 @@ import { Character } from '../types/Character';
 import { Party, defaultParty } from '../types/Party';
 import { partiesApi } from '../api/parties';
 import { useToast } from './ToastProvider';
+import { CheckList } from './MultiPick';
+import { useCampaignContext } from './CampaignContext';
 
 type Props = {
   characters: Character[];
@@ -135,26 +136,30 @@ const PartyEditorDialog: FC<{
               size="small"
               InputLabelProps={{ shrink: true }}
             />
-            <Autocomplete
-              multiple
-              size="small"
-              options={memberOptions}
-              getOptionLabel={(o) => o.name}
-              value={memberOptions.filter((c) => draft.member_ids.includes(c.id))}
-              onChange={(_e, v) =>
-                setDraft({ ...draft, member_ids: v.map((c) => c.id) })
-              }
-              renderInput={(p) => (
-                <TextField
-                  {...p}
-                  label="Members"
-                  helperText={`${draft.member_ids.length} character${
-                    draft.member_ids.length === 1 ? '' : 's'
-                  }`}
-                  InputLabelProps={{ shrink: true }}
-                />
-              )}
-            />
+            <Box>
+              <Typography variant="overline" color="text.secondary">
+                Members
+              </Typography>
+              <CheckList
+                items={memberOptions}
+                getKey={(c) => c.id}
+                getLabel={(c) => c.name}
+                getSecondary={(c) => `Level ${c.level ?? 1}`}
+                selected={new Set(draft.member_ids)}
+                onChange={(next) =>
+                  // Keep the existing order, append new picks.
+                  setDraft({
+                    ...draft,
+                    member_ids: [
+                      ...draft.member_ids.filter((id) => next.has(id)),
+                      ...memberOptions.map((c) => c.id).filter((id) => next.has(id) && !draft.member_ids.includes(id)),
+                    ],
+                  })
+                }
+                emptyText="No characters yet. Create some on this page first."
+                maxHeight={260}
+              />
+            </Box>
           </Stack>
         )}
       </DialogContent>
@@ -188,12 +193,15 @@ const PartiesPanel: FC<Props> = ({
   const [editorInitial, setEditorInitial] = useState<Party | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Party | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const { reloadParties } = useCampaignContext();
 
   const reload = async () => {
     setLoadError(null);
     try {
       const data = await partiesApi.list();
       setParties(data);
+      // Keep the top-bar party switcher in step.
+      void reloadParties();
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : String(e));
     }

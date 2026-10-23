@@ -9,8 +9,9 @@
  * If the user has no active campaign, we show the EntityBrowser
  * with a CTA to pick one from the ContextBar at the top.
  *
- * The "Tales of Avandria" example world is always shown at the
- * bottom so a new user has something to look at.
+ * The "Tales of Avandria" example world is shown at the bottom for
+ * signed-out users, and for signed-in users who turn it on in
+ * Settings (it's noise once you have your own campaigns).
  */
 
 import React, { FC, ReactNode, useState } from 'react';
@@ -28,10 +29,10 @@ import {
   Chip,
 } from '@mui/material';
 import { Add, AutoStories, Map as MapIcon, OpenInNew } from '@mui/icons-material';
-import { Dialog, DialogContent, DialogTitle, Skeleton, Tab, Tabs } from '@mui/material';
+import { Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Skeleton, Tab, Tabs } from '@mui/material';
 import { TextField } from '@mui/material';
 import { GridColDef } from '@mui/x-data-grid';
-import { Campaign, defaultCampaign } from '../types/Campaign';
+import { Campaign, CAMPAIGN_STATUSES, defaultCampaign } from '../types/Campaign';
 import { campaignsApi } from '../api/campaigns';
 import { useList } from '../shared/useList';
 import { EntityBrowser } from '../shared/EntityBrowser';
@@ -40,6 +41,7 @@ import CampaignHub from '../shared/CampaignHub';
 import { useToast } from '../shared/ToastProvider';
 import { useAuth } from '../auth/AuthContext';
 import { useCampaignContext } from '../shared/CampaignContext';
+import { useSettings } from '../shared/SettingsContext';
 
 import MapOfAvandria from '../../res/talesOfAvandria/Avandria.jpg';
 import MapProperties from '../../res/talesOfAvandria/Avandria.json';
@@ -157,7 +159,7 @@ const CampaignCreate: FC<{ onCreated?: () => void }> = ({ onCreated }) => {
         open={open}
         onClose={() => !saving && setOpen(false)}
         fullWidth
-        maxWidth="md"
+        maxWidth="sm"
         PaperProps={{
           sx: {
             backgroundColor: theme.palette.background.paper,
@@ -166,22 +168,7 @@ const CampaignCreate: FC<{ onCreated?: () => void }> = ({ onCreated }) => {
         }}
       >
         <DialogTitle sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Typography variant="h4">New Campaign</Typography>
-            <Stack direction="row" spacing={1}>
-              <Button onClick={() => setOpen(false)} disabled={saving}>
-                Cancel
-              </Button>
-              <Button
-                variant="contained"
-                startIcon={<Add />}
-                onClick={onSave}
-                disabled={saving}
-              >
-                {saving ? 'Saving…' : 'Save'}
-              </Button>
-            </Stack>
-          </Stack>
+          <Typography variant="h4">New campaign</Typography>
         </DialogTitle>
         <DialogContent sx={{ p: 3 }}>
           {error && (
@@ -208,13 +195,19 @@ const CampaignCreate: FC<{ onCreated?: () => void }> = ({ onCreated }) => {
                   helperText="e.g. Forgotten Realms, Eberron, homebrew"
                 />
                 <TextField
+                  select
                   label="Status"
                   value={draft.status}
                   onChange={(e) => setDraft({ ...draft, status: e.target.value })}
                   sx={{ width: 200 }}
                   InputLabelProps={{ shrink: true }}
-                  helperText="active / paused / completed"
-                />
+                >
+                  {CAMPAIGN_STATUSES.map((st) => (
+                    <MenuItem key={st} value={st} sx={{ textTransform: 'capitalize' }}>
+                      {st}
+                    </MenuItem>
+                  ))}
+                </TextField>
               </Stack>
               <TextField
                 label="Description"
@@ -238,6 +231,14 @@ const CampaignCreate: FC<{ onCreated?: () => void }> = ({ onCreated }) => {
             </Stack>
           )}
         </DialogContent>
+        <DialogActions>
+          <Button color="inherit" onClick={() => setOpen(false)} disabled={saving}>
+            Cancel
+          </Button>
+          <Button variant="contained" startIcon={<Add />} onClick={onSave} disabled={saving}>
+            {saving ? 'Creating…' : 'Create campaign'}
+          </Button>
+        </DialogActions>
       </Dialog>
     </>
   );
@@ -255,7 +256,8 @@ const CampaignManager: FC = () => {
   const { items, loadError, reload } = useList<Campaign>(campaignsApi.list);
   const { activeCampaign, setActiveCampaignId, reloadCampaigns } = useCampaignContext();
   const [mineFilter, setMineFilter] = useState(false);
-  const theme = useTheme();
+  const { settings } = useSettings();
+  const showExample = !user || settings.showExampleWorld;
 
   const setActiveExtraAction = (c: Campaign): ReactNode => {
     if (!c.id) return null;
@@ -397,13 +399,15 @@ const CampaignManager: FC = () => {
           Tales of Avandria example world is below.
         </Alert>
       )}
-      <Box>
-        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
-          <AutoStories fontSize="small" sx={{ color: 'primary.main' }} />
-          <Typography variant="h5">Browse example world</Typography>
-        </Stack>
-        <AvandriaExample />
-      </Box>
+      {showExample && (
+        <Box>
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
+            <AutoStories fontSize="small" sx={{ color: 'primary.main' }} />
+            <Typography variant="h5">Browse example world</Typography>
+          </Stack>
+          <AvandriaExample />
+        </Box>
+      )}
     </Stack>
   );
 };

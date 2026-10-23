@@ -15,6 +15,15 @@ start a fresh `[Unreleased]` section.
 ## [Unreleased]
 
 ### Added
+- **UX overhaul (see `docs/ux-review/`).** Encounters are a clear
+  Build → Run → Library flow with big primary buttons that move you to the
+  next step. Builder groups have checkboxes for "Reroll selected" /
+  Remove / ± count; the tracker supports multi-select bulk damage, heal,
+  conditions and remove; campaign characters, linked parties and party
+  members can be picked several at a time with "Select all". New
+  Settings dialog (default difficulty, auto-add party, group initiative,
+  confirmations, layout) and a compact campaign/party switcher in the
+  top bar.
 - **Phase 9 — Campaign-centric UX. Campaigns are now the
   centre of the universe.** The app revolves around one
   active campaign (and optionally one active party) that the
@@ -124,6 +133,13 @@ start a fresh `[Unreleased]` section.
   with a secondary-color accent.
 
 ### Fixed
+- "Go to Builder" opened a blank route; "Send to Live" / Library
+  "Re-run" only showed a toast instead of switching tabs.
+- Combat tracker used a stale party list; switching encounter tabs threw
+  away the preview and combat state; adding monsters to a running fight
+  reset it.
+- Campaign character edits (level, HP, AC, conditions) were silently
+  discarded on Save.
 - `CampaignCharacterRepository.upsert` now resolves the
   existing row by (campaign_id, character_id) when the
   client PUTs without an id (the common case from a

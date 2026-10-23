@@ -13,17 +13,18 @@ import React, { FC, useState } from 'react';
 import {
   Alert,
   Box,
-  Card,
-  CardContent,
+  Button,
   Chip,
   Paper,
   Stack,
   Tab,
   Tabs,
+  TextField,
   Typography,
-  useTheme,
 } from '@mui/material';
-import { Map as MapIcon, AutoStories, Group, Person, History, People } from '@mui/icons-material';
+import { Map as MapIcon, AutoStories, Edit, Group, Person, History, People, Save } from '@mui/icons-material';
+import { campaignsApi } from '../api/campaigns';
+import { useToast } from './ToastProvider';
 import { Campaign } from '../types/Campaign';
 import CampaignWorkflowBar from './CampaignWorkflowBar';
 import CampaignPartiesPanel from './CampaignPartiesPanel';
@@ -40,9 +41,26 @@ type Props = {
 };
 
 const CampaignHub: FC<Props> = ({ campaign, onChanged, canEdit = true }) => {
-  const theme = useTheme();
   const [tab, setTab] = useState<string>('overview');
   const campaignId = campaign.id ?? '';
+  const { toast } = useToast();
+  const [notesDraft, setNotesDraft] = useState<string | null>(null);
+  const [savingNotes, setSavingNotes] = useState(false);
+
+  const onSaveNotes = async () => {
+    if (notesDraft === null || !campaign.id) return;
+    setSavingNotes(true);
+    try {
+      await campaignsApi.update(campaign.id, { ...campaign, notes: notesDraft });
+      toast('Notes saved', 'success');
+      setNotesDraft(null);
+      onChanged?.();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : String(e), 'error');
+    } finally {
+      setSavingNotes(false);
+    }
+  };
 
   return (
     <Stack spacing={3}>
@@ -90,19 +108,56 @@ const CampaignHub: FC<Props> = ({ campaign, onChanged, canEdit = true }) => {
         <Box sx={{ p: 2 }}>
           {tab === 'overview' && (
             <Stack spacing={2}>
-              {campaign.notes ? (
+              {notesDraft !== null ? (
                 <Box>
-                  <Typography variant="overline" color="primary.main">
-                    Campaign notes
-                  </Typography>
+                  <TextField
+                    label="Campaign notes"
+                    value={notesDraft}
+                    onChange={(e) => setNotesDraft(e.target.value)}
+                    fullWidth
+                    multiline
+                    minRows={6}
+                    autoFocus
+                    InputLabelProps={{ shrink: true }}
+                    helperText="Use [[monster:Goblin]], [[npc:Captain Yara]], [[location:Iron Keep]] to link to stat blocks and NPCs."
+                  />
+                  <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ mt: 1 }}>
+                    <Button color="inherit" onClick={() => setNotesDraft(null)} disabled={savingNotes}>
+                      Cancel
+                    </Button>
+                    <Button variant="contained" startIcon={<Save />} onClick={onSaveNotes} disabled={savingNotes}>
+                      {savingNotes ? 'Saving…' : 'Save notes'}
+                    </Button>
+                  </Stack>
+                </Box>
+              ) : campaign.notes ? (
+                <Box>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between">
+                    <Typography variant="overline" color="primary.main">
+                      Campaign notes
+                    </Typography>
+                    {canEdit && (
+                      <Button size="small" startIcon={<Edit fontSize="small" />} onClick={() => setNotesDraft(campaign.notes ?? '')}>
+                        Edit
+                      </Button>
+                    )}
+                  </Stack>
                   <Paper variant="outlined" sx={{ p: 2, mt: 0.5 }}>
                     <LinkedText text={campaign.notes} campaignId={campaignId} />
                   </Paper>
                 </Box>
               ) : (
-                <Alert severity="info">
-                  Add campaign notes (use the workflow bar) to keep your prep,
-                  house rules, and ongoing plot threads in one place. Use
+                <Alert
+                  severity="info"
+                  action={
+                    canEdit && (
+                      <Button color="inherit" size="small" startIcon={<Edit fontSize="small" />} onClick={() => setNotesDraft('')}>
+                        Add notes
+                      </Button>
+                    )
+                  }
+                >
+                  Keep your prep, house rules, and plot threads here. Use
                   {` [[monster:Goblin]]`} or {`[[npc:Captain Yara]]`} to link to
                   stat blocks and NPCs.
                 </Alert>

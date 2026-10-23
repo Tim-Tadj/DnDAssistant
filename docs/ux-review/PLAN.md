@@ -1,0 +1,100 @@
+# UX Overhaul — Plan & Progress
+
+Companion to [UX-REVIEW.md](UX-REVIEW.md). Update the checkboxes as work lands.
+
+Legend: ✅ done · 🚧 in progress · ⛔ not started · ❓ waiting on a decision
+
+## Phase A — fix the broken hand-offs (P0)
+
+- ✅ A1. Encounter tab is URL-addressable (`/encounter?tab=build|run|library`,
+  `encounter-tab.ts`); "Go to Builder" no longer hits a blank route (B1).
+- ✅ A2. "Run encounter" (Builder) and "Run" (Library) switch to the Run
+  tab themselves (B2). If a fight is already running the Builder asks
+  Replace / Add to current fight; the Library asks before replacing.
+- ✅ A3. Stale party in `useTrackEncounter` fixed (party read via ref) (B3).
+- ✅ A4. Overview notes are edited inline on the Overview tab (B4).
+  B5 **partly**: the per-campaign "Current HP" slider was never saved —
+  `campaign_characters` has no current-HP column — so it's removed rather
+  than left as a control that does nothing. Real persistence needs a D1
+  migration (see Follow-ups).
+- ✅ A5 (found while testing). Campaign character edit dialog discarded
+  every edit: the parent saved the original row, not the dialog's draft.
+- ✅ A6 (found while testing). Builder/Run unmounted on tab switch, losing
+  the preview and combat state. Both stay mounted now.
+- ✅ A7 (found while testing). Adding monsters to a running fight rebuilt
+  it (HP, round, turn reset). Appends now just roll the newcomers in.
+
+## Phase B — clear CTAs
+
+- ✅ B1. Tabs: "1 · Build", "2 · Run" (dot when a fight is loaded), "Library".
+  Defaults to Run when a fight is in progress, else Build.
+- ✅ B2. One primary per step: Generate → "Run encounter →" → "Next turn"
+  (also the N key and a floating pill). Secondary actions are
+  outlined/text or in the tracker's ⋯ menu.
+- ✅ B3. Empty states have buttons (Run → Build / Library; Library → Build;
+  campaign Characters → Add characters; Parties → Link / Create a party;
+  Overview → Add notes).
+
+## Phase C — multi-select / replace all
+
+- ✅ C1. Builder preview: per-group checkbox, all ticked after Generate,
+  select all, Reroll selected (nearest-XP swap, rerolled groups stay
+  ticked), Remove, ± count, per-row reroll, live difficulty rating.
+- ✅ C2. Monster picker: checkboxes + qty, select all shown, "Add N".
+- ✅ C3. Tracker: row checkboxes, All monsters / All PCs, bulk typed
+  damage/heal (Enter = damage), conditions, remove.
+- ✅ C4. Campaign Characters / Parties: `MultiPickDialog` (select all;
+  characters pre-ticked).
+- ✅ C5. Party editor: `CheckList` with "Select all".
+
+## Phase D — declutter + Settings
+
+- ✅ D1. Settings dialog (gear in AppBar + user menu), `SettingsContext`
+  in localStorage (`dndassistant.settings`).
+- ✅ D2. Encounters: removed duplicate h3 and active-campaign panel.
+- ✅ D3. ContextBar is now two compact switchers in the AppBar; hidden on
+  Guides/Monsters/Spells/Gear unless the setting is on. Characters page
+  uses the same active party as the switcher.
+- ✅ D4. Builder advanced filters behind "More filters (n)".
+- ✅ D5. Example world only for signed-out users or with the setting on.
+  Also: "My homebrew" chip removed from Characters; New campaign dialog
+  has a Status select and Cancel / Create in the footer.
+
+## Verified in the browser (2026-10-23, local stack)
+
+Party auto-sync (4 × L4 → 1,000 XP Medium) · Generate → all ticked ·
+untick one → Reroll selected swaps the rest · ± count · Run encounter →
+Run tab with party auto-added · All monsters → 3 damage (PCs untouched,
+clamped at 0) · Run again → Add to current fight keeps damage ·
+Save to library → Library Run → confirm → Run tab · Add 4 of 5
+characters to campaign · edit level persists · inline notes save ·
+new party with Select all · switcher lists it · Settings toggle persists.
+
+Not covered: phone-width layout, keyboard-only use.
+
+## Follow-ups (not done)
+
+- Persist per-campaign current HP: add `current_hp` to
+  `campaign_characters` (migration + worker route + type) and bring the
+  slider back.
+- `ENCOUNTER_MULTIPLIERS` bands differ from the DMG (3–6 monsters should
+  be ×2). The generator also stops under budget, so "Medium" often rates
+  as Easy — worth a "fill to budget" pass.
+- Campaign party cards show "4 ?" class breakdown for characters whose
+  `class_id` doesn't resolve.
+
+## Decisions log
+
+2026-10-23 — answers from the user:
+
+- **Replace all = select + reroll.** Every monster group in the Builder
+  preview has a checkbox (all checked by default); untick the keepers,
+  then "Reroll selected" swaps the rest for similar-CR monsters. Plus
+  Remove selected and ± count.
+- **Multi-select everywhere listed:** monster picker, combat tracker,
+  campaign characters/parties, party editor (C1–C5 all in scope).
+- **CTA style = big primary buttons**, tabs reordered Build → Run →
+  Library, steps move the user automatically (no stepper).
+- **Declutter = full pass**: Settings dialog + layout cleanup (D1–D5).
+- Not committing unless asked; work stays uncommitted on
+  `DnDAssistant-MVP-Run`.

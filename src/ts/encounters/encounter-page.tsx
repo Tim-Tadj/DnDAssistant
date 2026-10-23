@@ -1,42 +1,29 @@
-// Phase 9: the Encounter page. Three tabs, context-aware of the
-// active campaign:
-//   - Library: saved encounters for the active campaign. "Re-run"
-//     loads a save into the tracker (Builder + Live).
-//   - Builder: the randomizer. Generates an encounter that lands
-//     in `monstersInCombat` (shared with Live). "Save to
-//     campaign" persists it to the library.
-//   - Live: the live combat tracker. Reads `monstersInCombat`.
+// The Encounter page follows the DM's flow, left to right:
+//   - Build: the randomizer. Generate, then tweak (select / reroll /
+//     remove / count) and hit "Run encounter".
+//   - Run: the live combat tracker. Reads `monstersInCombat`.
+//   - Library: saved encounters for the active campaign. "Run" loads a
+//     save straight into the tracker.
 //
-// The Builder and Live tabs share state via EncounterContext.
+// Build and Run share state via EncounterContext and stay mounted
+// while hidden, so peeking at the Builder mid-fight doesn't wipe HP,
+// conditions or initiative. The active tab lives in the URL
+// (see encounter-tab.ts).
 
-import React, { FC, useState } from 'react';
-import {
-  Alert,
-  Box,
-  Chip,
-  Paper,
-  Stack,
-  Tab,
-  Tabs,
-  Typography,
-} from '@mui/material';
-import {
-  Casino,
-  History as HistoryIcon,
-  PlayArrow,
-} from '@mui/icons-material';
+import React, { FC } from 'react';
+import { Alert, Badge, Box, Paper, Tab, Tabs } from '@mui/material';
+import { Casino, History as HistoryIcon, PlayArrow } from '@mui/icons-material';
 import { EncounterProvider, useEncounter } from './EncounterContext';
-import { useCampaignContext } from '../shared/CampaignContext';
 import EncounterLibrary from './EncounterLibrary';
 import EncounterBuilder from './EncounterBuilder';
 import EncounterLive from './EncounterLive';
 import { useAuth } from '../auth/AuthContext';
+import { useEncounterTab } from './encounter-tab';
 
 const EncounterPageInner: FC = () => {
   const { user } = useAuth();
-  const { activeCampaign, activeParty } = useCampaignContext();
-  const { currentEncounterName, monstersInCombat } = useEncounter();
-  const [tab, setTab] = useState<string>('live');
+  const { monstersInCombat } = useEncounter();
+  const [tab, setTab] = useEncounterTab(monstersInCombat.length > 0 ? 'run' : 'build');
 
   if (!user) {
     return (
@@ -48,94 +35,36 @@ const EncounterPageInner: FC = () => {
   }
 
   return (
-    <Stack spacing={2}>
-      <Stack direction="row" alignItems="center" spacing={1}>
-        <Typography variant="h3" sx={{ flexGrow: 1 }}>
-          Encounters
-        </Typography>
-        {!activeCampaign && (
-          <Chip
-            label="No active campaign — pick one above to save encounters"
-            color="warning"
-            size="small"
-          />
-        )}
-      </Stack>
-
-      <Paper variant="outlined" sx={{ p: 1.5 }}>
-        <Stack
-          direction={{ xs: 'column', md: 'row' }}
-          spacing={2}
-          alignItems={{ xs: 'flex-start', md: 'center' }}
-        >
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Typography variant="overline" color="text.secondary">
-              Active campaign
-            </Typography>
-            <Chip
-              label={activeCampaign?.name ?? '—'}
-              size="small"
-              color={activeCampaign ? 'primary' : 'default'}
-            />
-          </Stack>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Typography variant="overline" color="text.secondary">
-              Active party
-            </Typography>
-            <Chip
-              label={activeParty?.name ?? '—'}
-              size="small"
-              color={activeParty ? 'secondary' : 'default'}
-            />
-          </Stack>
-          {currentEncounterName && (
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ flexGrow: 1 }}>
-              <Typography variant="overline" color="text.secondary">
-                Running
-              </Typography>
-              <Chip
-                label={`${currentEncounterName} · ${monstersInCombat.length} combatants`}
-                size="small"
-                color="success"
-              />
-            </Stack>
-          )}
-        </Stack>
-      </Paper>
-
-      <Paper sx={{ overflow: 'hidden' }}>
-        <Tabs
-          value={tab}
-          onChange={(_e, v) => setTab(v)}
-          variant="scrollable"
-          scrollButtons="auto"
-        >
-          <Tab
-            value="live"
-            label="Live"
-            icon={<PlayArrow fontSize="small" />}
-            iconPosition="start"
-          />
-          <Tab
-            value="builder"
-            label="Builder"
-            icon={<Casino fontSize="small" />}
-            iconPosition="start"
-          />
-          <Tab
-            value="library"
-            label="Library"
-            icon={<HistoryIcon fontSize="small" />}
-            iconPosition="start"
-          />
-        </Tabs>
-        <Box sx={{ p: 2 }}>
-          {tab === 'live' && <EncounterLive />}
-          {tab === 'builder' && <EncounterBuilder />}
-          {tab === 'library' && <EncounterLibrary />}
+    <Paper sx={{ overflow: 'hidden' }}>
+      <Tabs value={tab} onChange={(_e, v) => setTab(v)} variant="scrollable" scrollButtons="auto">
+        <Tab value="build" label="1 · Build" icon={<Casino fontSize="small" />} iconPosition="start" />
+        <Tab
+          value="run"
+          label={
+            <Badge
+              color="success"
+              variant="dot"
+              invisible={monstersInCombat.length === 0}
+              sx={{ '& .MuiBadge-badge': { right: -6 } }}
+            >
+              2 · Run
+            </Badge>
+          }
+          icon={<PlayArrow fontSize="small" />}
+          iconPosition="start"
+        />
+        <Tab value="library" label="Library" icon={<HistoryIcon fontSize="small" />} iconPosition="start" />
+      </Tabs>
+      <Box sx={{ p: 2 }}>
+        <Box sx={{ display: tab === 'build' ? 'block' : 'none' }}>
+          <EncounterBuilder />
         </Box>
-      </Paper>
-    </Stack>
+        <Box sx={{ display: tab === 'run' ? 'block' : 'none' }}>
+          <EncounterLive active={tab === 'run'} />
+        </Box>
+        {tab === 'library' && <EncounterLibrary />}
+      </Box>
+    </Paper>
   );
 };
 

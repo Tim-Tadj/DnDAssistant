@@ -1,11 +1,11 @@
 // Phase 9: the campaign's characters. Lists the characters
 // linked to this campaign (i.e. those that have a row in
 // campaign_characters) and lets the DM:
-//   - add a new character to the campaign (creates a row with
-//     level / hp_max from the canonical character)
+//   - add characters to the campaign, several at once (creates a
+//     row with level / hp_max from the canonical character)
 //   - change the campaign-specific level
-//   - edit HP / conditions / death saves / rest for that character
-//     in this campaign
+//   - edit max HP / AC / conditions / death saves for that
+//     character in this campaign
 //   - remove the character from the campaign
 //
 // The canonical character row (name, race, class, etc.) is not
@@ -26,7 +26,6 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
-  Slider,
   Stack,
   TextField,
   Typography,
@@ -34,12 +33,9 @@ import {
   useTheme,
 } from '@mui/material';
 import {
-  Add,
   Close,
   Delete,
   Edit,
-  Favorite,
-  Healing,
   Person,
   PersonAdd,
   Save,
@@ -49,6 +45,7 @@ import { Character } from '../types/Character';
 import { campaignCharactersApi } from '../api/campaign-characters';
 import { charactersApi } from '../api/characters';
 import { useToast } from './ToastProvider';
+import { MultiPickDialog } from './MultiPick';
 
 const STANDARD_CONDITIONS = [
   'Blinded', 'Charmed', 'Deafened', 'Frightened', 'Grappled', 'Incapacitated',
@@ -69,7 +66,6 @@ const CampaignCharacters: FC<Props> = ({ campaignId, canEdit }) => {
   const [allCharacters, setAllCharacters] = useState<Character[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
-  const [pickChar, setPickChar] = useState<Character | null>(null);
   const [editing, setEditing] = useState<CampaignCharacter | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState<CampaignCharacter | null>(null);
@@ -104,31 +100,33 @@ const CampaignCharacters: FC<Props> = ({ campaignId, canEdit }) => {
     [allCharacters, rows],
   );
 
-  const onAdd = async () => {
-    if (!pickChar || !pickChar.id) return;
-    setSaving(true);
+  const onAdd = async (picked: Character[]) => {
     try {
-      await campaignCharactersApi.upsert(
-        campaignId,
-        pickChar.id,
-        defaultCampaignCharacter(pickChar.id, pickChar.level ?? 1, pickChar.hp_max ?? 10),
+      await Promise.all(
+        picked.map((c) =>
+          campaignCharactersApi.upsert(
+            campaignId,
+            c.id,
+            defaultCampaignCharacter(c.id, c.level ?? 1, c.hp_max ?? 10),
+          ),
+        ),
       );
-      toast(`Added ${pickChar.name} to this campaign`, 'success');
+      toast(
+        picked.length === 1 ? `Added ${picked[0].name} to this campaign` : `Added ${picked.length} characters`,
+        'success',
+      );
       setAdding(false);
-      setPickChar(null);
-      await reload();
     } catch (e) {
       toast(e instanceof Error ? e.message : String(e), 'error');
     } finally {
-      setSaving(false);
+      await reload();
     }
   };
 
-  const onSave = async () => {
-    if (!editing) return;
+  const onSave = async (draft: CampaignCharacter) => {
     setSaving(true);
     try {
-      await campaignCharactersApi.upsert(campaignId, editing.character_id, editing);
+      await campaignCharactersApi.upsert(campaignId, draft.character_id, draft);
       toast('Saved', 'success');
       setEditing(null);
       await reload();
@@ -176,7 +174,7 @@ const CampaignCharacters: FC<Props> = ({ campaignId, canEdit }) => {
             onClick={() => setAdding(true)}
             disabled={addable.length === 0}
           >
-            Add character
+            Add characters
           </Button>
         )}
       </Stack>
@@ -194,10 +192,14 @@ const CampaignCharacters: FC<Props> = ({ campaignId, canEdit }) => {
             backgroundColor: alpha(theme.palette.primary.main, 0.04),
           }}
         >
-          <Typography variant="body2" color="text.secondary">
-            No characters in this campaign yet. Add a character to start tracking
-            their level, HP, and conditions here.
+          <Typography variant="body2" color="text.secondary" sx={{ mb: canEdit && addable.length > 0 ? 1.5 : 0 }}>
+            No characters in this campaign yet. Add some to track their level, HP, and conditions here.
           </Typography>
+          {canEdit && addable.length > 0 && (
+            <Button variant="contained" startIcon={<PersonAdd />} onClick={() => setAdding(true)}>
+              Add characters
+            </Button>
+          )}
         </Card>
       ) : (
         <Stack
@@ -225,24 +227,14 @@ const CampaignCharacters: FC<Props> = ({ campaignId, canEdit }) => {
                         sx={{ height: 20, fontSize: '0.7rem' }}
                       />
                     </Stack>
-                    {c && (
-                      <Typography variant="caption" color="text.secondary">
-                        {c.race_id} {c.class_id} · canonical AC {c.ac}
-                      </Typography>
-                    )}
-                    <Box sx={{ mt: 1 }}>
-                      <HpBar
-                        current={Math.max(0, r.hp_max_override ?? 0)}
-                        max={r.hp_max_override ?? 0}
-                      />
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ fontFamily: '"JetBrains Mono", monospace' }}
-                      >
-                        {r.hp_max_override ?? 0} / {r.hp_max_override ?? 0} HP
-                      </Typography>
-                    </Box>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      component="div"
+                      sx={{ fontFamily: '"JetBrains Mono", monospace' }}
+                    >
+                      Max HP {r.hp_max_override ?? c?.hp_max ?? '?'} · AC {r.ac_override ?? c?.ac ?? '?'}
+                    </Typography>
                     {r.conditions.length > 0 && (
                       <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
                         {r.conditions.map((cond) => (
@@ -287,48 +279,20 @@ const CampaignCharacters: FC<Props> = ({ campaignId, canEdit }) => {
         </Stack>
       )}
 
-      {/* Add character dialog */}
-      <Dialog
+      <MultiPickDialog
         open={adding}
-        onClose={() => !saving && setAdding(false)}
-        fullWidth
-        maxWidth="xs"
-      >
-        <DialogTitle>Add character to this campaign</DialogTitle>
-        <DialogContent>
-          <Autocomplete
-            options={addable}
-            getOptionLabel={(o) => o.name}
-            value={pickChar}
-            onChange={(_e, v) => setPickChar(v)}
-            renderInput={(p) => (
-              <TextField
-                {...p}
-                autoFocus
-                label="Character"
-                helperText={
-                  addable.length === 0
-                    ? 'You have no more characters to add'
-                    : 'Pick from your existing characters'
-                }
-              />
-            )}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setAdding(false)} disabled={saving}>
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<PersonAdd />}
-            onClick={onAdd}
-            disabled={saving || !pickChar}
-          >
-            {saving ? 'Adding…' : 'Add'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        title="Add characters to this campaign"
+        actionLabel="Add"
+        actionIcon={<PersonAdd />}
+        items={addable}
+        getKey={(c) => c.id}
+        getLabel={(c) => c.name}
+        getSecondary={(c) => `Level ${c.level ?? 1}`}
+        emptyText="All your characters are already in this campaign."
+        preselectAll
+        onClose={() => setAdding(false)}
+        onConfirm={onAdd}
+      />
 
       {/* Edit per-campaign state dialog */}
       <CharacterStateDialog
@@ -367,58 +331,24 @@ const CampaignCharacters: FC<Props> = ({ campaignId, canEdit }) => {
   );
 };
 
-const HpBar: FC<{ current: number; max: number }> = ({ current, max }) => {
-  const theme = useTheme();
-  const pct = max > 0 ? Math.max(0, Math.min(100, (current / max) * 100)) : 0;
-  const bloodied = max > 0 && current <= max / 2;
-  const down = max > 0 && current <= 0;
-  return (
-    <Box
-      sx={{
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: alpha(theme.palette.error.main, 0.15),
-        overflow: 'hidden',
-        mb: 0.5,
-      }}
-    >
-      <Box
-        sx={{
-          width: `${pct}%`,
-          height: '100%',
-          backgroundColor: down
-            ? theme.palette.error.main
-            : bloodied
-            ? theme.palette.warning.main
-            : theme.palette.success.main,
-          transition: 'width 200ms ease',
-        }}
-      />
-    </Box>
-  );
-};
-
 const CharacterStateDialog: FC<{
   open: boolean;
   row: CampaignCharacter | null;
   character: Character | null;
   onClose: () => void;
-  onSave: () => void;
+  onSave: (draft: CampaignCharacter) => void;
   saving: boolean;
 }> = ({ open, row, character, onClose, onSave, saving }) => {
   const theme = useTheme();
   const [draft, setDraft] = useState<CampaignCharacter | null>(row);
-  const [currentHp, setCurrentHp] = useState<number>(row?.hp_max_override ?? 10);
 
   useEffect(() => {
     setDraft(row);
-    setCurrentHp(row?.hp_max_override ?? 10);
   }, [row]);
 
   if (!draft) return null;
   const set = <K extends keyof CampaignCharacter>(k: K, v: CampaignCharacter[K]) =>
     setDraft((prev) => (prev ? { ...prev, [k]: v } : prev));
-  const max = draft.hp_max_override ?? 0;
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
@@ -450,11 +380,7 @@ const CharacterStateDialog: FC<{
               label="Max HP override"
               type="number"
               value={draft.hp_max_override ?? 0}
-              onChange={(e) => {
-                const v = parseInt(e.target.value, 10) || 0;
-                set('hp_max_override', v);
-                if (currentHp > v) setCurrentHp(v);
-              }}
+              onChange={(e) => set('hp_max_override', parseInt(e.target.value, 10) || 0)}
               helperText={`Canonical: ${character?.hp_max ?? '?'}`}
               InputLabelProps={{ shrink: true }}
             />
@@ -469,41 +395,6 @@ const CharacterStateDialog: FC<{
               InputLabelProps={{ shrink: true }}
             />
           </Stack>
-          <Box>
-            <Typography variant="overline" color="primary.main">
-              Current HP
-            </Typography>
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
-              <IconButton
-                size="small"
-                onClick={() => setCurrentHp((v) => Math.max(0, v - 1))}
-              >
-                <Favorite fontSize="small" color="error" />
-              </IconButton>
-              <Box sx={{ flexGrow: 1 }}>
-                <Slider
-                  value={currentHp}
-                  min={0}
-                  max={max}
-                  onChange={(_e, v) => setCurrentHp(v as number)}
-                  aria-label="Current HP"
-                />
-              </Box>
-              <IconButton size="small" onClick={() => setCurrentHp((v) => Math.min(max, v + 1))}>
-                <Healing fontSize="small" color="success" />
-              </IconButton>
-              <Typography
-                variant="body2"
-                sx={{
-                  fontFamily: '"JetBrains Mono", monospace',
-                  minWidth: 60,
-                  textAlign: 'right',
-                }}
-              >
-                {currentHp} / {max}
-              </Typography>
-            </Stack>
-          </Box>
           <Autocomplete
             multiple
             options={STANDARD_CONDITIONS}
@@ -513,27 +404,25 @@ const CharacterStateDialog: FC<{
               <TextField {...p} label="Conditions" placeholder="Pick or type…" />
             )}
           />
-          {currentHp === 0 && (
-            <Box>
-              <Typography variant="overline" color="primary.main">
-                Death saves
-              </Typography>
-              <Stack direction="row" spacing={2} sx={{ mt: 0.5 }}>
-                <DeathSavePips
-                  label="Successes"
-                  value={draft.death_save_successes ?? 0}
-                  onChange={(v) => set('death_save_successes', v)}
-                  color="success"
-                />
-                <DeathSavePips
-                  label="Failures"
-                  value={draft.death_save_failures ?? 0}
-                  onChange={(v) => set('death_save_failures', v)}
-                  color="error"
-                />
-              </Stack>
-            </Box>
-          )}
+          <Box>
+            <Typography variant="overline" color="primary.main">
+              Death saves
+            </Typography>
+            <Stack direction="row" spacing={2} sx={{ mt: 0.5 }}>
+              <DeathSavePips
+                label="Successes"
+                value={draft.death_save_successes ?? 0}
+                onChange={(v) => set('death_save_successes', v)}
+                color="success"
+              />
+              <DeathSavePips
+                label="Failures"
+                value={draft.death_save_failures ?? 0}
+                onChange={(v) => set('death_save_failures', v)}
+                color="error"
+              />
+            </Stack>
+          </Box>
           <TextField
             label="Notes"
             value={draft.notes ?? ''}
@@ -553,14 +442,7 @@ const CharacterStateDialog: FC<{
         <Button
           variant="contained"
           startIcon={<Save />}
-          onClick={() => {
-            if (!draft) return;
-            // The dialog's currentHp is a local control; we don't
-            // currently persist current_hp on campaign_characters
-            // because the canonical CharacterState covers that. We
-            // still apply the user's edit on save.
-            void onSave();
-          }}
+          onClick={() => onSave(draft)}
           disabled={saving}
         >
           {saving ? 'Saving…' : 'Save'}

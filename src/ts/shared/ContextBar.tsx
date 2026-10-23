@@ -1,28 +1,29 @@
-// Phase 9: context bar. Sits between the AppBar and the page
-// content. Shows the active campaign and party, lets the user
-// switch them with one click. Renders nothing for signed-out
-// users (the active selection is meaningless without a campaign
-// to focus on).
+// Compact campaign + party switcher that lives inside the AppBar.
+// Replaces the old full-width context row: two chip-style buttons
+// that open a menu to switch the active campaign / party, with a
+// "Manage" entry at the bottom of each. Renders nothing for
+// signed-out users.
 
-import React from 'react';
+import React, { FC, ReactNode, useState } from 'react';
 import {
-  Autocomplete,
   Box,
+  Button,
   Chip,
-  Paper,
+  Divider,
+  ListItemIcon,
+  ListItemText,
+  Menu,
+  MenuItem,
   Stack,
-  TextField,
   Tooltip,
   Typography,
+  useMediaQuery,
   useTheme,
-  alpha,
 } from '@mui/material';
-import { Campaign } from '../types/Campaign';
-import { Party } from '../types/Party';
+import { Check, ExpandMore, Map as MapIcon, People, Settings as SettingsIcon } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import { useCampaignContext } from './CampaignContext';
 import { useAuth } from '../auth/AuthContext';
-import { useNavigate } from 'react-router-dom';
-import { Map as MapIcon, People, Edit } from '@mui/icons-material';
 
 const STATUS_COLORS: Record<string, 'success' | 'warning' | 'default' | 'info'> = {
   active: 'success',
@@ -31,170 +32,145 @@ const STATUS_COLORS: Record<string, 'success' | 'warning' | 'default' | 'info'> 
   archived: 'default',
 };
 
-const ContextBar: React.FC = () => {
+type Option = { id: string; label: string; secondary?: string; status?: string };
+
+const Switcher: FC<{
+  icon: ReactNode;
+  kind: string;
+  value: Option | null;
+  options: Option[];
+  emptyLabel: string;
+  manageLabel: string;
+  onSelect: (id: string) => void;
+  onManage: () => void;
+}> = ({ icon, kind, value, options, emptyLabel, manageLabel, onSelect, onManage }) => {
   const theme = useTheme();
+  const narrow = useMediaQuery(theme.breakpoints.down('lg'));
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+
+  return (
+    <>
+      <Tooltip title={`Active ${kind}${value ? `: ${value.label}` : ''}`} arrow>
+        <Button
+          size="small"
+          color="inherit"
+          startIcon={icon}
+          endIcon={<ExpandMore fontSize="small" />}
+          onClick={(e) => setAnchor(e.currentTarget)}
+          sx={{
+            textTransform: 'none',
+            border: `1px solid ${theme.palette.divider}`,
+            borderRadius: 1.5,
+            px: 1.25,
+            maxWidth: narrow ? 180 : 260,
+            color: value ? 'text.primary' : 'text.secondary',
+          }}
+        >
+          <Typography variant="body2" noWrap>
+            {value?.label ?? emptyLabel}
+          </Typography>
+        </Button>
+      </Tooltip>
+      <Menu
+        open={Boolean(anchor)}
+        anchorEl={anchor}
+        onClose={() => setAnchor(null)}
+        PaperProps={{ sx: { minWidth: 260 } }}
+      >
+        <Typography variant="overline" color="text.secondary" sx={{ px: 2 }}>
+          Switch {kind}
+        </Typography>
+        {options.length === 0 && (
+          <MenuItem disabled>
+            <ListItemText primary={`No ${kind}s yet`} />
+          </MenuItem>
+        )}
+        {options.map((o) => (
+          <MenuItem
+            key={o.id}
+            selected={o.id === value?.id}
+            onClick={() => {
+              onSelect(o.id);
+              setAnchor(null);
+            }}
+          >
+            <ListItemIcon>{o.id === value?.id && <Check fontSize="small" />}</ListItemIcon>
+            <ListItemText primary={o.label} secondary={o.secondary} />
+            {o.status && (
+              <Chip
+                size="small"
+                label={o.status}
+                color={STATUS_COLORS[o.status] ?? 'default'}
+                sx={{ ml: 1, height: 18, fontSize: '0.65rem', textTransform: 'capitalize' }}
+              />
+            )}
+          </MenuItem>
+        ))}
+        <Divider />
+        <MenuItem
+          onClick={() => {
+            setAnchor(null);
+            onManage();
+          }}
+        >
+          <ListItemIcon>
+            <SettingsIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary={manageLabel} />
+        </MenuItem>
+      </Menu>
+    </>
+  );
+};
+
+const ContextBar: FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const {
-    campaigns,
-    parties,
-    activeCampaign,
-    setActiveCampaignId,
-    activeParty,
-    setActivePartyId,
-  } = useCampaignContext();
+  const { campaigns, parties, activeCampaign, setActiveCampaignId, activeParty, setActivePartyId } =
+    useCampaignContext();
 
   if (!user) return null;
 
-  // Filter out archived campaigns from the picker (the user can
-  // still see them in the Campaigns page, but they don't make
-  // sense as the "active" one).
-  const campaignOptions: Campaign[] = campaigns.filter(
-    (c) => c.status !== 'archived',
-  );
+  // Archived campaigns stay on the Campaigns page but don't make
+  // sense as the "active" one.
+  const campaignOptions: Option[] = campaigns
+    .filter((c) => c.status !== 'archived' && c.id)
+    .map((c) => ({ id: c.id as string, label: c.name, secondary: c.setting || undefined, status: c.status }));
+  const partyOptions: Option[] = parties
+    .filter((p) => p.id)
+    .map((p) => ({
+      id: p.id as string,
+      label: p.name,
+      secondary: `${p.member_ids.length} member${p.member_ids.length === 1 ? '' : 's'}`,
+    }));
+
+  const current = (opts: Option[], id?: string | null) => opts.find((o) => o.id === id) ?? null;
 
   return (
-    <Paper
-      elevation={0}
-      sx={{
-        position: 'sticky',
-        top: 56,
-        zIndex: (t) => t.zIndex.appBar - 1,
-        px: 2,
-        py: 1,
-        borderTop: `1px solid ${theme.palette.divider}`,
-        borderBottom: `1px solid ${theme.palette.divider}`,
-        backgroundColor: alpha(theme.palette.background.paper, 0.96),
-        backdropFilter: 'blur(8px)',
-      }}
-    >
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        spacing={1.5}
-        alignItems={{ xs: 'stretch', sm: 'center' }}
-      >
-        <Stack direction="row" alignItems="center" spacing={1} sx={{ minWidth: 0 }}>
-          <MapIcon fontSize="small" color="primary" />
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{
-              textTransform: 'uppercase',
-              letterSpacing: 1,
-              fontWeight: 600,
-              fontSize: '0.7rem',
-            }}
-          >
-            Campaign
-          </Typography>
-        </Stack>
-        <Autocomplete
-          size="small"
-          sx={{ flex: 1, minWidth: 200, maxWidth: 480 }}
-          options={campaignOptions}
-          getOptionLabel={(o) => o.name}
-          value={activeCampaign ?? null}
-          onChange={(_e, v) => setActiveCampaignId(v?.id ?? null)}
-          renderOption={(props, option) => (
-            <li {...props} key={option.id ?? option.name}>
-              <Stack
-                direction="row"
-                alignItems="center"
-                spacing={1}
-                sx={{ width: '100%' }}
-              >
-                <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                  <Typography variant="body2" noWrap>
-                    {option.name}
-                  </Typography>
-                  {option.setting && (
-                    <Typography variant="caption" color="text.secondary" noWrap>
-                      {option.setting}
-                    </Typography>
-                  )}
-                </Box>
-                <Chip
-                  size="small"
-                  label={option.status}
-                  color={STATUS_COLORS[option.status] ?? 'default'}
-                  sx={{ height: 18, fontSize: '0.65rem', textTransform: 'capitalize' }}
-                />
-              </Stack>
-            </li>
-          )}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              size="small"
-              placeholder={
-                campaignOptions.length === 0
-                  ? 'No campaigns yet — create one'
-                  : 'Pick a campaign…'
-              }
-            />
-          )}
+    <Stack direction="row" spacing={1} alignItems="center">
+      <Switcher
+        icon={<MapIcon fontSize="small" color="primary" />}
+        kind="campaign"
+        value={current(campaignOptions, activeCampaign?.id)}
+        options={campaignOptions}
+        emptyLabel="No campaign"
+        manageLabel="Manage campaigns…"
+        onSelect={setActiveCampaignId}
+        onManage={() => navigate('campaign')}
+      />
+      <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+        <Switcher
+          icon={<People fontSize="small" color="secondary" />}
+          kind="party"
+          value={current(partyOptions, activeParty?.id)}
+          options={partyOptions}
+          emptyLabel="No party"
+          manageLabel="Manage parties…"
+          onSelect={setActivePartyId}
+          onManage={() => navigate('characters')}
         />
-
-        <Stack direction="row" alignItems="center" spacing={1} sx={{ minWidth: 0 }}>
-          <People fontSize="small" color="secondary" />
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{
-              textTransform: 'uppercase',
-              letterSpacing: 1,
-              fontWeight: 600,
-              fontSize: '0.7rem',
-            }}
-          >
-            Party
-          </Typography>
-        </Stack>
-        <Autocomplete
-          size="small"
-          sx={{ flex: 1, minWidth: 200, maxWidth: 360 }}
-          options={parties}
-          getOptionLabel={(o: Party) => o.name}
-          value={activeParty ?? null}
-          onChange={(_e, v) => setActivePartyId(v?.id ?? null)}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              size="small"
-              placeholder={
-                parties.length === 0
-                  ? 'No parties yet — create one on Characters page'
-                  : 'Pick a party…'
-              }
-            />
-          )}
-        />
-
-        <Tooltip title="Manage campaigns" arrow>
-          <Box
-            role="button"
-            tabIndex={0}
-            onClick={() => navigate('campaign')}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') navigate('campaign');
-            }}
-            sx={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 0.5,
-              cursor: 'pointer',
-              color: 'text.secondary',
-              '&:hover': { color: 'primary.main' },
-              px: 1,
-              py: 0.5,
-            }}
-          >
-            <Edit fontSize="small" />
-            <Typography variant="caption">Manage</Typography>
-          </Box>
-        </Tooltip>
-      </Stack>
-    </Paper>
+      </Box>
+    </Stack>
   );
 };
 
