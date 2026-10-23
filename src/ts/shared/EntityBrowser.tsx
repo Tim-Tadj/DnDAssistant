@@ -15,6 +15,8 @@
  *   both open it in a FormDialog, which owns saving and errors
  * - defaultItem: the blank draft for "Create"
  * - getRowName: for titles, toasts and the name check
+ * - renderAvatar (optional): a small picture/badge for a row, shown
+ *   beside the name in the table and in the drawer header
  * - isEditable / isDeletable: default to provenance === 'homebrew'
  *
  * Phase 7: UI/UX redesign.
@@ -51,10 +53,11 @@ import {
   Search as SearchIcon,
   Clear,
 } from '@mui/icons-material';
-import { GridColDef } from '@mui/x-data-grid';
+import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import EntityTable from './EntityTable';
 import FormDialog, { errorMessage, requireName } from './FormDialog';
 import ProvenanceChip from './ProvenanceChip';
+import { NameCell } from './TableCells';
 import { ErrorState, EmptyState, LoadingState } from './States';
 import { useToast } from './ToastProvider';
 import { useOpenParam } from './useOpenParam';
@@ -86,6 +89,11 @@ export type EntityBrowserProps<T> = {
   }>;
   getRowId: (row: T) => string | number;
   getRowName: (row: T) => string;
+  // Shown at `size` px beside the name (see EntityAvatar); the Name
+  // column gets it unless the page renders that cell itself.
+  renderAvatar?: (row: T, size: number) => ReactNode;
+  // Optional second line under the name in the table.
+  getRowSubtitle?: (row: T) => ReactNode;
   isEditable?: (row: T) => boolean;
   isDeletable?: (row: T) => boolean;
   // Owner predicate; defaults to provenance === 'homebrew'. The user
@@ -124,6 +132,8 @@ export function EntityBrowser<T extends { id?: string | number; provenance?: str
   Editor,
   getRowId,
   getRowName,
+  renderAvatar,
+  getRowSubtitle,
   isEditable,
   isDeletable,
   isMine,
@@ -373,7 +383,20 @@ export function EntityBrowser<T extends { id?: string | number; provenance?: str
           <EntityTable
             rows={filtered}
             columns={[
-              ...columns,
+              ...columns.map((c) =>
+                c.field === 'name' && !c.renderCell && (renderAvatar || getRowSubtitle)
+                  ? {
+                      ...c,
+                      renderCell: (params: GridRenderCellParams) => (
+                        <NameCell
+                          avatar={renderAvatar?.(params.row as T, 32)}
+                          name={getRowName(params.row as T)}
+                          secondary={getRowSubtitle?.(params.row as T)}
+                        />
+                      ),
+                    }
+                  : c,
+              ),
               {
                 field: '__actions',
                 headerName: '',
@@ -456,6 +479,7 @@ export function EntityBrowser<T extends { id?: string | number; provenance?: str
                 borderBottom: `1px solid ${theme.palette.divider}`,
               }}
             >
+              {renderAvatar && <Box sx={{ mr: 1.5 }}>{renderAvatar(drawerItem, 44)}</Box>}
               <Stack spacing={0.5} sx={{ minWidth: 0, flexGrow: 1 }}>
                 <Stack direction="row" spacing={1} alignItems="center">
                   <Typography variant="h4" noWrap>

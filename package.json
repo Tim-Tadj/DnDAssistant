@@ -9,6 +9,7 @@
     "predeploy": "npm run build",
     "deploy": "gh-pages -d build",
     "build": "react-scripts build",
+    "images": "node scripts/build-images.mjs",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },

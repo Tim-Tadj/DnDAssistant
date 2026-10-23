@@ -105,6 +105,7 @@ docs/                  Living project docs
 | Deploy the Worker | `cd worker && npm run deploy` |
 | One-shot end-to-end deploy (Worker + Pages) | `cd worker && npm run deploy:prod` |
 | Build SPA + deploy to Pages | `npm run build` then `cd worker && npx wrangler pages deploy ../build --project-name=dnd-assistant` |
+| Build monster art (JXL + WebP, gitignored) | `npm run images` (repo root; needs ffmpeg with libjxl + libwebp; `-- --force` rebuilds) |
 | Typecheck | `npx tsc --noEmit` (root) and `cd worker && npx tsc --noEmit` |
 | Worker logs (tail) | `cd worker && npx wrangler tail` |
 
@@ -168,6 +169,8 @@ curl https://dnd-assistant-api.ttimtadj.workers.dev/api/v1/health
 
 ### Pre-deploy checklist
 
+- [ ] `npm run images` has been run (the art is gitignored, so a fresh
+      checkout builds without it and every monster falls back to a badge)
 - [ ] `npx tsc --noEmit` clean at repo root
 - [ ] `cd worker && npx tsc --noEmit` clean
 - [ ] `git status` shows only the files you meant to change
@@ -268,6 +271,14 @@ isolation — no schema migration required.
 - **Workers use `crypto.subtle` (WebCrypto) for PBKDF2** — no
   Node `crypto` import. The Java backend used BCrypt; hashes don't
   carry over, so users re-register on the new stack.
+- **Monster art is not in git.** `public/monster-manual/` and
+  `public/img/` are copyrighted art and the repo is public; `npm run
+  images` builds `public/img/monsters/` from them (and from the D&D
+  Beyond URLs in the bundled JSON, cached in
+  `node_modules/.cache/dnd-images`). The image keys (`mm-N`, `ddb-…`)
+  are computed in both `scripts/build-images.mjs` and
+  `src/ts/shared/images.ts` — change them together. Chromium can't
+  decode JPEG XL, so it loads the WebP copy.
 - **Frontend Jest/RTL test suite is empty.** The CRA scaffold is in
   place; tests need to be written. See
   [ROADMAP.md](ROADMAP.md) Phase 7.

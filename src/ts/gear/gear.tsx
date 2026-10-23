@@ -7,7 +7,7 @@
  */
 
 import React, { FC, useCallback, useRef, useState } from 'react';
-import { Stack, Typography, ToggleButton, ToggleButtonGroup } from '@mui/material';
+import { Stack, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { GridColDef } from '@mui/x-data-grid';
 import { GearItem, GearKind, Armour, Gear, Weapon, defaultGearItem, defaultWeapon, defaultArmour } from '../types/Gear';
 import { gearApi } from '../api/gear';
@@ -17,6 +17,8 @@ import GearDetailCard from '../shared/GearDetailCard';
 import GearEditor from './gear-editor';
 import WeaponEditor from './weapon-editor';
 import ArmourEditor from './armour-editor';
+import { GearAvatar, gearVisual } from '../shared/EntityAvatar';
+import { StackedCell, sourceColumn } from '../shared/TableCells';
 import { useAuth } from '../auth/AuthContext';
 
 // GearItem stores type-specific fields capitalised (Damage, Strength…);
@@ -86,36 +88,40 @@ const GearItemEditor: FC<{ initial: GearItem; onChange: (item: GearItem) => void
 
 const columns: GridColDef<GearItem>[] = [
   { field: 'name', headerName: 'Name', flex: 2, sortable: true, filterable: true },
-  { field: 'type', headerName: 'Type', flex: 1.5, sortable: true, filterable: true },
+  {
+    field: 'type',
+    headerName: 'Type',
+    flex: 1.4,
+    sortable: true,
+    filterable: true,
+    // Plain gear has no type; show what the badge means instead.
+    renderCell: ({ row }) => {
+      const visual = gearVisual(row);
+      return <StackedCell primary={row.type || visual.label} color={row.type ? undefined : 'text.secondary'} />;
+    },
+  },
   { field: 'cost', headerName: 'Cost', flex: 0.8, sortable: true, filterable: true, align: 'center', headerAlign: 'center' },
   { field: 'weight', headerName: 'Weight', flex: 0.8, sortable: true, filterable: true, align: 'center', headerAlign: 'center' },
   {
     field: 'Damage',
-    headerName: 'Damage',
-    flex: 1,
+    headerName: 'Damage / AC',
+    flex: 1.2,
     sortable: true,
     filterable: true,
-    renderCell: (params) =>
-      params.value ? (
-        <Typography
-          variant="body2"
-          sx={{ fontFamily: '"JetBrains Mono", monospace', py: 1 }}
-        >
-          {params.value}
-        </Typography>
-      ) : (
-        params.row.AC ?? ''
-      ),
+    // "2d6 slashing" → "2d6" over "slashing"; armour shows its AC.
+    renderCell: ({ row }) => {
+      if (row.Damage) {
+        const [dice, ...type] = row.Damage.split(' ');
+        return <StackedCell primary={dice} secondary={type.join(' ')} title={[row.Damage, row.Properties].filter(Boolean).join(' · ')} mono />;
+      }
+      if (row.AC) {
+        const [base, ...rest] = row.AC.split(' + ');
+        return <StackedCell primary={`AC ${base}`} secondary={rest.length ? `+ ${rest.join(' + ')}` : ''} title={row.AC} mono />;
+      }
+      return null;
+    },
   },
-  {
-    field: 'provenance',
-    headerName: 'Source',
-    flex: 0.8,
-    sortable: true,
-    filterable: true,
-    align: 'center',
-    headerAlign: 'center',
-  },
+  sourceColumn,
 ];
 
 const GearTable: FC = () => {
@@ -140,6 +146,7 @@ const GearTable: FC = () => {
       defaultItem={() => blankItem('weapon')}
       getRowId={(r) => r.id ?? r.name}
       getRowName={(r) => r.name}
+      renderAvatar={(r, size) => <GearAvatar item={r} size={size} />}
       itemName="Item"
       filterChips={[
         { label: 'Weapons', value: 'weapon' },

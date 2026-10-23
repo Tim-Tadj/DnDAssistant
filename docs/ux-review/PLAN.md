@@ -113,6 +113,23 @@ Legend: ✅ done · 🚧 in progress · ⛔ not started · ❓ waiting on a deci
   Test record and session deleted afterwards. Not covered: phone width,
   editing a played record, the search preview on narrow screens.
 
+## Phase H — visual context
+
+- ✅ H1. Image pipeline: `scripts/build-images.mjs` (`npm run images`)
+  → JXL + WebP thumb/full + `manifest.json` under `public/img/monsters/`
+  (gitignored). `shared/images.ts` + `shared/ArtImage.tsx` pick the
+  format and fall back to the original URL, then to a badge.
+- ✅ H2. `shared/EntityAvatar.tsx`: monster art / creature-type badge,
+  spell school, gear kind, class- and role-coloured initials.
+- ✅ H3. `EntityBrowser` `renderAvatar` / `getRowSubtitle`; shared cells
+  in `shared/TableCells.tsx` (NameCell, StackedCell, sourceColumn).
+- ✅ H4. Avatars in global search results, drawer headers, compact stat
+  block and the NPC search preview.
+- Verified (local stack, Chromium → WebP): Monsters/Spells/Gear/
+  Characters at 1024 and 1440px; search "ancient black" shows the art in
+  the row and preview header, "fire" shows monster, spell and gear
+  badges. Not covered: Safari (JXL path), phone width.
+
 ## Verified in the browser (2026-10-23, local stack)
 
 Party auto-sync (4 × L4 → 1,000 XP Medium) · Generate → all ticked ·

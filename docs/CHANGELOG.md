@@ -15,6 +15,23 @@ start a fresh `[Unreleased]` section.
 ## [Unreleased]
 
 ### Added
+- **Pictures and badges in every list.** Monster rows show a thumbnail
+  of the monster's art; monsters that only have D&D Beyond's stock
+  picture (beast/humanoid/undead/plant/ooze) get a creature-type badge
+  instead, so a stock "humanoid" picture never stands in for an
+  aboleth. Spells get a badge in their school's colour, gear a badge
+  for its kind (melee/ranged weapon, armour, focus, consumable, tools…),
+  characters and NPCs their initials coloured by class or role. The
+  same avatars appear in global search results, the detail drawer
+  header and the compact stat block (search preview, NPC roster).
+- **Self-hosted JPEG XL + WebP art.** `npm run images` (needs ffmpeg
+  with libjxl and libwebp) builds a 96px thumbnail and a ≤640px full
+  copy of every monster image into `public/img/monsters/`, plus a
+  manifest. Pages use `<picture>`: JPEG XL where the browser supports
+  it, WebP elsewhere (Chromium), the original URL if neither loads.
+  Thumbnails are ~4 KB and full images ~24 KB, against ~400 KB for
+  the D&D Beyond originals. The output is gitignored (the art is
+  copyrighted); run it before building for deploy.
 - **Encounters: prepare, test, run, record.** Encounters a DM builds
   ahead of time are saved as *prepared* (no fake played date). From the
   Library or a campaign's Encounters tab, **Run** starts one live and
@@ -45,6 +62,12 @@ start a fresh `[Unreleased]` section.
   (`#/campaign?tab=sessions`).
 
 ### Changed
+- **Tidier reference tables.** Monster AC/HP/CR/Speed cells no longer
+  wrap into tall stacks: the headline value sits over its detail
+  (HP over its dice, CR over a short XP, type over alignment) and the
+  full text is in the tooltip. Spells show "Cantrip"/level, the school
+  in its colour, concentration and ritual on a second line; gear
+  combines damage and AC into one column. The Source column is shared.
 - **Campaign party cards** are a responsive grid showing each member
   (level, class, HP, AC), a compact party composition, and Set as
   active / Members / Unlink actions. Unresolved classes show as

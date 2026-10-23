@@ -11,4 +11,6 @@ mvnw.cmd
 
 Monster Manual/
 public/monster-manual/
+# Built by `npm run images` from the art above (also copyrighted).
+public/img/
 postgres/.env

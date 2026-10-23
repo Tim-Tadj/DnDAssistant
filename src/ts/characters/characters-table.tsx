@@ -22,7 +22,8 @@ import {
   defaultCharacter,
 } from '../types/Character';
 import { charactersApi } from '../api/characters';
-import { useClasses, useRaces } from '../shared/useReference';
+import { classNameOf, useClasses, useRaces } from '../shared/useReference';
+import { CharacterAvatar } from '../shared/EntityAvatar';
 import { useList } from '../shared/useList';
 import { EntityBrowser } from '../shared/EntityBrowser';
 import CharacterDetailPanel from '../shared/CharacterDetailPanel';
@@ -213,6 +214,8 @@ const CharactersTable: FC = () => {
       }
       getRowId={(r) => r.id}
       getRowName={(r) => r.name}
+      renderAvatar={(r, size) => <CharacterAvatar name={r.name} className={classNameOf(classes, r.class_id)} size={size} />}
+      getRowSubtitle={(r) => [races.find((x) => x.id === r.race_id)?.name, classNameOf(classes, r.class_id)].filter(Boolean).join(' ')}
       // Characters have no provenance; the API only lists the user's own,
       // so ownership (not 'homebrew') decides Edit/Delete.
       isMine={(r) => r.owner_user_id === user.id}

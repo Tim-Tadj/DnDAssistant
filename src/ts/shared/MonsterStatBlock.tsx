@@ -23,7 +23,10 @@ import {
   useTheme,
 } from '@mui/material';
 import { Theme } from '@mui/material/styles';
-import { Monster, resolveImgUrl } from '../types/Monster';
+import { Monster } from '../types/Monster';
+import ArtImage from './ArtImage';
+import { hasOwnArt } from './images';
+import { MonsterAvatar } from './EntityAvatar';
 import ProvenanceChip from './ProvenanceChip';
 
 const abilityMod = (score: string): string => {
@@ -187,6 +190,8 @@ const MonsterStatBlock: FC<{ monster: Monster; compact?: boolean }> = ({
     >
       {/* Header */}
       <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+        {/* Compact views have no room for the art; a thumbnail keeps the face. */}
+        {compact && <MonsterAvatar monster={monster} size={48} />}
         <Typography
           variant="h3"
           component="h2"
@@ -212,7 +217,8 @@ const MonsterStatBlock: FC<{ monster: Monster; compact?: boolean }> = ({
         {monster.meta}
       </Typography>
 
-      {!compact && monster.img_url && (
+      {/* Stock pictures ("humanoid.jpg" on an aboleth) would mislead. */}
+      {!compact && hasOwnArt(monster.img_url) && (
         <Box
           sx={{
             mb: 2,
@@ -225,8 +231,9 @@ const MonsterStatBlock: FC<{ monster: Monster; compact?: boolean }> = ({
             maxHeight: 320,
           }}
         >
-          <img
-            src={resolveImgUrl(monster.img_url)}
+          <ArtImage
+            url={monster.img_url}
+            variant="full"
             alt={monster.name}
             style={{
               maxWidth: '100%',

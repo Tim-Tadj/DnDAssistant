@@ -49,7 +49,7 @@ import { api } from '../api/api-client';
 import { Monster } from '../types/Monster';
 import { Spell } from '../types/Spell';
 import { GearItem } from '../types/Gear';
-import { Character } from '../types/Character';
+import { Character, DndClass } from '../types/Character';
 import { Campaign } from '../types/Campaign';
 import { CampaignNpc } from '../types/CampaignNpc';
 import { EncounterSave, isPlayed } from '../types/EncounterSave';
@@ -63,6 +63,15 @@ import SpellCard from './SpellCard';
 import GearDetailCard from './GearDetailCard';
 import CharacterCard from './CharacterCard';
 import CampaignDetailCard from './CampaignDetailCard';
+import {
+  CharacterAvatar,
+  GearAvatar,
+  InitialsAvatar,
+  MonsterAvatar,
+  SpellAvatar,
+  VisualBadge,
+  roleColor,
+} from './EntityAvatar';
 
 type SearchData = {
   monsters: Monster[];
@@ -391,6 +400,9 @@ const GlobalSearch: FC<{
               onMouseEnter={() => setActiveIndex(offset + j)}
               sx={{ px: 2, py: 0.75, ...selectedSx }}
             >
+              <Box sx={{ mr: 1.5, display: 'flex' }}>
+                <HitAvatar hit={hit} classes={classes} />
+              </Box>
               <ListItemText
                 primary={hit.label}
                 secondary={hit.hint}
@@ -552,6 +564,32 @@ const GroupHeader: FC<{ label: string; icon?: ReactNode; count?: number; shown?:
   );
 };
 
+// ---- Avatars ----------------------------------------------------------
+
+const OUTCOME_COLOR: Record<string, string> = { Victory: '#6fa86b', Defeat: '#d36c6c' };
+
+const HitAvatar: FC<{ hit: Hit; classes: DndClass[]; size?: number }> = ({ hit, classes, size = 32 }) => {
+  switch (hit.kind) {
+    case 'monster':
+      return <MonsterAvatar monster={hit.item} size={size} />;
+    case 'spell':
+      return <SpellAvatar spell={hit.item} size={size} />;
+    case 'gear':
+      return <GearAvatar item={hit.item} size={size} />;
+    case 'character':
+      return <CharacterAvatar name={hit.item.name} className={classNameOf(classes, hit.item.class_id)} size={size} />;
+    case 'npc':
+      return <InitialsAvatar name={hit.item.name} color={roleColor(hit.item.role)} size={size} title={hit.item.role} />;
+    case 'campaign':
+      return <VisualBadge visual={{ label: 'Campaign', color: '#c9a14a', Icon: MapIcon }} size={size} />;
+    case 'encounter': {
+      const played = isPlayed(hit.item);
+      const color = played ? OUTCOME_COLOR[hit.item.outcome ?? ''] ?? '#9aa5b1' : '#7d96b3';
+      return <VisualBadge visual={{ label: played ? 'Played' : 'Prepared', color, Icon: SportsMartialArts }} size={size} />;
+    }
+  }
+};
+
 // ---- Preview ----------------------------------------------------------
 
 const Preview: FC<{
@@ -589,12 +627,15 @@ const Field: FC<{ label: string; children: ReactNode }> = ({ label, children }) 
 
 const NpcPreview: FC<{ npc: CampaignNpc; campaign?: string }> = ({ npc, campaign }) => (
   <Stack spacing={1.5}>
-    <Box>
-      <Typography variant="h4">{npc.name}</Typography>
-      <Typography variant="body2" color="text.secondary">
-        {join(npc.role, npc.race, npc.alignment)}
-      </Typography>
-    </Box>
+    <Stack direction="row" spacing={1.5} alignItems="center">
+      <InitialsAvatar name={npc.name} color={roleColor(npc.role)} size={48} title={npc.role} />
+      <Box sx={{ minWidth: 0 }}>
+        <Typography variant="h4">{npc.name}</Typography>
+        <Typography variant="body2" color="text.secondary">
+          {join(npc.role, npc.race, npc.alignment)}
+        </Typography>
+      </Box>
+    </Stack>
     <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
       {npc.status && <Chip size="small" label={npc.status} color={npc.status === 'alive' ? 'success' : 'default'} variant="outlined" />}
       {npc.location && <Chip size="small" label={npc.location} variant="outlined" />}
