@@ -22,14 +22,13 @@ import {
   Paper,
   Stack,
   Typography,
-  useTheme,
   Card,
   CardContent,
   CardActionArea,
   Chip,
 } from '@mui/material';
-import { Add, AutoStories, Map as MapIcon, OpenInNew } from '@mui/icons-material';
-import { Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Skeleton, Tab, Tabs } from '@mui/material';
+import { AutoStories, Map as MapIcon, OpenInNew } from '@mui/icons-material';
+import { MenuItem, Skeleton, Tab, Tabs } from '@mui/material';
 import { TextField } from '@mui/material';
 import { GridColDef } from '@mui/x-data-grid';
 import { Campaign, CAMPAIGN_STATUSES, defaultCampaign } from '../types/Campaign';
@@ -38,7 +37,6 @@ import { useList } from '../shared/useList';
 import { EntityBrowser } from '../shared/EntityBrowser';
 import CampaignDetailCard from '../shared/CampaignDetailCard';
 import CampaignHub from '../shared/CampaignHub';
-import { useToast } from '../shared/ToastProvider';
 import { useAuth } from '../auth/AuthContext';
 import { useCampaignContext } from '../shared/CampaignContext';
 import { useSettings } from '../shared/SettingsContext';
@@ -110,139 +108,51 @@ const AvandriaExample: FC = () => {
   );
 };
 
-const CampaignCreate: FC<{ onCreated?: () => void }> = ({ onCreated }) => {
-  const { user } = useAuth();
-  const { setActiveCampaignId, reloadCampaigns } = useCampaignContext();
-  const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState<Campaign | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const { toast } = useToast();
-  const theme = useTheme();
-
-  const onSave = async () => {
-    if (!draft || !draft.name.trim()) {
-      setError('Name is required');
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    try {
-      const created = await campaignsApi.create({ ...draft, owner_user_id: user?.id ?? '' });
-      toast('Campaign created', 'success');
-      setOpen(false);
-      setDraft(null);
-      await reloadCampaigns();
-      if (created.id) setActiveCampaignId(created.id);
-      onCreated?.();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <>
-      <Button
-        variant="contained"
-        startIcon={<Add />}
-        onClick={() => {
-          setDraft({ ...defaultCampaign, name: '', owner_user_id: user?.id });
-          setError(null);
-          setOpen(true);
-        }}
-      >
-        New Campaign
-      </Button>
-      <Dialog
-        open={open}
-        onClose={() => !saving && setOpen(false)}
+// Create and edit form (controlled: `initial` is the current draft).
+const CampaignForm: FC<{ initial: Campaign; onChange: (c: Campaign) => void }> = ({ initial: draft, onChange }) => (
+  <Stack spacing={2}>
+    <TextField label="Name" value={draft.name} onChange={(e) => onChange({ ...draft, name: e.target.value })} fullWidth />
+    <Stack direction="row" spacing={2}>
+      <TextField
+        label="Setting"
+        value={draft.setting}
+        onChange={(e) => onChange({ ...draft, setting: e.target.value })}
         fullWidth
-        maxWidth="sm"
-        PaperProps={{
-          sx: {
-            backgroundColor: theme.palette.background.paper,
-            backgroundImage: 'none',
-          },
-        }}
+        helperText="e.g. Forgotten Realms, Eberron, homebrew"
+      />
+      <TextField
+        select
+        label="Status"
+        value={draft.status}
+        onChange={(e) => onChange({ ...draft, status: e.target.value })}
+        sx={{ width: 200 }}
       >
-        <DialogTitle sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
-          <Typography variant="h4">New campaign</Typography>
-        </DialogTitle>
-        <DialogContent sx={{ p: 3 }}>
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
-          {draft && (
-            <Stack spacing={2} sx={{ pt: 0 }}>
-              <TextField
-                label="Name"
-                value={draft.name}
-                onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-                fullWidth
-                InputLabelProps={{ shrink: true }}
-              />
-              <Stack direction="row" spacing={2}>
-                <TextField
-                  label="Setting"
-                  value={draft.setting}
-                  onChange={(e) => setDraft({ ...draft, setting: e.target.value })}
-                  fullWidth
-                  InputLabelProps={{ shrink: true }}
-                  helperText="e.g. Forgotten Realms, Eberron, homebrew"
-                />
-                <TextField
-                  select
-                  label="Status"
-                  value={draft.status}
-                  onChange={(e) => setDraft({ ...draft, status: e.target.value })}
-                  sx={{ width: 200 }}
-                  InputLabelProps={{ shrink: true }}
-                >
-                  {CAMPAIGN_STATUSES.map((st) => (
-                    <MenuItem key={st} value={st} sx={{ textTransform: 'capitalize' }}>
-                      {st}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Stack>
-              <TextField
-                label="Description"
-                value={draft.description}
-                onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-                fullWidth
-                multiline
-                rows={2}
-                InputLabelProps={{ shrink: true }}
-              />
-              <TextField
-                label="Notes"
-                value={draft.notes}
-                onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
-                fullWidth
-                multiline
-                rows={6}
-                InputLabelProps={{ shrink: true }}
-                helperText="Use [[monster:Goblin]], [[npc:Captain Yara]], [[location:Iron Keep]] to link to stat blocks and NPCs."
-              />
-            </Stack>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button color="inherit" onClick={() => setOpen(false)} disabled={saving}>
-            Cancel
-          </Button>
-          <Button variant="contained" startIcon={<Add />} onClick={onSave} disabled={saving}>
-            {saving ? 'Creating…' : 'Create campaign'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </>
-  );
-};
+        {CAMPAIGN_STATUSES.map((st) => (
+          <MenuItem key={st} value={st} sx={{ textTransform: 'capitalize' }}>
+            {st}
+          </MenuItem>
+        ))}
+      </TextField>
+    </Stack>
+    <TextField
+      label="Description"
+      value={draft.description}
+      onChange={(e) => onChange({ ...draft, description: e.target.value })}
+      fullWidth
+      multiline
+      rows={2}
+    />
+    <TextField
+      label="Notes"
+      value={draft.notes}
+      onChange={(e) => onChange({ ...draft, notes: e.target.value })}
+      fullWidth
+      multiline
+      rows={6}
+      helperText="Use [[monster:Goblin]], [[npc:Captain Yara]], [[location:Iron Keep]] to link to stat blocks and NPCs."
+    />
+  </Stack>
+);
 
 const columns: GridColDef<Campaign>[] = [
   { field: 'name', headerName: 'Name', flex: 2, sortable: true, filterable: true },
@@ -291,61 +201,31 @@ const CampaignManager: FC = () => {
               loadError={loadError}
               reload={reload}
               mutations={{
-                create: campaignsApi.create,
-                update: campaignsApi.update,
-                remove: campaignsApi.delete,
+                // A new campaign becomes the active one; the top-bar
+                // switcher shows names, so it reloads on every change.
+                create: async (c) => {
+                  const created = await campaignsApi.create({ ...c, owner_user_id: user.id });
+                  await reloadCampaigns();
+                  if (created.id) setActiveCampaignId(created.id);
+                  return created;
+                },
+                update: async (id, c) => {
+                  const updated = await campaignsApi.update(id, c);
+                  await reloadCampaigns();
+                  return updated;
+                },
+                remove: async (id) => {
+                  await campaignsApi.delete(id);
+                  await reloadCampaigns();
+                },
               }}
               columns={columns as GridColDef[]}
               DetailCard={({ item }) => <CampaignDetailCard item={item} />}
-              Editor={({ initial, onChange }) => (
-                <Stack spacing={2} sx={{ pt: 0 }}>
-                  <TextField
-                    label="Name"
-                    value={initial.name}
-                    onChange={(e) => onChange({ ...initial, name: e.target.value })}
-                    fullWidth
-                    InputLabelProps={{ shrink: true }}
-                  />
-                  <Stack direction="row" spacing={2}>
-                    <TextField
-                      label="Setting"
-                      value={initial.setting}
-                      onChange={(e) => onChange({ ...initial, setting: e.target.value })}
-                      fullWidth
-                      InputLabelProps={{ shrink: true }}
-                    />
-                    <TextField
-                      label="Status"
-                      value={initial.status}
-                      onChange={(e) => onChange({ ...initial, status: e.target.value })}
-                      sx={{ width: 200 }}
-                      InputLabelProps={{ shrink: true }}
-                    />
-                  </Stack>
-                  <TextField
-                    label="Description"
-                    value={initial.description}
-                    onChange={(e) => onChange({ ...initial, description: e.target.value })}
-                    fullWidth
-                    multiline
-                    rows={2}
-                    InputLabelProps={{ shrink: true }}
-                  />
-                  <TextField
-                    label="Notes"
-                    value={initial.notes}
-                    onChange={(e) => onChange({ ...initial, notes: e.target.value })}
-                    fullWidth
-                    multiline
-                    rows={6}
-                    InputLabelProps={{ shrink: true }}
-                  />
-                </Stack>
-              )}
+              Editor={CampaignForm}
               defaultItem={() => ({ ...defaultCampaign, name: '' })}
               getRowId={(r) => r.id ?? r.name}
               getRowName={(r) => r.name}
-              CreateButton={CampaignCreate}
+              itemName="Campaign"
               searchHint="Search your campaigns…"
               emptyTitle="No campaigns yet"
               emptyDescription="Create your first campaign to get started."

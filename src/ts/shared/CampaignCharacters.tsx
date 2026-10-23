@@ -33,12 +33,10 @@ import {
   useTheme,
 } from '@mui/material';
 import {
-  Close,
   Delete,
   Edit,
   Person,
   PersonAdd,
-  Save,
 } from '@mui/icons-material';
 import { CampaignCharacter, defaultCampaignCharacter } from '../types/CampaignCharacter';
 import { Character } from '../types/Character';
@@ -46,6 +44,7 @@ import { campaignCharactersApi } from '../api/campaign-characters';
 import { charactersApi } from '../api/characters';
 import { useToast } from './ToastProvider';
 import { MultiPickDialog } from './MultiPick';
+import FormDialog from './FormDialog';
 
 const STANDARD_CONDITIONS = [
   'Blinded', 'Charmed', 'Deafened', 'Frightened', 'Grappled', 'Incapacitated',
@@ -67,7 +66,6 @@ const CampaignCharacters: FC<Props> = ({ campaignId, canEdit }) => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<CampaignCharacter | null>(null);
-  const [saving, setSaving] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState<CampaignCharacter | null>(null);
   const [removing, setRemoving] = useState(false);
 
@@ -124,17 +122,9 @@ const CampaignCharacters: FC<Props> = ({ campaignId, canEdit }) => {
   };
 
   const onSave = async (draft: CampaignCharacter) => {
-    setSaving(true);
-    try {
-      await campaignCharactersApi.upsert(campaignId, draft.character_id, draft);
-      toast('Saved', 'success');
-      setEditing(null);
-      await reload();
-    } catch (e) {
-      toast(e instanceof Error ? e.message : String(e), 'error');
-    } finally {
-      setSaving(false);
-    }
+    await campaignCharactersApi.upsert(campaignId, draft.character_id, draft);
+    toast('Saved', 'success');
+    await reload();
   };
 
   const onRemove = async () => {
@@ -299,9 +289,8 @@ const CampaignCharacters: FC<Props> = ({ campaignId, canEdit }) => {
         open={editing !== null}
         row={editing}
         character={editing ? characterById.get(editing.character_id) ?? null : null}
-        onClose={() => !saving && setEditing(null)}
+        onClose={() => setEditing(null)}
         onSave={onSave}
-        saving={saving}
       />
 
       {/* Remove confirm */}
@@ -336,10 +325,8 @@ const CharacterStateDialog: FC<{
   row: CampaignCharacter | null;
   character: Character | null;
   onClose: () => void;
-  onSave: (draft: CampaignCharacter) => void;
-  saving: boolean;
-}> = ({ open, row, character, onClose, onSave, saving }) => {
-  const theme = useTheme();
+  onSave: (draft: CampaignCharacter) => Promise<void>;
+}> = ({ open, row, character, onClose, onSave }) => {
   const [draft, setDraft] = useState<CampaignCharacter | null>(row);
 
   useEffect(() => {
@@ -351,104 +338,83 @@ const CharacterStateDialog: FC<{
     setDraft((prev) => (prev ? { ...prev, [k]: v } : prev));
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Stack>
-            <Typography variant="h4">{character?.name ?? 'Character'}</Typography>
-            <Typography variant="caption" color="text.secondary">
-              Per-campaign state for the active campaign
-            </Typography>
-          </Stack>
-          <IconButton onClick={onClose} size="small" disabled={saving}>
-            <Close />
-          </IconButton>
-        </Stack>
-      </DialogTitle>
-      <DialogContent sx={{ p: 3 }}>
-        <Stack spacing={2} sx={{ pt: 0 }}>
-          <Stack direction="row" spacing={2}>
-            <TextField
-              label="Level"
-              type="number"
-              value={draft.level ?? 1}
-              onChange={(e) => set('level', parseInt(e.target.value, 10) || 1)}
-              sx={{ width: 100 }}
-              InputLabelProps={{ shrink: true }}
-            />
-            <TextField
-              label="Max HP override"
-              type="number"
-              value={draft.hp_max_override ?? 0}
-              onChange={(e) => set('hp_max_override', parseInt(e.target.value, 10) || 0)}
-              helperText={`Canonical: ${character?.hp_max ?? '?'}`}
-              InputLabelProps={{ shrink: true }}
-            />
-            <TextField
-              label="AC override"
-              type="number"
-              value={draft.ac_override ?? ''}
-              onChange={(e) =>
-                set('ac_override', e.target.value === '' ? null : parseInt(e.target.value, 10) || 0)
-              }
-              helperText={`Canonical: ${character?.ac ?? '?'}`}
-              InputLabelProps={{ shrink: true }}
-            />
-          </Stack>
-          <Autocomplete
-            multiple
-            options={STANDARD_CONDITIONS}
-            value={draft.conditions}
-            onChange={(_e, v) => set('conditions', v)}
-            renderInput={(p) => (
-              <TextField {...p} label="Conditions" placeholder="Pick or type…" />
-            )}
-          />
-          <Box>
-            <Typography variant="overline" color="primary.main">
-              Death saves
-            </Typography>
-            <Stack direction="row" spacing={2} sx={{ mt: 0.5 }}>
-              <DeathSavePips
-                label="Successes"
-                value={draft.death_save_successes ?? 0}
-                onChange={(v) => set('death_save_successes', v)}
-                color="success"
-              />
-              <DeathSavePips
-                label="Failures"
-                value={draft.death_save_failures ?? 0}
-                onChange={(v) => set('death_save_failures', v)}
-                color="error"
-              />
-            </Stack>
-          </Box>
+    <FormDialog
+      open={open}
+      title={character?.name ?? 'Character'}
+      subtitle="Per-campaign state for the active campaign"
+      onClose={onClose}
+      onSave={() => onSave(draft)}
+      maxWidth="sm"
+    >
+      <Stack spacing={2}>
+        <Stack direction="row" spacing={2}>
           <TextField
-            label="Notes"
-            value={draft.notes ?? ''}
-            onChange={(e) => set('notes', e.target.value)}
-            fullWidth
-            multiline
-            rows={3}
+            label="Level"
+            type="number"
+            value={draft.level ?? 1}
+            onChange={(e) => set('level', parseInt(e.target.value, 10) || 1)}
+            sx={{ width: 100 }}
             InputLabelProps={{ shrink: true }}
-            placeholder="Per-campaign notes — e.g. subclass picked up, items found, status effects"
+          />
+          <TextField
+            label="Max HP override"
+            type="number"
+            value={draft.hp_max_override ?? 0}
+            onChange={(e) => set('hp_max_override', parseInt(e.target.value, 10) || 0)}
+            helperText={`Canonical: ${character?.hp_max ?? '?'}`}
+            InputLabelProps={{ shrink: true }}
+          />
+          <TextField
+            label="AC override"
+            type="number"
+            value={draft.ac_override ?? ''}
+            onChange={(e) =>
+              set('ac_override', e.target.value === '' ? null : parseInt(e.target.value, 10) || 0)
+            }
+            helperText={`Canonical: ${character?.ac ?? '?'}`}
+            InputLabelProps={{ shrink: true }}
           />
         </Stack>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={saving}>
-          Cancel
-        </Button>
-        <Button
-          variant="contained"
-          startIcon={<Save />}
-          onClick={() => onSave(draft)}
-          disabled={saving}
-        >
-          {saving ? 'Saving…' : 'Save'}
-        </Button>
-      </DialogActions>
-    </Dialog>
+        <Autocomplete
+          multiple
+          options={STANDARD_CONDITIONS}
+          value={draft.conditions}
+          onChange={(_e, v) => set('conditions', v)}
+          renderInput={(p) => (
+            <TextField {...p} label="Conditions" placeholder="Pick or type…" />
+          )}
+        />
+        <Box>
+          <Typography variant="overline" color="primary.main">
+            Death saves
+          </Typography>
+          <Stack direction="row" spacing={2} sx={{ mt: 0.5 }}>
+            <DeathSavePips
+              label="Successes"
+              value={draft.death_save_successes ?? 0}
+              onChange={(v) => set('death_save_successes', v)}
+              color="success"
+            />
+            <DeathSavePips
+              label="Failures"
+              value={draft.death_save_failures ?? 0}
+              onChange={(v) => set('death_save_failures', v)}
+              color="error"
+            />
+          </Stack>
+        </Box>
+        <TextField
+          label="Notes"
+          value={draft.notes ?? ''}
+          onChange={(e) => set('notes', e.target.value)}
+          fullWidth
+          multiline
+          rows={3}
+          InputLabelProps={{ shrink: true }}
+          placeholder="Per-campaign notes — e.g. subclass picked up, items found, status effects"
+        />
+      </Stack>
+    </FormDialog>
   );
 };
 

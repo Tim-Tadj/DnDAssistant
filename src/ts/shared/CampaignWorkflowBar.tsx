@@ -228,6 +228,8 @@ const CampaignWorkflowBar: FC<Props> = ({ campaign, canEdit = true, onChanged })
               onChange={(e) => setDraft({ ...draft, cadence: e.target.value })}
               sx={{ minWidth: 140 }}
               SelectProps={{ native: true }}
+              // A native select always shows its option text, so the label floats.
+              InputLabelProps={{ shrink: true }}
             >
               {CAMPAIGN_CADENCES.map((c) => (
                 <option key={c} value={c}>
@@ -243,6 +245,7 @@ const CampaignWorkflowBar: FC<Props> = ({ campaign, canEdit = true, onChanged })
               onChange={(e) => setDraft({ ...draft, status: e.target.value })}
               sx={{ minWidth: 140 }}
               SelectProps={{ native: true }}
+              InputLabelProps={{ shrink: true }}
             >
               {CAMPAIGN_STATUSES.map((s) => (
                 <option key={s} value={s}>

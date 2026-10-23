@@ -30,17 +30,17 @@ import {
   alpha,
   useTheme,
 } from '@mui/material';
-import { Add, Close, Delete, Edit, Group, Person, Save } from '@mui/icons-material';
+import { Add, Close, Delete, Edit, Group, Person } from '@mui/icons-material';
 import {
   CampaignNpc,
   defaultCampaignNpc,
   NPC_ROLES,
   NPC_STATUSES,
-  NpcStatus,
 } from '../types/CampaignNpc';
 import { npcsApi } from '../api/npcs';
 import { monstersApi } from '../api/monsters';
 import { useToast } from './ToastProvider';
+import FormDialog, { requireName } from './FormDialog';
 import { Monster } from '../types/Monster';
 import MonsterStatBlock from './MonsterStatBlock';
 
@@ -66,7 +66,7 @@ const NpcEditor: FC<{
   const set = <K extends keyof CampaignNpc>(k: K, v: CampaignNpc[K]) =>
     setN((prev) => ({ ...prev, [k]: v }));
   return (
-    <Stack spacing={2} sx={{ pt: 0 }}>
+    <Stack spacing={2}>
       <Stack direction="row" spacing={2}>
         <TextField
           label="Name"
@@ -156,8 +156,6 @@ const NpcsRoster: FC<Props> = ({ campaignId, canEdit }) => {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorInitial, setEditorInitial] = useState<CampaignNpc | null>(null);
   const [draft, setDraft] = useState<CampaignNpc | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<CampaignNpc | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [viewing, setViewing] = useState<CampaignNpc | null>(null);
@@ -199,45 +197,29 @@ const NpcsRoster: FC<Props> = ({ campaignId, canEdit }) => {
   const onCreate = () => {
     setEditorInitial(null);
     setDraft({ ...defaultCampaignNpc(), campaign_tags: [campaignId], campaign_id: campaignId });
-    setSaveError(null);
     setEditorOpen(true);
   };
   const onEdit = (n: CampaignNpc) => {
     setEditorInitial(n);
     setDraft({ ...n });
-    setSaveError(null);
     setEditorOpen(true);
   };
   const onView = (n: CampaignNpc) => setViewing(n);
 
   const onSave = async () => {
     if (!draft) return;
-    if (!draft.name.trim()) {
-      setSaveError('Name is required');
-      return;
-    }
+    requireName(draft);
     // Ensure the campaign is in the tags list.
     const tags = Array.from(new Set([campaignId, ...(draft.campaign_tags ?? [])]));
     const payload: CampaignNpc = { ...draft, campaign_tags: tags, campaign_id: campaignId };
-    setSaving(true);
-    setSaveError(null);
-    try {
-      if (editorInitial?.id) {
-        await npcsApi.update(editorInitial.id, payload);
-        toast('NPC updated', 'success');
-      } else {
-        await npcsApi.create(payload);
-        toast('NPC created', 'success');
-      }
-      setEditorOpen(false);
-      setEditorInitial(null);
-      setDraft(null);
-      await reload();
-    } catch (e) {
-      setSaveError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setSaving(false);
+    if (editorInitial?.id) {
+      await npcsApi.update(editorInitial.id, payload);
+      toast('NPC updated', 'success');
+    } else {
+      await npcsApi.create(payload);
+      toast('NPC created', 'success');
     }
+    await reload();
   };
 
   const onDelete = async (n: CampaignNpc) => {
@@ -407,61 +389,24 @@ const NpcsRoster: FC<Props> = ({ campaignId, canEdit }) => {
         </Stack>
       )}
 
-      <Dialog
+      <FormDialog
         open={editorOpen}
-        onClose={() => !saving && setEditorOpen(false)}
-        fullWidth
-        maxWidth="md"
-        PaperProps={{
-          sx: {
-            backgroundColor: theme.palette.background.paper,
-            backgroundImage: 'none',
-          },
-        }}
+        title={editorInitial ? 'Edit NPC' : 'New NPC'}
+        onClose={() => setEditorOpen(false)}
+        onSave={onSave}
       >
-        <DialogTitle sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Typography variant="h4">{editorInitial ? 'Edit NPC' : 'New NPC'}</Typography>
-            <IconButton onClick={() => setEditorOpen(false)} size="small" disabled={saving}>
-              <Close />
-            </IconButton>
-          </Stack>
-        </DialogTitle>
-        <DialogContent sx={{ p: 3 }}>
-          {saveError && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {saveError}
-            </Alert>
-          )}
-          {draft && (
-            <NpcEditor initial={draft} monsters={monsters} onChange={setDraft} />
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setEditorOpen(false)} disabled={saving}>
-            Cancel
-          </Button>
-          <Button variant="contained" onClick={onSave} disabled={saving} startIcon={<Save />}>
-            {saving ? 'Saving…' : 'Save'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        {draft && <NpcEditor initial={draft} monsters={monsters} onChange={setDraft} />}
+      </FormDialog>
 
       <Dialog
         open={viewing !== null}
         onClose={() => setViewing(null)}
         fullWidth
         maxWidth="md"
-        PaperProps={{
-          sx: {
-            backgroundColor: theme.palette.background.paper,
-            backgroundImage: 'none',
-          },
-        }}
       >
         {viewing && (
           <>
-            <DialogTitle sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
+            <DialogTitle>
               <Stack direction="row" justifyContent="space-between" alignItems="center">
                 <Stack direction="row" spacing={1} alignItems="center">
                   <Typography variant="h4">{viewing.name}</Typography>
@@ -476,7 +421,7 @@ const NpcsRoster: FC<Props> = ({ campaignId, canEdit }) => {
                 </IconButton>
               </Stack>
             </DialogTitle>
-            <DialogContent sx={{ p: 3 }}>
+            <DialogContent>
               <Stack spacing={2}>
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                   <Chip label={viewing.role} size="small" variant="outlined" />

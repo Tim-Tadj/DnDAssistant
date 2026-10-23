@@ -70,7 +70,7 @@ const AuthDialog: FC<{
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogContent sx={{ p: 0, '&:first-of-type': { paddingTop: 0 } }}>
+      <DialogContent sx={{ p: 0 }}>
         <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' } }}>
           <Stack
             sx={{

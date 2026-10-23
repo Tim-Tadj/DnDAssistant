@@ -26,13 +26,14 @@ import {
   useTheme,
   alpha,
 } from '@mui/material';
-import { Add, Close, Delete, Edit, Group, Save } from '@mui/icons-material';
+import { Add, Delete, Edit, Group } from '@mui/icons-material';
 import { Character } from '../types/Character';
 import { Party, defaultParty } from '../types/Party';
 import { partiesApi } from '../api/parties';
 import { useToast } from './ToastProvider';
 import { CheckList } from './MultiPick';
 import { useCampaignContext } from './CampaignContext';
+import FormDialog, { requireName } from './FormDialog';
 
 type Props = {
   characters: Character[];
@@ -47,17 +48,11 @@ const PartyEditorDialog: FC<{
   onClose: () => void;
   onSaved: (saved: Party) => void;
 }> = ({ open, initial, characters, onClose, onSaved }) => {
-  const theme = useTheme();
   const { toast } = useToast();
-  const [draft, setDraft] = useState<Party | null>(initial);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [draft, setDraft] = useState<Party>(initial ?? { ...defaultParty });
 
   useEffect(() => {
-    if (open) {
-      setDraft(initial ?? { ...defaultParty });
-      setError(null);
-    }
+    if (open) setDraft(initial ?? { ...defaultParty });
   }, [open, initial]);
 
   const memberOptions = useMemo(
@@ -66,117 +61,64 @@ const PartyEditorDialog: FC<{
   );
 
   const onSave = async () => {
-    if (!draft || !draft.name.trim()) {
-      setError('Name is required');
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    try {
-      const saved = initial?.id
-        ? await partiesApi.update(initial.id, draft)
-        : await partiesApi.create(draft);
-      toast(initial?.id ? 'Party updated' : 'Party created', 'success');
-      onSaved(saved);
-      onClose();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setSaving(false);
-    }
+    requireName(draft);
+    const saved = initial?.id
+      ? await partiesApi.update(initial.id, draft)
+      : await partiesApi.create(draft);
+    toast(initial?.id ? 'Party updated' : 'Party created', 'success');
+    onSaved(saved);
   };
 
   return (
-    <Dialog
+    <FormDialog
       open={open}
-      onClose={() => !saving && onClose()}
-      fullWidth
+      title={initial?.id ? 'Edit party' : 'New party'}
+      onClose={onClose}
+      onSave={onSave}
       maxWidth="sm"
-      PaperProps={{
-        sx: {
-          backgroundColor: theme.palette.background.paper,
-          backgroundImage: 'none',
-        },
-      }}
     >
-      <DialogTitle sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Typography variant="h4">
-            {initial?.id ? 'Edit party' : 'New party'}
+      <Stack spacing={2}>
+        <TextField
+          label="Name"
+          value={draft.name}
+          onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+          fullWidth
+          autoFocus
+        />
+        <TextField
+          label="Description"
+          value={draft.description}
+          onChange={(e) => setDraft({ ...draft, description: e.target.value })}
+          fullWidth
+          multiline
+          rows={2}
+        />
+        <Box>
+          <Typography variant="overline" color="text.secondary">
+            Members
           </Typography>
-          <IconButton onClick={onClose} size="small" disabled={saving}>
-            <Close />
-          </IconButton>
-        </Stack>
-      </DialogTitle>
-      <DialogContent sx={{ p: 3 }}>
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
-        {draft && (
-          <Stack spacing={2} sx={{ pt: 0 }}>
-            <TextField
-              label="Name"
-              value={draft.name}
-              onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-              fullWidth
-              size="small"
-              autoFocus
-              InputLabelProps={{ shrink: true }}
-            />
-            <TextField
-              label="Description"
-              value={draft.description}
-              onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-              fullWidth
-              multiline
-              rows={2}
-              size="small"
-              InputLabelProps={{ shrink: true }}
-            />
-            <Box>
-              <Typography variant="overline" color="text.secondary">
-                Members
-              </Typography>
-              <CheckList
-                items={memberOptions}
-                getKey={(c) => c.id}
-                getLabel={(c) => c.name}
-                getSecondary={(c) => `Level ${c.level ?? 1}`}
-                selected={new Set(draft.member_ids)}
-                onChange={(next) =>
-                  // Keep the existing order, append new picks.
-                  setDraft({
-                    ...draft,
-                    member_ids: [
-                      ...draft.member_ids.filter((id) => next.has(id)),
-                      ...memberOptions.map((c) => c.id).filter((id) => next.has(id) && !draft.member_ids.includes(id)),
-                    ],
-                  })
-                }
-                emptyText="No characters yet. Create some on this page first."
-                maxHeight={260}
-              />
-            </Box>
-          </Stack>
-        )}
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={saving}>
-          Cancel
-        </Button>
-        <Button
-          variant="contained"
-          onClick={onSave}
-          disabled={saving}
-          startIcon={<Save />}
-        >
-          {saving ? 'Saving…' : 'Save'}
-        </Button>
-      </DialogActions>
-    </Dialog>
+          <CheckList
+            items={memberOptions}
+            getKey={(c) => c.id}
+            getLabel={(c) => c.name}
+            getSecondary={(c) => `Level ${c.level ?? 1}`}
+            selected={new Set(draft.member_ids)}
+            onChange={(next) =>
+              // Keep the existing order, append new picks.
+              setDraft({
+                ...draft,
+                member_ids: [
+                  ...draft.member_ids.filter((id) => next.has(id)),
+                  ...memberOptions.map((c) => c.id).filter((id) => next.has(id) && !draft.member_ids.includes(id)),
+                ],
+              })
+            }
+            emptyText="No characters yet. Create some on this page first."
+            maxHeight={260}
+          />
+        </Box>
+      </Stack>
+    </FormDialog>
   );
 };
 

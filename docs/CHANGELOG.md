@@ -124,6 +124,17 @@ start a fresh `[Unreleased]` section.
   `/api/v1/npcs?campaign=X` endpoint.
 
 ### Changed
+- **One form dialog for every create/edit.** New `shared/FormDialog`
+  (title, close button, scrolling content, Cancel / Save footer; owns
+  the saving + error state, `onSave` throws to show an error). It backs
+  `EntityBrowser` (Monsters, Spells, Gear, Characters, Campaigns), the
+  party editor, NPC and session editors, and per-campaign character
+  state. Create and Edit both open the page's one `Editor` in it (Edit
+  from a row or the detail drawer), so the per-page `MonsterCreate`,
+  `SpellCreate`, `GearCreate`, `CharacterCreate` and `CampaignCreate`
+  copies are gone (~900 lines). Gear's kind picker (Weapon / Armour /
+  Gear) lives in its editor; the campaign form has the Status select in
+  both create and edit.
 - **Campaigns page** is now centred on the active campaign.
   When there's no active campaign, falls back to a card
   grid + create-new CTA. Selecting a campaign via the
@@ -142,6 +153,15 @@ start a fresh `[Unreleased]` section.
   with a secondary-color accent.
 
 ### Fixed
+- Form dialogs clipped the floating labels of their first row of fields
+  (Name / Level / Alignment etc.). MUI zeroes `DialogContent`'s top
+  padding after a `DialogTitle` with a rule that beat the theme and
+  per-dialog `sx`; the theme now restores it, so every dialog is fixed
+  in one place and the per-form `pt` workarounds are gone.
+- The campaign workflow bar's Cadence label was struck through by the
+  select's border when no cadence was set.
+- Editing a weapon or armour item opened with Damage / Properties /
+  Strength / Stealth blank.
 - Monsters table AC / HP / Speed / CR columns were empty because the
   field names were still PascalCase after the snake_case type change.
 - CR sorts by its numeric value (1/8 < 1/4 < 1 < 10), not as text.

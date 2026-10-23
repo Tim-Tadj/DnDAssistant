@@ -230,9 +230,14 @@ const theme = createTheme({
     },
     MuiDialogContent: {
       styleOverrides: {
-        root: { padding: '32px 24px 24px' },
-        // First child needs breathing room from the title's
-        // border-bottom; otherwise the labels visually clip.
+        root: {
+          padding: '20px 24px 24px',
+          // MUI zeroes the top padding when content follows a
+          // DialogTitle (a two-class rule that beats `root` and sx).
+          // The content box scrolls, so the first row's floating
+          // labels, which sit above their inputs, got clipped.
+          '.MuiDialogTitle-root + &': { paddingTop: 20 },
+        },
       },
     },
     MuiInputLabel: {

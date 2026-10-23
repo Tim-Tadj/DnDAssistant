@@ -75,6 +75,21 @@ Legend: ✅ done · 🚧 in progress · ⛔ not started · ❓ waiting on a deci
 - Verified: 409 monsters reachable with ~17 rows in the DOM; Gear 152;
   Spells search; Characters; 375px phone width without page overflow.
 
+## Phase F — forms
+
+- ✅ F1. First-row labels no longer clipped in any dialog: the theme
+  restores `DialogContent`'s top padding after a `DialogTitle`.
+- ✅ F2. `shared/FormDialog` is the one create/edit shell
+  (EntityBrowser pages, party, NPC, session, campaign character). The
+  five per-page `*Create` dialogs were deleted; Create and Edit use the
+  same `Editor`. Gear edit pre-fills Damage / Properties / Strength /
+  Stealth.
+- Verified: New/Edit Character (row and drawer), New Monster / Spell /
+  Item (kind switch), New/Edit Party, New NPC, New session (validation
+  message), campaign character state — labels 10px inside the content
+  box, nothing clipped, no console errors. Not covered: the campaign
+  create form (only shown with no active campaign).
+
 ## Verified in the browser (2026-10-23, local stack)
 
 Party auto-sync (4 × L4 → 1,000 XP Medium) · Generate → all ticked ·

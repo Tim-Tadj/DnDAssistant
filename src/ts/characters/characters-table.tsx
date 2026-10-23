@@ -2,7 +2,7 @@
  * Characters page.
  *
  * Phase 7: uses the shared EntityBrowser shell. The detail view is
- * CharacterCard. The create flow embeds the existing CharacterEditor.
+ * CharacterDetailPanel; create and edit use CharacterEditorForm.
  */
 
 import React, { FC, useEffect, useState } from 'react';
@@ -10,14 +10,10 @@ import {
   Alert,
   Autocomplete,
   Box,
-  Button,
   Stack,
   TextField,
   Typography,
-  useTheme,
 } from '@mui/material';
-import { Add, Save } from '@mui/icons-material';
-import { Dialog, DialogContent, DialogTitle } from '@mui/material';
 import { GridColDef } from '@mui/x-data-grid';
 import {
   Character,
@@ -29,7 +25,6 @@ import { charactersApi, referenceApi } from '../api/characters';
 import { useList } from '../shared/useList';
 import { EntityBrowser } from '../shared/EntityBrowser';
 import CharacterDetailPanel from '../shared/CharacterDetailPanel';
-import { useToast } from '../shared/ToastProvider';
 import { useAuth } from '../auth/AuthContext';
 import PartiesPanel from '../shared/PartiesPanel';
 import { useCampaignContext } from '../shared/CampaignContext';
@@ -57,7 +52,7 @@ const CharacterEditorForm: FC<{
     setC((prev) => ({ ...prev, [k]: v }));
 
   return (
-    <Stack spacing={2} sx={{ pt: 0 }}>
+    <Stack spacing={2}>
       <Stack direction="row" spacing={2}>
         <TextField
           label="Name"
@@ -158,116 +153,6 @@ const CharacterEditorForm: FC<{
   );
 };
 
-const CharacterCreate: FC<{
-  onCreated?: () => void;
-}> = ({ onCreated }) => {
-  const { user } = useAuth();
-  const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState<Character | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [races, setRaces] = useState<Race[]>([]);
-  const [classes, setClasses] = useState<DndClass[]>([]);
-  const { toast } = useToast();
-  const theme = useTheme();
-
-  useEffect(() => {
-    if (open && (races.length === 0 || classes.length === 0)) {
-      Promise.all([referenceApi.listRaces(), referenceApi.listClasses()])
-        .then(([r, c]) => {
-          setRaces(r);
-          setClasses(c);
-        })
-        .catch(() => undefined);
-    }
-  }, [open, races.length, classes.length]);
-
-  const onSave = async () => {
-    if (!draft || !draft.name.trim()) {
-      setError('Name is required');
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    try {
-      await charactersApi.create({ ...draft, owner_user_id: user?.id ?? '' });
-      toast('Character created', 'success');
-      setOpen(false);
-      setDraft(null);
-      onCreated?.();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <>
-      <Button
-        variant="contained"
-        startIcon={<Add />}
-        onClick={() => {
-          setDraft({
-            ...defaultCharacter,
-            owner_user_id: user?.id ?? '',
-          } as Character);
-          setError(null);
-          setOpen(true);
-        }}
-      >
-        Create Character
-      </Button>
-      <Dialog
-        open={open}
-        onClose={() => !saving && setOpen(false)}
-        fullWidth
-        maxWidth="md"
-        PaperProps={{
-          sx: {
-            backgroundColor: theme.palette.background.paper,
-            backgroundImage: 'none',
-          },
-        }}
-      >
-        <DialogTitle sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Typography variant="h4">New Character</Typography>
-            <Stack direction="row" spacing={1}>
-              <Button onClick={() => setOpen(false)} disabled={saving}>
-                Cancel
-              </Button>
-              <Button
-                variant="contained"
-                startIcon={<Save />}
-                onClick={onSave}
-                disabled={saving}
-              >
-                {saving ? 'Saving…' : 'Save'}
-              </Button>
-            </Stack>
-          </Stack>
-        </DialogTitle>
-        <DialogContent sx={{ p: 3 }}>
-          {error && (
-            <Typography color="error" sx={{ mb: 2 }}>
-              {error}
-            </Typography>
-          )}
-          {draft && (
-            <CharacterEditorForm
-              initial={draft}
-              races={races}
-              classes={classes}
-              onChange={setDraft}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-};
-
 const columns: GridColDef<Character>[] = [
   { field: 'name', headerName: 'Name', flex: 2, sortable: true, filterable: true },
   { field: 'level', headerName: 'Lvl', flex: 0.5, align: 'center', headerAlign: 'center', sortable: true, filterable: true },
@@ -330,26 +215,9 @@ const CharactersTable: FC = () => {
         }}
         columns={columns as GridColDef[]}
         DetailCard={({ item }) => <CharacterDetailPanel item={item} />}
-        Editor={({ initial, onChange }) => {
-          const [races, setRaces] = useState<Race[]>([]);
-          const [classes, setClasses] = useState<DndClass[]>([]);
-          useEffect(() => {
-            Promise.all([referenceApi.listRaces(), referenceApi.listClasses()])
-              .then(([r, c]) => {
-                setRaces(r);
-                setClasses(c);
-              })
-              .catch(() => undefined);
-          }, []);
-        return (
-          <CharacterEditorForm
-            initial={initial}
-            races={races}
-            classes={classes}
-            onChange={onChange}
-          />
-        );
-      }}
+        Editor={({ initial, onChange }) => (
+          <CharacterEditorForm initial={initial} races={races} classes={classes} onChange={onChange} />
+        )}
       defaultItem={() =>
         ({ ...defaultCharacter, owner_user_id: user.id } as Character)
       }
@@ -360,7 +228,7 @@ const CharactersTable: FC = () => {
       isMine={(r) => r.owner_user_id === user.id}
       isEditable={(r) => r.owner_user_id === user.id}
       isDeletable={(r) => r.owner_user_id === user.id}
-      CreateButton={CharacterCreate}
+      itemName="Character"
       searchHint="Search characters by name…"
       emptyTitle="No characters yet"
       emptyDescription="Create your first character to get started."

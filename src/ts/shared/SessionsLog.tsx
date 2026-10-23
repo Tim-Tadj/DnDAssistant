@@ -27,10 +27,11 @@ import {
   useTheme,
   alpha,
 } from '@mui/material';
-import { Add, Close, Delete, Edit, EventNote, Save } from '@mui/icons-material';
+import { Add, Close, Delete, Edit, EventNote } from '@mui/icons-material';
 import { CampaignSession, defaultCampaignSession } from '../types/CampaignSession';
 import { sessionsApi } from '../api/sessions';
 import { useToast } from './ToastProvider';
+import FormDialog from './FormDialog';
 import LinkedText from './LinkedText';
 
 type Props = {
@@ -60,7 +61,7 @@ const SessionEditor: FC<{
   const set = <K extends keyof CampaignSession>(k: K, v: CampaignSession[K]) =>
     setS((prev) => ({ ...prev, [k]: v }));
   return (
-    <Stack spacing={2} sx={{ pt: 0 }}>
+    <Stack spacing={2}>
       <Stack direction="row" spacing={2}>
         <TextField
           label="Session #"
@@ -134,8 +135,6 @@ const SessionsLog: FC<Props> = ({ campaignId, canEdit }) => {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorInitial, setEditorInitial] = useState<CampaignSession | null>(null);
   const [draft, setDraft] = useState<CampaignSession | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<CampaignSession | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [viewing, setViewing] = useState<CampaignSession | null>(null);
@@ -159,13 +158,11 @@ const SessionsLog: FC<Props> = ({ campaignId, canEdit }) => {
   const onCreate = () => {
     setEditorInitial(null);
     setDraft({ ...defaultCampaignSession, session_number: nextNumber });
-    setSaveError(null);
     setEditorOpen(true);
   };
   const onEdit = (s: CampaignSession) => {
     setEditorInitial(s);
     setDraft({ ...s });
-    setSaveError(null);
     setEditorOpen(true);
   };
   const onView = (s: CampaignSession) => setViewing(s);
@@ -173,28 +170,16 @@ const SessionsLog: FC<Props> = ({ campaignId, canEdit }) => {
   const onSave = async () => {
     if (!draft) return;
     if (!draft.title.trim() && !draft.summary.trim() && !draft.prep_notes.trim()) {
-      setSaveError('Add a title, summary, or prep notes');
-      return;
+      throw new Error('Add a title, summary, or prep notes');
     }
-    setSaving(true);
-    setSaveError(null);
-    try {
-      if (editorInitial?.id) {
-        await sessionsApi.update(campaignId, editorInitial.id, draft);
-        toast('Session updated', 'success');
-      } else {
-        await sessionsApi.create(campaignId, draft);
-        toast('Session created', 'success');
-      }
-      setEditorOpen(false);
-      setEditorInitial(null);
-      setDraft(null);
-      await reload();
-    } catch (e) {
-      setSaveError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setSaving(false);
+    if (editorInitial?.id) {
+      await sessionsApi.update(campaignId, editorInitial.id, draft);
+      toast('Session updated', 'success');
+    } else {
+      await sessionsApi.create(campaignId, draft);
+      toast('Session created', 'success');
     }
+    await reload();
   };
 
   const onDelete = async (s: CampaignSession) => {
@@ -347,72 +332,24 @@ const SessionsLog: FC<Props> = ({ campaignId, canEdit }) => {
         </Stack>
       )}
 
-      <Dialog
+      <FormDialog
         open={editorOpen}
-        onClose={() => !saving && setEditorOpen(false)}
-        fullWidth
-        maxWidth="md"
-        PaperProps={{
-          sx: {
-            backgroundColor: theme.palette.background.paper,
-            backgroundImage: 'none',
-          },
-        }}
+        title={editorInitial ? 'Edit session' : 'New session'}
+        onClose={() => setEditorOpen(false)}
+        onSave={onSave}
       >
-        <DialogTitle sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center">
-            <Typography variant="h4">
-              {editorInitial ? 'Edit session' : 'New session'}
-            </Typography>
-            <IconButton onClick={() => setEditorOpen(false)} size="small" disabled={saving}>
-              <Close />
-            </IconButton>
-          </Stack>
-        </DialogTitle>
-        <DialogContent sx={{ p: 3 }}>
-          {saveError && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {saveError}
-            </Alert>
-          )}
-          {draft && (
-            <SessionEditor
-              initial={draft}
-              nextNumber={nextNumber}
-              onChange={setDraft}
-            />
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setEditorOpen(false)} disabled={saving}>
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            onClick={onSave}
-            disabled={saving}
-            startIcon={<Save />}
-          >
-            {saving ? 'Saving…' : 'Save'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        {draft && <SessionEditor initial={draft} nextNumber={nextNumber} onChange={setDraft} />}
+      </FormDialog>
 
       <Dialog
         open={viewing !== null}
         onClose={() => setViewing(null)}
         fullWidth
         maxWidth="md"
-        PaperProps={{
-          sx: {
-            backgroundColor: theme.palette.background.paper,
-            backgroundImage: 'none',
-          },
-        }}
       >
         {viewing && (
           <>
-            <DialogTitle sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
+            <DialogTitle>
               <Stack direction="row" justifyContent="space-between" alignItems="center">
                 <Stack direction="row" spacing={1} alignItems="center">
                   <Chip
@@ -430,7 +367,7 @@ const SessionsLog: FC<Props> = ({ campaignId, canEdit }) => {
                 </IconButton>
               </Stack>
             </DialogTitle>
-            <DialogContent sx={{ p: 3 }}>
+            <DialogContent>
               <Stack spacing={2}>
                 <Stack direction="row" spacing={2}>
                   <Typography variant="body2" color="text.secondary">

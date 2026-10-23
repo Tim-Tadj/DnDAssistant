@@ -573,7 +573,7 @@ const EncounterBuilder: FC = () => {
       <Dialog open={saveOpen} onClose={() => !saving && setSaveOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>Save encounter to {activeCampaign?.name ?? 'campaign'}</DialogTitle>
         <DialogContent>
-          <Stack spacing={2} sx={{ pt: 1 }}>
+          <Stack spacing={2}>
             <TextField
               label="Encounter name"
               value={saveName}

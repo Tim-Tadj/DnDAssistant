@@ -82,7 +82,7 @@ const MonsterEditor: FC<{
   useEffect(() => onChange?.(m), [m, onChange]);
 
   return (
-    <Stack spacing={2} direction="column" sx={{ width: '100%', pt: 0 }}>
+    <Stack spacing={2} direction="column" sx={{ width: '100%' }}>
       <Box>
         <Typography variant="subtitle1">Basic</Typography>
         <Stack spacing={1} direction="column" sx={{ pt: 1 }}>

@@ -22,7 +22,7 @@ const WeaponEditor: FC<{
   useEffect(() => onChange?.(newWeapon), [newWeapon, onChange]);
 
   return (
-    <Stack spacing={2} direction="column" justifyContent="space-between" alignItems="center" sx={{ pt: 0 }}>
+    <Stack spacing={2} direction="column" justifyContent="space-between" alignItems="center">
       <TextField
         fullWidth
         value={newWeapon.name}

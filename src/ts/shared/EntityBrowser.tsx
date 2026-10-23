@@ -7,19 +7,20 @@
  * that out so the page is just a configuration.
  *
  * The page provides:
- * - useList(): hook returning { items, loadError, reload }
- * - useMutate(): hook returning { create, update, remove, isEditing }
- * - editorComponent: the existing editor component for the entity
- * - columnDescriptor: DataGrid columns
- * - DetailCard: the detail-view component (e.g. MonsterCard)
- * - onCreate: optional override for the create flow (e.g. gear kind picker)
- * - getRowName: for keyboard nav / provenance checks
- * - isEditable: defaults to provenance === 'homebrew'
+ * - items / loadError / reload (usually from useList)
+ * - mutations: { create, update, remove } API calls
+ * - columns: table columns
+ * - DetailCard: the read-only view shown in the drawer
+ * - Editor: a controlled form ({ initial, onChange }); create and edit
+ *   both open it in a FormDialog, which owns saving and errors
+ * - defaultItem: the blank draft for "Create"
+ * - getRowName: for titles, toasts and the name check
+ * - isEditable / isDeletable: default to provenance === 'homebrew'
  *
  * Phase 7: UI/UX redesign.
  */
 
-import React, { FC, ReactNode, useState } from 'react';
+import React, { FC, ReactNode, useCallback, useState } from 'react';
 import {
   Alert,
   Box,
@@ -47,12 +48,12 @@ import {
   Close,
   Delete,
   Edit,
-  Save,
   Search as SearchIcon,
   Clear,
 } from '@mui/icons-material';
 import { GridColDef } from '@mui/x-data-grid';
 import EntityTable from './EntityTable';
+import FormDialog, { errorMessage, requireName } from './FormDialog';
 import ProvenanceChip from './ProvenanceChip';
 import { ErrorState, EmptyState, LoadingState } from './States';
 import { useToast } from './ToastProvider';
@@ -98,6 +99,11 @@ export type EntityBrowserProps<T> = {
   mineFilter?: boolean;
   onMineFilterChange?: (v: boolean) => void;
   searchHint?: string;
+  // One row's noun ("Monster"); defaults to the title minus its "s".
+  // Used for "Create Monster", the form title and toasts.
+  itemName?: string;
+  // Only for create flows the built-in form can't do (gear kind picker,
+  // campaigns becoming active); otherwise "Create" opens the Editor.
   CreateButton?: FC<{ onCreated?: () => void }>;
   extraActions?: (item: T) => ReactNode;
   // Optional custom-empty state title/description
@@ -127,6 +133,7 @@ export function EntityBrowser<T extends { id?: string | number; provenance?: str
   mineFilter,
   onMineFilterChange,
   searchHint,
+  itemName = title.replace(/s$/, ''),
   CreateButton,
   extraActions,
   emptyTitle,
@@ -137,11 +144,9 @@ export function EntityBrowser<T extends { id?: string | number; provenance?: str
   const { toast } = useToast();
   const [search, setSearch] = useState('');
   const [drawerItem, setDrawerItem] = useState<T | null>(null);
-  const [editorOpen, setEditorOpen] = useState(false);
-  const [editMode, setEditMode] = useState<'view' | 'edit' | 'create'>('view');
-  const [draft, setDraft] = useState<T | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  // Create/edit form (`id` set = editing). It opens over the detail
+  // drawer when started from there, or straight from a row's Edit.
+  const [editor, setEditor] = useState<{ draft: T; id?: EntityId } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -164,68 +169,40 @@ export function EntityBrowser<T extends { id?: string | number; provenance?: str
   });
 
   const onRowClick = (row: T) => {
-    if (!row) return;
-    setDrawerItem(row);
-    setEditMode('view');
+    if (row) setDrawerItem(row);
   };
 
-  const closeDrawer = () => {
-    setDrawerItem(null);
-    setEditMode('view');
-    setDraft(null);
-    setSaveError(null);
-  };
+  const closeDrawer = () => setDrawerItem(null);
 
-  const onStartEdit = () => {
-    if (!drawerItem) return;
-    setDraft({ ...drawerItem });
-    setEditMode('edit');
-    setSaveError(null);
-  };
+  const startEdit = (row: T) => setEditor({ draft: { ...row }, id: row.id });
 
-  const onStartCreate = () => {
-    setDraft(defaultItem());
-    setEditorOpen(true);
-    setEditMode('create');
-    setSaveError(null);
-  };
+  const onStartCreate = () => setEditor({ draft: defaultItem() });
 
+  // Stable, and a no-op for the same draft: most editors report changes
+  // from a useEffect that depends on onChange, so a new callback (or a
+  // new state object) every render would loop.
+  const onDraftChange = useCallback(
+    (draft: T) => setEditor((prev) => (prev && prev.draft !== draft ? { ...prev, draft } : prev)),
+    [],
+  );
+
+  // Throws to show the error in the form; FormDialog closes on success.
   const onSave = async () => {
-    if (!draft) return;
-    if (!getRowName(draft).trim()) {
-      setSaveError('Name is required');
-      return;
+    if (!editor) return;
+    requireName({ name: getRowName(editor.draft) });
+    if (editor.id === undefined || editor.id === null) {
+      await mutations.create(editor.draft);
+      toast(`${itemName} created`, 'success');
+    } else {
+      await mutations.update(editor.id, editor.draft);
+      toast(`${itemName} updated`, 'success');
+      setDrawerItem(null); // its contents are stale now
     }
-    setSaving(true);
-    setSaveError(null);
-    try {
-      if (editMode === 'create') {
-        await mutations.create(draft);
-        toast('Created', 'success');
-      } else {
-        const id = (drawerItem as T & { id?: string | number }).id;
-        if (id === undefined || id === null) {
-          setSaveError('Cannot save: missing id');
-          return;
-        }
-        await mutations.update(id, draft);
-        toast('Updated', 'success');
-      }
-      setEditorOpen(false);
-      setEditMode('view');
-      setDraft(null);
-      setDrawerItem(null);
-      await reload();
-    } catch (e) {
-      setSaveError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setSaving(false);
-    }
+    await reload();
   };
 
   const onConfirmDelete = async () => {
-    if (!drawerItem) return;
-    const id = (drawerItem as T & { id?: string | number }).id;
+    const id = drawerItem?.id;
     if (id === undefined || id === null) return;
     setDeleting(true);
     try {
@@ -235,7 +212,7 @@ export function EntityBrowser<T extends { id?: string | number; provenance?: str
       closeDrawer();
       await reload();
     } catch (e) {
-      setSaveError(e instanceof Error ? e.message : String(e));
+      toast(errorMessage(e), 'error');
     } finally {
       setDeleting(false);
     }
@@ -278,7 +255,7 @@ export function EntityBrowser<T extends { id?: string | number; provenance?: str
               startIcon={<Add />}
               onClick={onStartCreate}
             >
-              Create
+              Create {itemName}
             </Button>
           )}
         </Stack>
@@ -367,7 +344,7 @@ export function EntityBrowser<T extends { id?: string | number; provenance?: str
           action={
             CreateButton
               ? undefined
-              : { label: 'Create', onClick: onStartCreate }
+              : { label: `Create ${itemName}`, onClick: onStartCreate }
           }
         />
       ) : filtered.length === 0 ? (
@@ -419,11 +396,7 @@ export function EntityBrowser<T extends { id?: string | number; provenance?: str
                           size="small"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setDrawerItem(row);
-                            setEditMode('view');
-                            setDraft({ ...row });
-                            setEditMode('edit');
-                            setSaveError(null);
+                            startEdit(row);
                           }}
                         >
                           <Edit fontSize="small" />
@@ -456,7 +429,7 @@ export function EntityBrowser<T extends { id?: string | number; provenance?: str
       {/* Detail drawer */}
       <Drawer
         anchor={isCompact ? 'bottom' : 'right'}
-        open={drawerItem !== null && editMode === 'view'}
+        open={drawerItem !== null}
         onClose={closeDrawer}
         PaperProps={{
           sx: {
@@ -495,7 +468,7 @@ export function EntityBrowser<T extends { id?: string | number; provenance?: str
               <Stack direction="row" spacing={0.5}>
                 {editable(drawerItem) && (
                   <Tooltip title="Edit" arrow>
-                    <IconButton onClick={onStartEdit} size="small">
+                    <IconButton onClick={() => startEdit(drawerItem)} size="small">
                       <Edit />
                     </IconButton>
                   </Tooltip>
@@ -543,72 +516,23 @@ export function EntityBrowser<T extends { id?: string | number; provenance?: str
         )}
       </Drawer>
 
-      {/* Edit drawer */}
-      <Drawer
-        anchor={isCompact ? 'bottom' : 'right'}
-        open={editorOpen || (drawerItem !== null && editMode === 'edit')}
-        onClose={() => {
-          if (saving) return;
-          setEditorOpen(false);
-          closeDrawer();
-        }}
-        PaperProps={{
-          sx: {
-            width: { xs: '100%', md: 900 },
-            maxWidth: '100%',
-            height: { xs: '92%', md: '100%' },
-            backgroundColor: theme.palette.background.paper,
-            backgroundImage: 'none',
-          },
-        }}
+      <FormDialog
+        open={editor !== null}
+        title={
+          editor?.id === undefined
+            ? `New ${itemName}`
+            : `Edit ${editor ? getRowName(editor.draft) : ''}`
+        }
+        onClose={() => setEditor(null)}
+        onSave={onSave}
       >
-        <Stack
-          direction="row"
-          alignItems="center"
-          justifyContent="space-between"
-          sx={{
-            p: 2,
-            borderBottom: `1px solid ${theme.palette.divider}`,
-          }}
-        >
-          <Typography variant="h4">
-            {editMode === 'create'
-              ? `New ${title.replace(/s$/, '')}`
-              : `Edit ${(draft || drawerItem) ? getRowName((draft || drawerItem) as T) : ''}`}
-          </Typography>
-          <Stack direction="row" spacing={1}>
-            <Button onClick={() => {
-              setEditorOpen(false);
-              closeDrawer();
-            }} disabled={saving}>
-              Cancel
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<Save />}
-              onClick={onSave}
-              disabled={saving}
-            >
-              {saving ? 'Saving…' : 'Save'}
-            </Button>
-          </Stack>
-        </Stack>
-        <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 3 }}>
-          {saveError && (
-            <Box sx={{ mb: 2 }}>
-              <Typography color="error" variant="body2">
-                {saveError}
-              </Typography>
-            </Box>
-          )}
-          {draft && (
-            <Editor
-              initial={draft}
-              onChange={(updated) => setDraft(updated)}
-            />
-          )}
-        </Box>
-      </Drawer>
+        {editor && (
+          <Editor
+            initial={editor.draft}
+            onChange={onDraftChange}
+          />
+        )}
+      </FormDialog>
 
       {/* Delete confirm */}
       <Dialog

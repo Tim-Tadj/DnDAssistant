@@ -199,9 +199,13 @@ curl https://dnd-assistant-api.ttimtadj.workers.dev/api/v1/health
   to JSON via `useCallback` + `useEffect`. See
   `src/ts/monsters/monster-editor.tsx` and
   `src/ts/spells/spell-editor.tsx`.
-- **Dialog pattern:** a `Create X` button toggles `useState(false)`
-  open state on a MUI `Dialog`. See
-  `src/ts/spells/create-spell.tsx`.
+- **Dialog pattern:** create/edit forms go in `shared/FormDialog`
+  (it owns saving, errors and the Cancel / Save footer; `onSave`
+  throws to show an error, e.g. `requireName(draft)`). `EntityBrowser`
+  pages just pass an `Editor`. Paper, title border and content padding
+  come from the theme (`src/theme.ts`), so don't restyle `DialogTitle`
+  / `DialogContent` or pad the first row per dialog. See
+  `src/ts/shared/PartiesPanel.tsx`.
 - **Table pattern:** the shared `EntityBrowser` shell with
   whitespace-delimited multi-keyword search (all words must appear).
   Columns are `GridColDef`s, rendered by `shared/EntityTable.tsx`
