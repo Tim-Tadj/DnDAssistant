@@ -9,7 +9,7 @@
  * Replaces the old Header.tsx + menu-button-strip approach.
  */
 
-import React, { FC, useEffect, useMemo, useState } from 'react';
+import React, { FC, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AppBar,
   Avatar,
@@ -97,6 +97,20 @@ const AppLayout: FC = () => {
   useEffect(() => {
     if (isCompact) setRailOpen(false);
   }, [location.pathname, isCompact]);
+
+  // Publish the top bar's height as --app-bar-height so sticky things
+  // (table headers) can sit just under it; it grows when the bar wraps.
+  const appBarRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const bar = appBarRef.current;
+    if (!bar) return;
+    const publish = () =>
+      document.documentElement.style.setProperty('--app-bar-height', `${bar.offsetHeight}px`);
+    publish();
+    const observer = new ResizeObserver(publish);
+    observer.observe(bar);
+    return () => observer.disconnect();
+  }, []);
 
   // Cmd/Ctrl-K opens the global search
   useEffect(() => {
@@ -331,10 +345,10 @@ const AppLayout: FC = () => {
         }}
       >
         <AppBar
+          ref={appBarRef}
           position="sticky"
           color="default"
           elevation={0}
-          sx={{ zIndex: (t) => t.zIndex.drawer + 1 }}
         >
           <Toolbar sx={{ gap: 1, minHeight: 56 }}>
             {isCompact && (

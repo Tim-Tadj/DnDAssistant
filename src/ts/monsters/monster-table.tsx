@@ -126,11 +126,17 @@ const MonsterCreate: FC<{ onCreated?: () => void }> = ({ onCreated }) => {
   );
 };
 
+// "1/4 (50 XP)" → 0.25, so CR sorts as a number.
+const crValue = (challenge: string) => {
+  const [num, den] = (challenge ?? '').split(' ')[0].split('/').map(Number);
+  return den ? num / den : num || 0;
+};
+
 const columns: GridColDef<Monster>[] = [
   { field: 'name', headerName: 'Name', flex: 2, sortable: true, filterable: true },
   { field: 'meta', headerName: 'Type', flex: 2, sortable: true, filterable: true },
   {
-    field: 'AC',
+    field: 'ac',
     headerName: 'AC',
     flex: 0.6,
     sortable: true,
@@ -139,7 +145,7 @@ const columns: GridColDef<Monster>[] = [
     headerAlign: 'center',
   },
   {
-    field: 'HP',
+    field: 'hp',
     headerName: 'HP',
     flex: 0.8,
     sortable: true,
@@ -148,20 +154,21 @@ const columns: GridColDef<Monster>[] = [
     headerAlign: 'center',
   },
   {
-    field: 'Speed',
+    field: 'speed',
     headerName: 'Speed',
     flex: 0.8,
     sortable: true,
     filterable: true,
   },
   {
-    field: 'Challenge',
+    field: 'challenge',
     headerName: 'CR',
     flex: 0.8,
     sortable: true,
     filterable: true,
     align: 'center',
     headerAlign: 'center',
+    sortComparator: (a: string, b: string) => crValue(a) - crValue(b),
   },
   {
     field: 'provenance',

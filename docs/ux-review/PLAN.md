@@ -60,6 +60,21 @@ Legend: ✅ done · 🚧 in progress · ⛔ not started · ❓ waiting on a deci
   Also: "My homebrew" chip removed from Characters; New campaign dialog
   has a Status select and Cancel / Create in the footer.
 
+## Phase E — tables
+
+- ✅ E1. `EntityBrowser` uses `shared/EntityTable.tsx` (react-virtuoso
+  `TableVirtuoso` + MUI Table): infinite scroll, sticky header under
+  the app bar (`--app-bar-height` from AppLayout), compact own-scroll
+  box below `md`. Takes the same `GridColDef` columns, including
+  `renderCell` and `sortComparator`.
+- ✅ E2. Monster AC/HP/Speed/CR fields fixed (snake_case); CR numeric sort.
+- ✅ E3. Characters page: Edit/Delete for the user's own characters
+  (`owner_user_id === user.id`; characters have no provenance). The
+  AppBar no longer sits above drawers (`zIndex.drawer + 1` removed), so
+  the detail drawer's Edit/Delete/Close are clickable on every page.
+- Verified: 409 monsters reachable with ~17 rows in the DOM; Gear 152;
+  Spells search; Characters; 375px phone width without page overflow.
+
 ## Verified in the browser (2026-10-23, local stack)
 
 Party auto-sync (4 × L4 → 1,000 XP Medium) · Generate → all ticked ·

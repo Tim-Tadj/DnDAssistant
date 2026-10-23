@@ -202,10 +202,12 @@ curl https://dnd-assistant-api.ttimtadj.workers.dev/api/v1/health
 - **Dialog pattern:** a `Create X` button toggles `useState(false)`
   open state on a MUI `Dialog`. See
   `src/ts/spells/create-spell.tsx`.
-- **Table pattern:** `@mui/x-data-grid` with whitespace-delimited
-  multi-keyword search (all words must appear). Row click opens a
-  detail `Drawer` (right on desktop, bottom on mobile). See the
-  shared `EntityBrowser` shell — most browsers extend it.
+- **Table pattern:** the shared `EntityBrowser` shell with
+  whitespace-delimited multi-keyword search (all words must appear).
+  Columns are `GridColDef`s, rendered by `shared/EntityTable.tsx`
+  (react-virtuoso infinite scroll, sticky header). Row click opens a
+  detail `Drawer` (right on desktop, bottom on mobile). Most browsers
+  extend it.
 - **New Worker route:** copy `worker/src/routes/monsters.ts`, mount
   it in `worker/src/index.ts`, add a column in
   `src/ts/api/<resource>.ts` for the frontend.

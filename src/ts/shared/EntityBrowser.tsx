@@ -51,7 +51,8 @@ import {
   Search as SearchIcon,
   Clear,
 } from '@mui/icons-material';
-import { DataGrid, GridColDef, GridRowParams } from '@mui/x-data-grid';
+import { GridColDef } from '@mui/x-data-grid';
+import EntityTable from './EntityTable';
 import ProvenanceChip from './ProvenanceChip';
 import { ErrorState, EmptyState, LoadingState } from './States';
 import { useToast } from './ToastProvider';
@@ -162,9 +163,9 @@ export function EntityBrowser<T extends { id?: string | number; provenance?: str
       .some((q) => name.includes(q));
   });
 
-  const onRowClick = (params: GridRowParams) => {
-    if (!params.row) return;
-    setDrawerItem(params.row as T);
+  const onRowClick = (row: T) => {
+    if (!row) return;
+    setDrawerItem(row);
     setEditMode('view');
   };
 
@@ -386,9 +387,9 @@ export function EntityBrowser<T extends { id?: string | number; provenance?: str
           }
         />
       ) : (
-        <Paper sx={{ overflow: 'hidden' }}>
-          <DataGrid
-            autoHeight
+        // No overflow clipping here: it would break the sticky header.
+        <Paper>
+          <EntityTable
             rows={filtered}
             columns={[
               ...columns,
@@ -410,7 +411,7 @@ export function EntityBrowser<T extends { id?: string | number; provenance?: str
                       sx={{
                         opacity: 0,
                         transition: 'opacity 120ms ease',
-                        '.MuiDataGrid-row:hover &': { opacity: 1 },
+                        '.MuiTableRow-root:hover &, .MuiTableRow-root:focus-within &': { opacity: 1 },
                       }}
                     >
                       <Tooltip title="Edit" arrow>
@@ -446,25 +447,8 @@ export function EntityBrowser<T extends { id?: string | number; provenance?: str
                 },
               },
             ]}
-            getRowId={(r) => r ? String(getRowId(r as T)) : 'null'}
+            getRowId={getRowId}
             onRowClick={onRowClick}
-            getRowHeight={() => 'auto'}
-            initialState={{
-              pagination: { paginationModel: { pageSize: 25 } },
-              sorting: { sortModel: [{ field: 'name', sort: 'asc' }] },
-            }}
-            pageSizeOptions={[10, 25, 50, 100]}
-            disableRowSelectionOnClick
-            sx={{
-              border: 'none',
-              '& .MuiDataGrid-row': { cursor: 'pointer' },
-              '& .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within': {
-                outline: 'none',
-              },
-              '& .MuiDataGrid-columnHeaders': {
-                backgroundColor: alpha(theme.palette.primary.main, 0.06),
-              },
-            }}
           />
         </Paper>
       )}

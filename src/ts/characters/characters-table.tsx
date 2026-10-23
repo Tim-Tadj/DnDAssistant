@@ -355,6 +355,11 @@ const CharactersTable: FC = () => {
       }
       getRowId={(r) => r.id}
       getRowName={(r) => r.name}
+      // Characters have no provenance; the API only lists the user's own,
+      // so ownership (not 'homebrew') decides Edit/Delete.
+      isMine={(r) => r.owner_user_id === user.id}
+      isEditable={(r) => r.owner_user_id === user.id}
+      isDeletable={(r) => r.owner_user_id === user.id}
       CreateButton={CharacterCreate}
       searchHint="Search characters by name…"
       emptyTitle="No characters yet"

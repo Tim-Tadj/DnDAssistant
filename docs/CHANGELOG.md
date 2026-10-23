@@ -24,6 +24,15 @@ start a fresh `[Unreleased]` section.
   Settings dialog (default difficulty, auto-add party, group initiative,
   confirmations, layout) and a compact campaign/party switcher in the
   top bar.
+- **Infinite-scroll tables.** Monsters, Spells, Gear, Characters and
+  Campaigns (everything on `EntityBrowser`) now render through
+  `EntityTable` (react-virtuoso `TableVirtuoso` + MUI Table) instead of
+  a paged DataGrid. The list scrolls with the page with no pages, only
+  rows on screen are in the DOM, and the header sticks under the app
+  bar. On phones the table scrolls in its own box, both ways. The same
+  columns, sorting (asc → desc → off), row click and keyboard Enter
+  are kept.
+
 - **Phase 9 — Campaign-centric UX. Campaigns are now the
   centre of the universe.** The app revolves around one
   active campaign (and optionally one active party) that the
@@ -133,6 +142,14 @@ start a fresh `[Unreleased]` section.
   with a secondary-color accent.
 
 ### Fixed
+- Monsters table AC / HP / Speed / CR columns were empty because the
+  field names were still PascalCase after the snake_case type change.
+- CR sorts by its numeric value (1/8 < 1/4 < 1 < 10), not as text.
+- Your own characters had no Edit/Delete on the Characters page
+  (ownership was checked via `provenance`, which characters don't have).
+- The top bar covered the detail drawer's header on desktop, so its
+  Edit / Delete / Close buttons couldn't be clicked; the bar now sits
+  below drawers and dialogs.
 - "Go to Builder" opened a blank route; "Send to Live" / Library
   "Re-run" only showed a toast instead of switching tabs.
 - Combat tracker used a stale party list; switching encounter tabs threw
