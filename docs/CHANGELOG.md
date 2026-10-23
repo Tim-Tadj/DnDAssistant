@@ -62,6 +62,26 @@ start a fresh `[Unreleased]` section.
   (`#/campaign?tab=sessions`).
 
 ### Changed
+- **Player Guides reader rebuilt.** The six guides were one long run of
+  identical bold headings and bare paragraphs, with no way to search
+  them or jump within a guide. Now:
+  - one search across every guide and section, ranked (title matches
+    first), with the matching words shown in context; Enter opens the
+    top hit, and the opened guide highlights every match with
+    previous/next and a match count;
+  - a sticky side rail of guides (each with its own colour and icon)
+    and a live table of contents that follows your scroll; phones get
+    guide chips and a "Jump to" picker;
+  - a real heading hierarchy with anchor links (`?guide=…&section=…`
+    deep links), badges beside abilities, conditions, classes and
+    races, run-in bold leads in the guide colour;
+  - short runs become bulleted lists (long ones in columns), skill
+    lists become chips, rule tables get a tinted header and zebra rows;
+    the Conditions guide is a two-column card grid;
+  - section/read-time/table counts in the header, and back-to-top.
+  The text is unchanged word for word (checked against the JSON: all
+  51,391 words). Sentences the source splits across two strings
+  ("…Athletics," / "Intimidation, …") are shown as one paragraph.
 - **Tidier reference tables.** Monster AC/HP/CR/Speed cells no longer
   wrap into tall stacks: the headline value sits over its detail
   (HP over its dice, CR over a short XP, type over alignment) and the

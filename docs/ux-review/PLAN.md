@@ -130,6 +130,27 @@ Legend: ✅ done · 🚧 in progress · ⛔ not started · ❓ waiting on a deci
   the row and preview header, "fire" shows monster, spell and gear
   badges. Not covered: Safari (JXL path), phone width.
 
+## Phase I — player guides reader
+
+- ✅ I1. `src/ts/guides/guideModel.ts`: parses `src/res/rules/*.json`
+  into sections and blocks (text, list, chips, table) without changing
+  any text, joins the 9 sentences the source splits mid-line, and
+  builds a ranked search index over every section.
+- ✅ I2. `guides/GuideContent.tsx` + `guideVisuals.tsx`: heading
+  hierarchy with anchors and badges, lists/chips/tables, guide colours,
+  Conditions as a card grid.
+- ✅ I3. `mechanics/mechanics.tsx`: cross-guide search with snippets,
+  in-page highlights (CSS Custom Highlight API) with previous/next,
+  sticky rail + scroll-spy contents, `?guide=&section=` deep links,
+  phone chips + "Jump to", back-to-top.
+- Verified (local stack, Chromium): all six guides at 1280px and 375px
+  (no horizontal scroll); "grapple" and "darkvision" open the right
+  section below the match bar with highlights; rendered text equals the
+  JSON word for word. Not covered: browsers without CSS highlights
+  (the search still works, matches just aren't painted).
+- Source data quirk left as is: the Running the Game Travel Pace table
+  lists Normal 18 / Slow 24 miles a day (the PHB has 24 / 18).
+
 ## Verified in the browser (2026-10-23, local stack)
 
 Party auto-sync (4 × L4 → 1,000 XP Medium) · Generate → all ticked ·

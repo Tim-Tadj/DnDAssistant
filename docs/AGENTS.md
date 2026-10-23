@@ -279,6 +279,12 @@ isolation — no schema migration required.
   are computed in both `scripts/build-images.mjs` and
   `src/ts/shared/images.ts` — change them together. Chromium can't
   decode JPEG XL, so it loads the WebP copy.
+- **Player guide text is shown verbatim.** `src/res/rules/*.json` keys
+  are headings (except `content` and `table`); `guides/guideModel.ts`
+  only groups strings into lists/chips/tables and joins sentences the
+  source split mid-line (`joinBrokenLines`). Fix wording in the JSON,
+  not in the renderer. Section ids (used in `?guide=&section=` links)
+  come from the heading titles, so renaming a heading breaks old links.
 - **Frontend Jest/RTL test suite is empty.** The CRA scaffold is in
   place; tests need to be written. See
   [ROADMAP.md](ROADMAP.md) Phase 7.
