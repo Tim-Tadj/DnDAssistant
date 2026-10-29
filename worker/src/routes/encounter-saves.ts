@@ -28,6 +28,7 @@ import { all, first, run } from '../db';
 import { badRequest, forbidden, notFound } from '../lib/errors';
 import { requireAuth } from '../middleware/auth';
 import { ownedCampaign } from '../lib/ownership';
+import { tryLogEvent } from '../lib/events';
 
 type Row = {
   id: string;
@@ -52,6 +53,26 @@ type Row = {
 };
 
 const STATUSES = ['planned', 'played'] as const;
+
+type Combatant = { name?: string; isPC?: boolean; hp?: number; defeated?: boolean };
+
+// "Bell tower ambush — Victory in 4 rounds", plus which PCs went down.
+async function logPlayed(db: D1Database, row: Row) {
+  if (row.status !== 'played' || !row.campaign_id) return;
+  const rounds = row.rounds ? ` in ${row.rounds} round${row.rounds === 1 ? '' : 's'}` : '';
+  const downed = parseJsonArray<Combatant>(row.combatants_json)
+    .filter((c) => c.isPC && (c.defeated || (c.hp ?? 1) <= 0))
+    .map((c) => String(c.name ?? ''))
+    .filter(Boolean);
+  await tryLogEvent(db, row.campaign_id, {
+    kind: 'encounter',
+    text: `${row.name || 'Encounter'}${row.outcome ? ` — ${row.outcome}${rounds}` : rounds}`,
+    ref_kind: 'encounter',
+    ref_id: row.id,
+    session_id: row.session_id ?? undefined,
+    data: { outcome: row.outcome, rounds: row.rounds, xp: row.total_xp, downed },
+  });
+}
 
 function parseJsonArray<T = unknown>(text: string | null): T[] {
   if (!text) return [];
@@ -193,6 +214,7 @@ encounterSaves.post('/', async (c) => {
     ...values,
   );
   const row = await first<Row>(c.env.DB, 'SELECT * FROM encounter_saves WHERE id = ?', id);
+  await logPlayed(c.env.DB, row!);
   return c.json(toJson(row!), 201);
 });
 

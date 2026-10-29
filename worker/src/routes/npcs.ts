@@ -12,6 +12,7 @@ import { all, first, run } from '../db';
 import { badRequest, forbidden, mapDbError, notFound } from '../lib/errors';
 import { requireAuth } from '../middleware/auth';
 import { ownedCampaign } from '../lib/ownership';
+import { liveSessionId, tryLogEvent } from '../lib/events';
 
 type NpcRow = {
   id: string;
@@ -133,6 +134,29 @@ async function updateNpc(c: Context<AppBindings>, id: string, body: Record<strin
   }
 }
 
+// An NPC added mid-session is someone the party just met; a status
+// change (alive → dead, missing, …) is news whenever it happens.
+async function logNewNpc(c: Context<AppBindings>, campaignId: string | null, row: NpcRow) {
+  if (!campaignId || !(await liveSessionId(c.env.DB, campaignId))) return;
+  await tryLogEvent(c.env.DB, campaignId, {
+    kind: 'npc',
+    text: `Met ${row.name}${row.role && row.role !== 'Notable' ? ` (${row.role.toLowerCase()})` : ''}`,
+    ref_kind: 'npc',
+    ref_id: row.id,
+  });
+}
+
+async function logNpcStatus(c: Context<AppBindings>, campaignId: string | null, before: NpcRow, after: NpcRow) {
+  if (!campaignId || before.status === after.status) return;
+  await tryLogEvent(c.env.DB, campaignId, {
+    kind: 'npc',
+    text: `${after.name} is now ${after.status}`,
+    ref_kind: 'npc',
+    ref_id: after.id,
+    data: { from: before.status, to: after.status },
+  });
+}
+
 // ===== Global /api/v1/npcs =================================================
 
 const npcs = new Hono<AppBindings>();
@@ -172,16 +196,18 @@ npcs.post('/', async (c) => {
   const tags = Array.isArray(body.campaign_tags) ? body.campaign_tags.map(String) : [];
   await insertNpc(c, id, campaignId, body, tags);
   const row = await first<NpcRow>(c.env.DB, 'SELECT * FROM campaign_npcs WHERE id = ?', id);
+  if (campaignId) await ownedCampaign(c, campaignId).then(() => logNewNpc(c, campaignId, row!), () => undefined);
   return c.json(toJson(row!), 201);
 });
 
 npcs.put('/:id', async (c) => {
   const id = c.req.param('id');
-  await loadOwnedNpc(c, id);
+  const before = await loadOwnedNpc(c, id);
   const body = (await c.req.json().catch(() => null)) as Record<string, unknown> | null;
   if (!body) throw badRequest('body is required');
   await updateNpc(c, id, body);
   const row = await first<NpcRow>(c.env.DB, 'SELECT * FROM campaign_npcs WHERE id = ?', id);
+  await logNpcStatus(c, before.campaign_id, before, row!);
   return c.json(toJson(row!));
 });
 
@@ -228,17 +254,19 @@ campaignNpcs.post('/', async (c) => {
   if (!tags.includes(campaignId)) tags.push(campaignId);
   await insertNpc(c, id, campaignId, body, tags);
   const row = await first<NpcRow>(c.env.DB, 'SELECT * FROM campaign_npcs WHERE id = ?', id);
+  await logNewNpc(c, campaignId, row!);
   return c.json(toJson(row!), 201);
 });
 
 campaignNpcs.put('/:id', async (c) => {
-  await ownedCampaign(c, c.req.param('campaignId'));
+  const campaignId = await ownedCampaign(c, c.req.param('campaignId'));
   const id = c.req.param('id');
-  await loadOwnedNpc(c, id);
+  const before = await loadOwnedNpc(c, id);
   const body = (await c.req.json().catch(() => null)) as Record<string, unknown> | null;
   if (!body) throw badRequest('body is required');
   await updateNpc(c, id, body);
   const row = await first<NpcRow>(c.env.DB, 'SELECT * FROM campaign_npcs WHERE id = ?', id);
+  await logNpcStatus(c, campaignId, before, row!);
   return c.json(toJson(row!));
 });
 

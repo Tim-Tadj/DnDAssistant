@@ -4,7 +4,8 @@
 //     status, edit)
 //   - parties linked to this campaign
 //   - characters in this campaign (with per-campaign state)
-//   - sessions log
+//   - the timeline (sessions and everything that happened in them)
+//   - threads (quests, rumours, promises)
 //   - NPCs roster
 //   - encounters: prepared ahead of time, and the record of what was played
 //   - linked-entity notes
@@ -16,35 +17,42 @@ import {
   Box,
   Button,
   Chip,
+  IconButton,
   Paper,
   Stack,
   Tab,
   Tabs,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
-import { Map as MapIcon, AutoStories, Casino, Edit, Group, Person, History, People, Save } from '@mui/icons-material';
+import { Map as MapIcon, ArrowBack, AutoStories, Casino, Edit, Flag, Group, History, People, Save, StickyNote2 } from '@mui/icons-material';
+import { CampaignDialog } from '../campaigns/CampaignsHome';
 import { campaignsApi } from '../api/campaigns';
 import { useToast } from './ToastProvider';
 import { Campaign } from '../types/Campaign';
 import CampaignWorkflowBar from './CampaignWorkflowBar';
 import CampaignPartiesPanel from './CampaignPartiesPanel';
 import CampaignCharacters from './CampaignCharacters';
-import SessionsLog from './SessionsLog';
+import CampaignTimeline from '../campaigns/CampaignTimeline';
+import ThreadsPanel from '../campaigns/ThreadsPanel';
+import CampaignOverview from '../campaigns/CampaignOverview';
 import NpcsRoster from './NpcsRoster';
 import EncounterSavesView from '../encounters/EncounterSavesView';
-import CampaignAtAGlance from './CampaignAtAGlance';
 import LinkedText from './LinkedText';
 
-export const HUB_TABS = ['overview', 'parties', 'characters', 'sessions', 'npcs', 'encounters'] as const;
+export const HUB_TABS = ['overview', 'players', 'sessions', 'threads', 'npcs', 'encounters', 'notes'] as const;
+// Older links (search results, bookmarks) used separate Parties and Characters tabs.
+const LEGACY_TABS: Record<string, HubTab> = { parties: 'players', characters: 'players' };
 export type HubTab = typeof HUB_TABS[number];
 
 // The open tab lives in the URL (`#/campaign?tab=sessions`) so search
 // results and other pages can link straight to it.
 function useHubTab(): [HubTab, (t: HubTab) => void] {
   const [params, setParams] = useSearchParams();
-  const raw = params.get('tab') as HubTab | null;
-  const tab = raw && HUB_TABS.includes(raw) ? raw : 'overview';
+  const param = params.get('tab') ?? '';
+  const raw = (LEGACY_TABS[param] ?? param) as HubTab;
+  const tab = HUB_TABS.includes(raw) ? raw : 'overview';
   const setTab = (t: HubTab) =>
     setParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -69,6 +77,7 @@ const CampaignHub: FC<Props> = ({ campaign, onChanged, canEdit = true }) => {
   const { toast } = useToast();
   const [notesDraft, setNotesDraft] = useState<string | null>(null);
   const [savingNotes, setSavingNotes] = useState(false);
+  const [editingDetails, setEditingDetails] = useState(false);
 
   const onSaveNotes = async () => {
     if (notesDraft === null || !campaign.id) return;
@@ -88,6 +97,15 @@ const CampaignHub: FC<Props> = ({ campaign, onChanged, canEdit = true }) => {
   return (
     <Stack spacing={3}>
       <Paper sx={{ p: 2 }}>
+        <Button
+          size="small"
+          color="inherit"
+          startIcon={<ArrowBack fontSize="small" />}
+          onClick={() => navigate('/campaign?view=all')}
+          sx={{ color: 'text.secondary', mb: 1, ml: -0.5 }}
+        >
+          All campaigns
+        </Button>
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ xs: 'flex-start', md: 'center' }}>
           <Box sx={{ flexGrow: 1, minWidth: 0 }}>
             <Stack direction="row" spacing={1} alignItems="center">
@@ -95,6 +113,13 @@ const CampaignHub: FC<Props> = ({ campaign, onChanged, canEdit = true }) => {
               <Typography variant="h3" noWrap>
                 {campaign.name}
               </Typography>
+              {canEdit && (
+                <Tooltip title="Edit name, setting and pitch" arrow>
+                  <IconButton size="small" onClick={() => setEditingDetails(true)} aria-label="Edit campaign details">
+                    <Edit fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
               {campaign.setting && (
                 <Chip
                   label={campaign.setting}
@@ -122,16 +147,19 @@ const CampaignHub: FC<Props> = ({ campaign, onChanged, canEdit = true }) => {
           scrollButtons="auto"
         >
           <Tab value="overview" label="Overview" icon={<AutoStories fontSize="small" />} iconPosition="start" />
-          <Tab value="parties" label="Parties" icon={<People fontSize="small" />} iconPosition="start" />
-          <Tab value="characters" label="Characters" icon={<Person fontSize="small" />} iconPosition="start" />
+          <Tab value="players" label="Players" icon={<People fontSize="small" />} iconPosition="start" />
           <Tab value="sessions" label="Sessions" icon={<History fontSize="small" />} iconPosition="start" />
+          <Tab value="threads" label="Threads" icon={<Flag fontSize="small" />} iconPosition="start" />
           <Tab value="npcs" label="NPCs" icon={<Group fontSize="small" />} iconPosition="start" />
           <Tab value="encounters" label="Encounters" icon={<MapIcon fontSize="small" />} iconPosition="start" />
+          <Tab value="notes" label="Notes" icon={<StickyNote2 fontSize="small" />} iconPosition="start" />
         </Tabs>
         <Box sx={{ p: 2 }}>
           {tab === 'overview' && (
+            <CampaignOverview campaign={campaign} canEdit={canEdit} onOpenTab={setTab} />
+          )}
+          {tab === 'notes' && (
             <Stack spacing={2}>
-              <CampaignAtAGlance campaignId={campaignId} onOpenTab={setTab} />
               {notesDraft !== null ? (
                 <Box>
                   <TextField
@@ -188,9 +216,14 @@ const CampaignHub: FC<Props> = ({ campaign, onChanged, canEdit = true }) => {
               )}
             </Stack>
           )}
-          {tab === 'parties' && <CampaignPartiesPanel campaignId={campaignId} canEdit={canEdit} />}
-          {tab === 'characters' && <CampaignCharacters campaignId={campaignId} canEdit={canEdit} />}
-          {tab === 'sessions' && <SessionsLog campaignId={campaignId} canEdit={canEdit} />}
+          {tab === 'players' && (
+            <Stack spacing={3}>
+              <CampaignPartiesPanel campaignId={campaignId} canEdit={canEdit} />
+              <CampaignCharacters campaignId={campaignId} canEdit={canEdit} />
+            </Stack>
+          )}
+          {tab === 'sessions' && <CampaignTimeline campaignId={campaignId} canEdit={canEdit} />}
+          {tab === 'threads' && <ThreadsPanel campaignId={campaignId} canEdit={canEdit} />}
           {tab === 'npcs' && <NpcsRoster campaignId={campaignId} canEdit={canEdit} />}
           {tab === 'encounters' && (
             <EncounterSavesView
@@ -206,6 +239,7 @@ const CampaignHub: FC<Props> = ({ campaign, onChanged, canEdit = true }) => {
           )}
         </Box>
       </Paper>
+      <CampaignDialog open={editingDetails} campaign={campaign} onClose={() => setEditingDetails(false)} />
     </Stack>
   );
 };

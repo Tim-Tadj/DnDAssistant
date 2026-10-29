@@ -151,6 +151,34 @@ Legend: ✅ done · 🚧 in progress · ⛔ not started · ❓ waiting on a deci
 - Source data quirk left as is: the Running the Game Travel Pace table
   lists Normal 18 / Slow 24 miles a day (the PHB has 24 / 18).
 
+## Phase J — campaigns
+
+- ✅ J1. Multiple campaigns: `campaigns/CampaignsHome.tsx` (My
+  Campaigns page at `#/campaign?view=all`, `CampaignDialog` shared with
+  the hub and the context bar's **New campaign…**).
+- ✅ J2. Hub: All campaigns, edit details, calendar icon for schedule &
+  status.
+- Verified (local stack): create a second campaign → active + hub;
+  both in the switcher; switch back; archive → Archived (1) with
+  Restore; delete. Not covered: phone width.
+- ✅ J3. Prep → Play → Recap, all eight steps of
+  [CAMPAIGNS.md](CAMPAIGNS.md): `campaign_events` + timeline
+  (`campaigns/CampaignTimeline.tsx`, replaces `shared/SessionsLog.tsx`),
+  Next Session card with rollover, Start/End session, Jot + live bar
+  (`campaigns/SessionPlay.tsx`, state in `shared/CampaignPlayContext.tsx`),
+  Threads, hub tidy (`campaigns/CampaignOverview.tsx`), encounter
+  forecast (`encounters/forecast.ts`, `ForecastDialog.tsx`), Copy recap.
+  Migration `0003_campaign_play.sql`.
+- Verified (local stack, 2026-10-29): API lifecycle smoke test
+  (draft → live → played, one-draft rule, rollover, events, stats);
+  in the browser: three quick prep adds (found and fixed a race that
+  dropped the first), tick, Start with attendees, N → Loot jot, live
+  bar, End with drafted recap → 2 items rolled to session 2, Overview
+  last-session block, timeline grouping and character filter, new
+  thread + Advanced → timeline entry, legacy `?tab=parties`, forecast
+  chip. Not covered: phone width, recording an encounter during a live
+  session through the tracker UI (covered by the API test).
+
 ## Verified in the browser (2026-10-23, local stack)
 
 Party auto-sync (4 × L4 → 1,000 XP Medium) · Generate → all ticked ·

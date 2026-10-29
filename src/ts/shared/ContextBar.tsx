@@ -20,10 +20,11 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material';
-import { Check, ExpandMore, Map as MapIcon, People, Settings as SettingsIcon } from '@mui/icons-material';
+import { Add, Check, ExpandMore, Map as MapIcon, People, Settings as SettingsIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useCampaignContext } from './CampaignContext';
 import { useAuth } from '../auth/AuthContext';
+import { CampaignDialog } from '../campaigns/CampaignsHome';
 
 const STATUS_COLORS: Record<string, 'success' | 'warning' | 'default' | 'info'> = {
   active: 'success',
@@ -43,7 +44,8 @@ const Switcher: FC<{
   manageLabel: string;
   onSelect: (id: string) => void;
   onManage: () => void;
-}> = ({ icon, kind, value, options, emptyLabel, manageLabel, onSelect, onManage }) => {
+  onCreate?: () => void;
+}> = ({ icon, kind, value, options, emptyLabel, manageLabel, onSelect, onManage, onCreate }) => {
   const theme = useTheme();
   const narrow = useMediaQuery(theme.breakpoints.down('lg'));
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
@@ -107,6 +109,19 @@ const Switcher: FC<{
           </MenuItem>
         ))}
         <Divider />
+        {onCreate && (
+          <MenuItem
+            onClick={() => {
+              setAnchor(null);
+              onCreate();
+            }}
+          >
+            <ListItemIcon>
+              <Add fontSize="small" />
+            </ListItemIcon>
+            <ListItemText primary={`New ${kind}…`} />
+          </MenuItem>
+        )}
         <MenuItem
           onClick={() => {
             setAnchor(null);
@@ -128,6 +143,7 @@ const ContextBar: FC = () => {
   const navigate = useNavigate();
   const { campaigns, parties, activeCampaign, setActiveCampaignId, activeParty, setActivePartyId } =
     useCampaignContext();
+  const [creating, setCreating] = useState(false);
 
   if (!user) return null;
 
@@ -156,7 +172,13 @@ const ContextBar: FC = () => {
         emptyLabel="No campaign"
         manageLabel="Manage campaigns…"
         onSelect={setActiveCampaignId}
-        onManage={() => navigate('campaign')}
+        onManage={() => navigate('/campaign?view=all')}
+        onCreate={() => setCreating(true)}
+      />
+      <CampaignDialog
+        open={creating}
+        onClose={() => setCreating(false)}
+        onSaved={() => navigate('/campaign?tab=overview')}
       />
       <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
         <Switcher

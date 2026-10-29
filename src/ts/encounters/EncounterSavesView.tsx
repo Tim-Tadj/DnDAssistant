@@ -52,6 +52,7 @@ import { useConfirm } from '../shared/useConfirm';
 import FormDialog, { requireName } from '../shared/FormDialog';
 import { useRunEncounter } from './useRunEncounter';
 import { tally } from './RecordEncounterDialog';
+import { ForecastChip } from './ForecastDialog';
 
 type Props = {
   campaignId: string | null;
@@ -201,6 +202,7 @@ const EncounterSavesView: FC<Props> = ({ campaignId, canEdit = true, emptyAction
                           Test run
                         </Button>
                       </Tooltip>
+                      {campaignId && <ForecastChip campaignId={campaignId} save={s} />}
                     </Stack>
                     {canEdit && <EditDelete onEdit={() => setEditing(s)} onDelete={() => onDelete(s)} />}
                   </CardActions>

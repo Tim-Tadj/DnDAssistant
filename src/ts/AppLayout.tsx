@@ -50,6 +50,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './auth/AuthContext';
 import AuthDialog from './auth/AuthDialog';
 import ContextBar from './shared/ContextBar';
+import { LiveSessionBar, SessionPlayDialogs } from './campaigns/SessionPlay';
 import GlobalSearch from './shared/GlobalSearch';
 import { MonsterStatPaneProvider } from './shared/MonsterStatPane';
 import SettingsDialog from './shared/SettingsDialog';
@@ -478,7 +479,7 @@ const AppLayout: FC = () => {
                   <MenuItem
                     onClick={() => {
                       setUserMenuAnchor(null);
-                      navigate('campaign');
+                      navigate('/campaign?view=all');
                     }}
                   >
                     <ListItemIcon>
@@ -539,6 +540,7 @@ const AppLayout: FC = () => {
               </Stack>
             )}
           </Toolbar>
+          <LiveSessionBar />
         </AppBar>
         <MonsterStatPaneProvider>
           <Box
@@ -559,6 +561,7 @@ const AppLayout: FC = () => {
         defaultMode={authMode}
       />
       <SettingsDialog />
+      <SessionPlayDialogs />
       <GlobalSearch
         open={searchOpen}
         onClose={() => setSearchOpen(false)}

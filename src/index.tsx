@@ -22,6 +22,7 @@ import { CampaignProvider } from './ts/shared/CampaignContext';
 import { ToastProvider } from './ts/shared/ToastProvider';
 import { SettingsProvider } from './ts/shared/SettingsContext';
 import { EncounterProvider } from './ts/encounters/EncounterContext';
+import { CampaignPlayProvider } from './ts/shared/CampaignPlayContext';
 
 const rootElement = document.getElementById('root');
 const root = ReactDOM.createRoot(rootElement!);
@@ -33,11 +34,13 @@ root.render(
       <CampaignProvider>
         <SettingsProvider>
           <ToastProvider>
-            <EncounterProvider>
-              <React.StrictMode>
-                <AppRouter />
-              </React.StrictMode>
-            </EncounterProvider>
+            <CampaignPlayProvider>
+              <EncounterProvider>
+                <React.StrictMode>
+                  <AppRouter />
+                </React.StrictMode>
+              </EncounterProvider>
+            </CampaignPlayProvider>
           </ToastProvider>
         </SettingsProvider>
       </CampaignProvider>

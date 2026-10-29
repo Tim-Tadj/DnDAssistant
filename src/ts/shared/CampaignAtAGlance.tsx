@@ -14,6 +14,7 @@ import { npcsApi } from '../api/npcs';
 import { isPlayed } from '../types/EncounterSave';
 import { CampaignSession } from '../types/CampaignSession';
 import type { HubTab } from './CampaignHub';
+import { useCampaignPlay } from './CampaignPlayContext';
 
 type Stats = {
   parties: number;
@@ -30,10 +31,10 @@ const formatDate = (d?: string | null) => (d ? new Date(`${d}T00:00:00`).toLocal
 const CampaignAtAGlance: FC<{ campaignId: string; onOpenTab: (t: HubTab) => void }> = ({ campaignId, onOpenTab }) => {
   const navigate = useNavigate();
   const [stats, setStats] = useState<Stats | null>(null);
+  const { eventsVersion } = useCampaignPlay();
 
   useEffect(() => {
     let alive = true;
-    setStats(null);
     // Each part loads on its own; one failing shouldn't blank the rest.
     const safe = <T,>(p: Promise<T>, fallback: T) => p.catch(() => fallback);
     Promise.all([
@@ -43,11 +44,12 @@ const CampaignAtAGlance: FC<{ campaignId: string; onOpenTab: (t: HubTab) => void
       safe(npcsApi.list(campaignId), []),
     ]).then(([parties, sessions, saves, npcs]) => {
       if (!alive) return;
-      const byNumber = [...sessions].sort((a, b) => b.session_number - a.session_number);
+      const played = sessions.filter((s) => (s.status ?? 'played') === 'played');
+      const byNumber = [...played].sort((a, b) => b.session_number - a.session_number);
       setStats({
         parties: parties.length,
         members: parties.reduce((acc, p) => acc + (p.member_ids?.length ?? 0), 0),
-        sessions: sessions.length,
+        sessions: played.length,
         lastSession: byNumber[0] ?? null,
         prepared: saves.filter((s) => !isPlayed(s)).length,
         played: saves.filter(isPlayed).length,
@@ -57,7 +59,7 @@ const CampaignAtAGlance: FC<{ campaignId: string; onOpenTab: (t: HubTab) => void
     return () => {
       alive = false;
     };
-  }, [campaignId]);
+  }, [campaignId, eventsVersion]);
 
   const last = stats?.lastSession;
 
@@ -69,7 +71,7 @@ const CampaignAtAGlance: FC<{ campaignId: string; onOpenTab: (t: HubTab) => void
           label="Parties"
           value={stats?.parties}
           detail={stats && (stats.parties ? `${stats.members} characters` : 'Link a party')}
-          onClick={() => onOpenTab('parties')}
+          onClick={() => onOpenTab('players')}
         />
         <Tile
           icon={<History />}
@@ -77,7 +79,7 @@ const CampaignAtAGlance: FC<{ campaignId: string; onOpenTab: (t: HubTab) => void
           value={stats?.sessions}
           detail={
             stats &&
-            (last ? `Last: #${last.session_number}${last.played_on ? `, ${formatDate(last.played_on)}` : ''}` : 'Log your first')
+            (last ? `Last: #${last.session_number}${last.played_on ? `, ${formatDate(last.played_on)}` : ''}` : 'None played yet')
           }
           onClick={() => onOpenTab('sessions')}
         />
@@ -101,7 +103,7 @@ const CampaignAtAGlance: FC<{ campaignId: string; onOpenTab: (t: HubTab) => void
           Prepare an encounter
         </Button>
         <Button size="small" startIcon={<History />} onClick={() => onOpenTab('sessions')}>
-          Log a session
+          Timeline
         </Button>
       </Stack>
     </Stack>

@@ -33,6 +33,15 @@ export type Campaign = {
   owner_user_id?: string;
   created_at?: string;
   updated_at?: string;
+  // Read-only, from GET /campaigns.
+  stats?: CampaignStats;
+};
+
+export type CampaignStats = {
+  sessions_played: number;
+  last_played_on: string | null;
+  live_session: number | null; // session_number of the session in progress
+  party_names: string; // comma-separated
 };
 
 export const defaultCampaign: Campaign = {

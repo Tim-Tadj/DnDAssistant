@@ -74,14 +74,50 @@ function writeValues(body: Record<string, unknown>, name: string) {
   ];
 }
 
+type StatsRow = {
+  campaign_id: string;
+  sessions_played: number;
+  last_played_on: string | null;
+  live_session: number | null;
+  party_names: string | null;
+};
+
+// The list also carries what the campaign cards show: sessions played,
+// when, whether one is live now, and the linked parties.
 campaigns.get('/', async (c) => {
+  const userId = c.get('userId');
   const rows = await all<CampaignRow>(
     c.env.DB,
     `SELECT * FROM campaigns WHERE owner_user_id = ?
      ORDER BY archived ASC, (next_session_on IS NULL), next_session_on ASC, name`,
-    c.get('userId'),
+    userId,
   );
-  return c.json(rows.map(toJson));
+  const stats = await all<StatsRow>(
+    c.env.DB,
+    `SELECT c.id AS campaign_id,
+       (SELECT COUNT(*) FROM campaign_sessions s WHERE s.campaign_id = c.id AND s.status = 'played') AS sessions_played,
+       (SELECT MAX(played_on) FROM campaign_sessions s WHERE s.campaign_id = c.id AND s.status = 'played') AS last_played_on,
+       (SELECT session_number FROM campaign_sessions s WHERE s.campaign_id = c.id AND s.status = 'live') AS live_session,
+       (SELECT GROUP_CONCAT(p.name, ', ') FROM campaign_parties cp JOIN parties p ON p.id = cp.party_id
+          WHERE cp.campaign_id = c.id) AS party_names
+     FROM campaigns c WHERE c.owner_user_id = ?`,
+    userId,
+  ).catch(() => [] as StatsRow[]);
+  const byId = new Map(stats.map((s) => [s.campaign_id, s]));
+  return c.json(
+    rows.map((r) => {
+      const s = byId.get(r.id);
+      return {
+        ...toJson(r),
+        stats: {
+          sessions_played: s?.sessions_played ?? 0,
+          last_played_on: s?.last_played_on ?? null,
+          live_session: s?.live_session ?? null,
+          party_names: s?.party_names ?? '',
+        },
+      };
+    }),
+  );
 });
 
 campaigns.get('/:id', async (c) => {

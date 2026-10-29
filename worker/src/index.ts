@@ -22,6 +22,8 @@ import campaignCharacters from './routes/campaign-characters';
 import campaignParties from './routes/campaign-parties';
 import { encounterSaves, campaignEncounterSaves } from './routes/encounter-saves';
 import importRoutes from './routes/import';
+import events from './routes/events';
+import threads from './routes/threads';
 
 const app = new Hono<AppBindings>();
 
@@ -60,6 +62,8 @@ app.route('/api/v1/campaigns/:campaignId/npcs', campaignNpcs);
 app.route('/api/v1/campaigns/:campaignId/characters', campaignCharacters);
 app.route('/api/v1/campaigns/:campaignId/parties', campaignParties);
 app.route('/api/v1/campaigns/:campaignId/encounters', campaignEncounterSaves);
+app.route('/api/v1/campaigns/:campaignId/events', events);
+app.route('/api/v1/campaigns/:campaignId/threads', threads);
 // Top-level per-user collections
 app.route('/api/v1/npcs', npcs);
 app.route('/api/v1/encounter-saves', encounterSaves);

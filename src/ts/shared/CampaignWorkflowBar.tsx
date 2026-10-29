@@ -7,9 +7,9 @@
  *   "in 3 days")
  * - Cadence chip (weekly / biweekly / monthly / ad-hoc)
  * - Status chip (active / paused / completed)
- * - Quick-action menu: "Mark session played" (bumps
- *   next_session_on by cadence or sets to "next week"),
- *   "Pause", "Resume", "Archive".
+ * - Start session / End session (the session lifecycle lives in
+ *   CampaignPlayContext; this only opens its dialogs)
+ * - Quick-action menu: "Pause", "Resume", "Archive".
  */
 
 import React, { FC, useEffect, useState } from 'react';
@@ -27,10 +27,11 @@ import {
   alpha,
   useTheme,
 } from '@mui/material';
-import { Archive, Edit, Event, MoreVert, Pause, PlayArrow, Save } from '@mui/icons-material';
+import { Archive, EditCalendar, Event, MoreVert, Pause, PlayArrow, Save, Stop } from '@mui/icons-material';
 import { Campaign, CAMPAIGN_CADENCES, CAMPAIGN_STATUSES } from '../types/Campaign';
 import { useToast } from './ToastProvider';
 import { api } from '../api/api-client';
+import { useCampaignPlay } from './CampaignPlayContext';
 
 type Props = {
   campaign: Campaign;
@@ -52,14 +53,6 @@ const formatRelative = (d: string | null): string => {
   return `${-days} days ago`;
 };
 
-const cadenceDays: Record<string, number> = {
-  '': 0,
-  weekly: 7,
-  biweekly: 14,
-  monthly: 30,
-  'ad-hoc': 0,
-};
-
 const CampaignWorkflowBar: FC<Props> = ({ campaign, canEdit = true, onChanged }) => {
   const theme = useTheme();
   const { toast } = useToast();
@@ -67,6 +60,10 @@ const CampaignWorkflowBar: FC<Props> = ({ campaign, canEdit = true, onChanged })
   const [draft, setDraft] = useState<Campaign>(campaign);
   const [saving, setSaving] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
+  const play = useCampaignPlay();
+  // The play state follows the active campaign; this bar may show another.
+  const live = play.campaignId === campaign.id ? play.live : null;
+  const canPlay = play.campaignId === campaign.id;
 
   useEffect(() => {
     setDraft(campaign);
@@ -84,25 +81,6 @@ const CampaignWorkflowBar: FC<Props> = ({ campaign, canEdit = true, onChanged })
     } finally {
       setSaving(false);
     }
-  };
-
-  const onMarkPlayed = async () => {
-    if (!campaign.id) return;
-    setMenuAnchor(null);
-    const today = new Date().toISOString().slice(0, 10);
-    // Push next_session_on by the cadence (or +7 days if ad-hoc).
-    const next = campaign.next_session_on
-      ? new Date(campaign.next_session_on)
-      : new Date(today);
-    const days = cadenceDays[campaign.cadence ?? ''] || 7;
-    next.setDate(next.getDate() + days);
-    const updated: Campaign = {
-      ...campaign,
-      next_session_on: next.toISOString().slice(0, 10),
-      status: 'active',
-      archived: false,
-    };
-    await persist(updated);
   };
 
   const onSetStatus = async (status: string) => {
@@ -159,18 +137,30 @@ const CampaignWorkflowBar: FC<Props> = ({ campaign, canEdit = true, onChanged })
         />
         {canEdit && (
           <>
-            <Button
-              size="small"
-              variant="text"
-              startIcon={<PlayArrow fontSize="small" />}
-              onClick={onMarkPlayed}
-              disabled={saving}
-            >
-              Mark played
-            </Button>
-            <Tooltip title="Edit workflow" arrow>
-              <IconButton size="small" onClick={() => setEditOpen((v) => !v)}>
-                <Edit fontSize="small" />
+            {canPlay &&
+              (live ? (
+                <Button
+                  size="small"
+                  variant="contained"
+                  color="success"
+                  startIcon={<Stop fontSize="small" />}
+                  onClick={() => play.openDialog('end')}
+                >
+                  End session {live.session_number}
+                </Button>
+              ) : (
+                <Button
+                  size="small"
+                  variant="text"
+                  startIcon={<PlayArrow fontSize="small" />}
+                  onClick={() => play.openDialog('start')}
+                >
+                  Start session
+                </Button>
+              ))}
+            <Tooltip title="Schedule & status" arrow>
+              <IconButton size="small" onClick={() => setEditOpen((v) => !v)} aria-label="Edit schedule and status">
+                <EditCalendar fontSize="small" />
               </IconButton>
             </Tooltip>
             <Tooltip title="More actions" arrow>

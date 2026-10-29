@@ -20,6 +20,7 @@ import { all, first, run } from '../db';
 import { badRequest, forbidden, mapDbError, notFound } from '../lib/errors';
 import { requireAuth } from '../middleware/auth';
 import { ownedCampaign } from '../lib/ownership';
+import { liveSessionId, tryLogEvent } from '../lib/events';
 
 const campaignCharacters = new Hono<AppBindings>();
 campaignCharacters.use('*', requireAuth);
@@ -173,9 +174,9 @@ campaignCharacters.put('/:characterId', async (c) => {
 
   // Upsert by (campaign_id, character_id): if the client PUTs without an
   // id (the common case from a re-edit), resolve the existing row first.
-  const existing = await first<{ id: string }>(
+  const existing = await first<Row>(
     c.env.DB,
-    'SELECT id FROM campaign_characters WHERE campaign_id = ? AND character_id = ?',
+    'SELECT * FROM campaign_characters WHERE campaign_id = ? AND character_id = ?',
     campaignId,
     characterId,
   );
@@ -238,8 +239,45 @@ campaignCharacters.put('/:characterId', async (c) => {
     campaignId,
     characterId,
   );
+  if (existing && row) await logCharacterChanges(c, campaignId as string, existing, row);
   return c.json(toJson(row!));
 });
+
+// Level-ups always make the timeline; conditions and death saves only
+// while a session is live (otherwise it's the DM tidying up).
+async function logCharacterChanges(c: Context<AppBindings>, campaignId: string, before: Row, after: Row) {
+  const lines: { text: string; data: Record<string, unknown> }[] = [];
+  const name = (
+    await first<{ name: string }>(c.env.DB, 'SELECT name FROM characters WHERE id = ?', after.character_id)
+  )?.name ?? 'A character';
+  if (after.level > before.level) {
+    lines.push({ text: `${name} reached level ${after.level}`, data: { level: after.level } });
+  }
+  if (await liveSessionId(c.env.DB, campaignId)) {
+    const was = parseConditions(before.conditions);
+    const now = parseConditions(after.conditions);
+    const added = now.filter((x) => !was.includes(x));
+    const removed = was.filter((x) => !now.includes(x));
+    if (added.length) lines.push({ text: `${name} is ${added.join(', ').toLowerCase()}`, data: { added } });
+    if (removed.length) {
+      lines.push({ text: `${name} is no longer ${removed.join(', ').toLowerCase()}`, data: { removed } });
+    }
+    if (after.death_save_failures >= 3 && before.death_save_failures < 3) {
+      lines.push({ text: `${name} failed three death saves`, data: { died: true } });
+    } else if (after.death_save_successes >= 3 && before.death_save_successes < 3) {
+      lines.push({ text: `${name} stabilised`, data: { stabilised: true } });
+    }
+  }
+  for (const l of lines) {
+    await tryLogEvent(c.env.DB, campaignId, {
+      kind: 'character',
+      text: l.text,
+      ref_kind: 'character',
+      ref_id: after.character_id,
+      data: l.data,
+    });
+  }
+}
 
 campaignCharacters.delete('/:characterId', async (c) => {
   const campaignId = c.req.param('campaignId');

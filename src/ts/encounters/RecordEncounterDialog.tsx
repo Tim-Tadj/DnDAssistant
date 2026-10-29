@@ -18,9 +18,10 @@ import { useEncounter } from './EncounterContext';
 import { useCampaignContext } from '../shared/CampaignContext';
 import FormDialog from '../shared/FormDialog';
 import { sessionsApi } from '../api/sessions';
+import { useCampaignPlay } from '../shared/CampaignPlayContext';
 import { encounterSavesApi } from '../api/encounter-saves';
 import { collapseMonstersToRefs } from '../api/hydrate-encounter';
-import { CampaignSession, defaultCampaignSession } from '../types/CampaignSession';
+import { CampaignSession, defaultCampaignSession, isPlayedSession } from '../types/CampaignSession';
 import { CombatantResult, EncounterSave, OUTCOMES } from '../types/EncounterSave';
 
 const NEW_SESSION = '__new__';
@@ -36,7 +37,7 @@ export const tally = (rs: CombatantResult[]) => {
 };
 
 const sessionLabel = (s: CampaignSession) =>
-  `#${s.session_number}${s.title ? ` · ${s.title}` : ''}${s.played_on ? ` (${s.played_on})` : ''}`;
+  `#${s.session_number}${s.title ? ` · ${s.title}` : ''}${s.status === 'live' ? ' (in progress)' : s.played_on ? ` (${s.played_on})` : ''}`;
 
 type Props = {
   open: boolean;
@@ -47,6 +48,7 @@ type Props = {
 const RecordEncounterDialog: FC<Props> = ({ open, onClose, onSaved }) => {
   const enc = useEncounter();
   const { activeCampaign } = useCampaignContext();
+  const play = useCampaignPlay();
   const campaignId = activeCampaign?.id ?? null;
 
   const [sessions, setSessions] = useState<CampaignSession[]>([]);
@@ -83,21 +85,25 @@ const RecordEncounterDialog: FC<Props> = ({ open, onClose, onSaved }) => {
     setSessions([]);
     setSessionId(campaignId ? NEW_SESSION : NO_SESSION);
     if (!campaignId) return;
-    // Default to the latest session; offer a new one when there is none.
+    // Default to the live session, else the latest played one; offer a
+    // new one when there is none. The planned draft isn't pickable, but
+    // "New session" fills it in rather than making a second one.
     sessionsApi
       .list(campaignId)
       .then((list) => {
         setSessions(list);
-        const latest = list[0];
-        if (latest?.id) {
-          setSessionId(latest.id);
-          if (latest.played_on) setPlayedOn(latest.played_on);
+        const pick = list.find((s) => s.status === 'live') ?? list.find(isPlayedSession);
+        if (pick?.id) {
+          setSessionId(pick.id);
+          if (pick.played_on) setPlayedOn(pick.played_on);
         }
       })
       .catch(() => undefined);
   }, [open]);
 
-  const nextNumber = sessions.reduce((acc, s) => Math.max(acc, s.session_number), 0) + 1;
+  const draft = sessions.find((s) => s.status === 'planned');
+  const pickable = sessions.filter((s) => s.status !== 'planned');
+  const nextNumber = draft?.session_number ?? sessions.reduce((acc, s) => Math.max(acc, s.session_number), 0) + 1;
 
   const onSessionChange = (id: string) => {
     setSessionId(id);
@@ -108,7 +114,10 @@ const RecordEncounterDialog: FC<Props> = ({ open, onClose, onSaved }) => {
   const save = async () => {
     if (!name.trim()) throw new Error('Name is required');
     let session: string | null = sessionId || null;
-    if (sessionId === NEW_SESSION && campaignId) {
+    if (sessionId === NEW_SESSION && campaignId && draft?.id) {
+      await sessionsApi.update(campaignId, draft.id, { status: 'played', played_on: playedOn });
+      session = draft.id;
+    } else if (sessionId === NEW_SESSION && campaignId) {
       const created = await sessionsApi.create(campaignId, {
         ...defaultCampaignSession,
         session_number: nextNumber,
@@ -137,6 +146,8 @@ const RecordEncounterDialog: FC<Props> = ({ open, onClose, onSaved }) => {
       combatants: results,
     });
     onSaved(record);
+    void play.reload();
+    play.bumpEvents();
   };
 
   return (
@@ -178,7 +189,7 @@ const RecordEncounterDialog: FC<Props> = ({ open, onClose, onSaved }) => {
             helperText={campaignId ? undefined : 'Pick a campaign at the top to tie this to a session'}
           >
             {campaignId && <MenuItem value={NEW_SESSION}>New session #{nextNumber}</MenuItem>}
-            {sessions.map((s) => (
+            {pickable.map((s) => (
               <MenuItem key={s.id} value={s.id}>
                 {sessionLabel(s)}
               </MenuItem>

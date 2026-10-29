@@ -15,6 +15,37 @@ start a fresh `[Unreleased]` section.
 ## [Unreleased]
 
 ### Added
+- **Campaigns: Prep → Play → Recap** (proposal and reasoning in
+  `docs/ux-review/CAMPAIGNS.md`).
+  - **Next Session card** at the top of a campaign's Overview: strong
+    start, a prep checklist that can link a prepared encounter, an NPC
+    or a thread, and a "Forecast the day" button. Unticked prep moves to
+    the next session when you end one.
+  - **Start session / End session** replace "Mark played". While a
+    session is live, a bar under the top bar shows the elapsed time, the
+    latest entry, **Jot** and **End**. Ending drafts the recap from what
+    happened, suggests the next date from the cadence, and says how many
+    prep items rolled over.
+  - **Jot** (button, or press **N** while a session is live): one line,
+    an optional tag (clue, loot, promise, rule call, quote), and a
+    **DM only** switch.
+  - **Timeline** (Sessions tab): fights recorded, level-ups, conditions,
+    NPCs met, threads advanced and jots, grouped by session, written by
+    the server as you use the app (`campaign_events`, migration 0003).
+    Search, tag filters, and an **About** filter that shows one
+    character's, NPC's or thread's history (characters get a summary:
+    sessions, fights, times dropped to 0). Past sessions can still be
+    logged by hand.
+  - **Threads** tab: quests, rumours and promises with a next step;
+    **Advanced** logs the step to the timeline and asks for the next.
+  - **Encounter forecast**: a Monte Carlo of the party against a
+    prepared encounter (win chance, rounds, who drops), shown as a chip
+    on prepared encounters, plus an adventuring-day view that carries
+    HP between fights with or without short rests.
+  - **Copy recap** for players on any played session; DM-only jots are
+    left out.
+  - Campaign cards show the party, sessions played, when you last
+    played, and a badge while a session is live.
 - **Pictures and badges in every list.** Monster rows show a thumbnail
   of the monster's art; monsters that only have D&D Beyond's stock
   picture (beast/humanoid/undead/plant/ooze) get a creature-type badge
@@ -94,7 +125,23 @@ start a fresh `[Unreleased]` section.
   "Unknown class" instead of "?". Classes and races are fetched once
   per page load (`shared/useReference`).
 
+### Changed
+- **Campaign hub tabs:** Overview, Players (parties and characters
+  together), Sessions, Threads, NPCs, Encounters, Notes. The Overview is
+  now Next Session, open threads, last session and the party; campaign
+  notes have their own tab. Old `?tab=parties` / `?tab=characters`
+  links open Players.
+
 ### Fixed
+- **You can have more than one campaign.** Once a campaign was active,
+  the Campaigns page only ever showed its hub, so there was no way back
+  to the list or to "New campaign". There's now a **My Campaigns** page
+  (cards with the current one marked, Archived with Restore, Delete
+  with a confirm), reached from **All campaigns** in the hub, the
+  top-bar switcher (**New campaign…**, **Manage campaigns…**) and the
+  user menu. A new campaign becomes active and opens in its hub. The
+  hub can now edit a campaign's name, setting and pitch, and the
+  schedule/status button has its own calendar icon.
 - Session dates no longer show the previous day west of UTC.
 
 - **UX overhaul (see `docs/ux-review/`).** Encounters are a clear
